@@ -111,20 +111,32 @@ function promptConfirm(question: string): Promise<boolean> {
   });
 }
 
+function formatAge(isoDate: string): string {
+  const ms = Date.now() - new Date(isoDate).getTime();
+  const mins = Math.floor(ms / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 function formatTask(task: Task, verbose: boolean = false, treePrefix: string = ""): string {
   const statusIcon = task.status === "completed" ? "[x]" : "[ ]";
   const statusColor = task.status === "completed" ? colors.green : colors.yellow;
   const priority = task.priority !== 1 ? ` ${colors.cyan}[p${task.priority}]${colors.reset}` : "";
-  const project = task.project !== "default" ? ` ${colors.dim}(${task.project})${colors.reset}` : "";
+  const completionAge = task.status === "completed" && task.completed_at
+    ? ` ${colors.dim}(${formatAge(task.completed_at)})${colors.reset}`
+    : "";
 
-  let output = `${treePrefix}${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}${priority}${project}: ${task.description}`;
+  let output = `${treePrefix}${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}${priority}: ${task.description}${completionAge}`;
 
   if (verbose) {
     const labelWidth = 12;
     // For verbose output, create a continuation prefix that aligns with the tree
     const verbosePrefix = treePrefix
-      .replace(/\|-- $/, "|   ")
-      .replace(/`-- $/, "    ");
+      .replace(/├── $/, "│   ")
+      .replace(/└── $/, "    ");
     output += `\n${verbosePrefix}  ${"Context:".padEnd(labelWidth)} ${task.context}`;
     if (task.result) {
       output += `\n${verbosePrefix}  ${"Result:".padEnd(labelWidth)} ${colors.green}${task.result}${colors.reset}`;
@@ -393,8 +405,8 @@ function printTaskTree(tasks: Task[], parentId: string | null, prefix: string = 
       printTaskTree(tasks, task.id, "", false);
     } else {
       // Child tasks: use tree connectors
-      const connector = isLast ? "`-- " : "|-- ";
-      const childPrefix = prefix + (isLast ? "    " : "|   ");
+      const connector = isLast ? "└── " : "├── ";
+      const childPrefix = prefix + (isLast ? "    " : "│   ");
       console.log(formatTask(task, false, prefix + connector));
       printTaskTree(tasks, task.id, childPrefix, false);
     }

@@ -1,125 +1,19 @@
 {
   "tasks": [
     {
-      "id": "i727cnlw",
+      "id": "0exr3phi",
       "parent_id": null,
-      "project": "code-review",
-      "description": "Review types.ts",
-      "context": "Review Zod schemas, validation rules, type safety. Check for missing validations, proper defaults, and schema consistency.",
+      "project": "enhancements",
+      "description": "Improve CLI list output with nested subtasks",
+      "context": "The list command should visually nest subtasks under their parents with tree-like formatting (indentation or tree characters).",
       "priority": 1,
       "status": "completed",
-      "result": "Added min validations, datetime for timestamps. Priority allows 0 for highest.",
-      "created_at": "2026-01-22T08:05:19.226Z",
-      "updated_at": "2026-01-22T08:22:18.195Z"
+      "result": "Added ASCII tree characters (|-- and `--) for nested subtask display",
+      "created_at": "2026-01-22T08:33:03.571Z",
+      "updated_at": "2026-01-22T08:38:39.566Z",
+      "completed_at": "2026-01-22T08:38:39.566Z"
     },
-    {
-      "id": "8d0cnol6",
-      "parent_id": null,
-      "project": "code-review",
-      "description": "Review index.ts",
-      "context": "Review entry point, argument parsing, error handling. Check for edge cases in arg parsing and proper error propagation.",
-      "priority": 1,
-      "status": "completed",
-      "result": "Better --storage-path error handling and =value syntax support",
-      "created_at": "2026-01-22T08:05:19.627Z",
-      "updated_at": "2026-01-22T08:22:25.385Z"
-    },
-    {
-      "id": "94b4gmzs",
-      "parent_id": null,
-      "project": "code-review",
-      "description": "Review core/storage.ts",
-      "context": "Review file I/O, git root detection, error handling. Check for race conditions, proper error messages, and edge cases like missing directories or corrupted JSON.",
-      "priority": 1,
-      "status": "completed",
-      "result": "Atomic writes, safe JSON parsing, TOCTOU fixes, worktree support",
-      "created_at": "2026-01-22T08:05:20.017Z",
-      "updated_at": "2026-01-22T08:22:25.480Z"
-    },
-    {
-      "id": "1u1i8r5k",
-      "parent_id": null,
-      "project": "code-review",
-      "description": "Review core/task-service.ts",
-      "context": "Review business logic, edge cases, consistency. Check update/delete semantics, ID generation, and proper timestamp handling.",
-      "priority": 1,
-      "status": "completed",
-      "result": "Fixed complete() to check all descendants, update() now throws on not found",
-      "created_at": "2026-01-22T08:05:20.413Z",
-      "updated_at": "2026-01-22T08:22:25.574Z"
-    },
-    {
-      "id": "jp2shtxi",
-      "parent_id": null,
-      "project": "code-review",
-      "description": "Review mcp/server.ts",
-      "context": "Review MCP setup, tool registration, error handling. Check for proper async handling and schema validation.",
-      "priority": 1,
-      "status": "completed",
-      "result": "Added Zod error handling with user-friendly formatting",
-      "created_at": "2026-01-22T08:05:20.795Z",
-      "updated_at": "2026-01-22T08:25:58.881Z"
-    },
-    {
-      "id": "zhpk2mgj",
-      "parent_id": null,
-      "project": "code-review",
-      "description": "Review cli/commands.ts",
-      "context": "Review command handling, UX, error messages. Check for consistent error handling, helpful output, and proper exit codes.",
-      "priority": 1,
-      "status": "completed",
-      "result": "Validated --status and numeric flags, fixed empty flag handling",
-      "created_at": "2026-01-22T08:05:21.191Z",
-      "updated_at": "2026-01-22T08:32:51.648Z"
-    },
-    {
-      "id": "q8i8zrtv",
-      "parent_id": null,
-      "project": "code-review",
-      "description": "Review tools/*.ts",
-      "context": "Review MCP tool handlers (create-task, update-task, list-tasks, list-projects, response). Check for response consistency, proper error handling, and schema alignment.",
-      "priority": 1,
-      "status": "completed",
-      "result": "Aligned schemas with types.ts, consistent JSON responses, added error handling",
-      "created_at": "2026-01-22T08:05:30.379Z",
-      "updated_at": "2026-01-22T08:25:58.976Z"
-    },
-    {
-      "id": "llqse2o0",
-      "parent_id": null,
-      "project": "code-review",
-      "description": "Review config files",
-      "context": "Review tsconfig.json and package.json for correctness. Check compiler options, dependencies, and package metadata.",
-      "priority": 1,
-      "status": "completed",
-      "result": "Added main, types, exports, files fields to package.json",
-      "created_at": "2026-01-22T08:05:30.768Z",
-      "updated_at": "2026-01-22T08:25:59.072Z"
-    },
-    {
-      "id": "n37z272m",
-      "parent_id": null,
-      "project": "code-review",
-      "description": "Review error handling patterns",
-      "context": "Cross-cutting review of error handling across the codebase. Look for inconsistent patterns, silent failures, missing error cases.",
-      "priority": 1,
-      "status": "completed",
-      "result": "Added typed error classes with suggestions, consistent throw-based errors",
-      "created_at": "2026-01-22T08:05:31.179Z",
-      "updated_at": "2026-01-22T08:32:51.744Z"
-    },
-    {
-      "id": "72swtblt",
-      "parent_id": null,
-      "project": "code-review",
-      "description": "Add test coverage",
-      "context": "The project has no tests. Add unit tests for core logic (TaskService, Storage) and integration tests for CLI and MCP interfaces.",
-      "priority": 1,
-      "status": "completed",
-      "result": "Added Vitest test suite with 59 tests",
-      "created_at": "2026-01-22T08:05:31.581Z",
-      "updated_at": "2026-01-22T08:26:18.799Z"
-    },
+
     {
       "id": "0g7kgxn8",
       "parent_id": null,
@@ -130,116 +24,10 @@
       "status": "completed",
       "result": "Build verified throughout review process",
       "created_at": "2026-01-22T08:05:32.003Z",
-      "updated_at": "2026-01-22T08:26:18.895Z"
+      "updated_at": "2026-01-22T08:26:18.895Z",
+      "completed_at": null
     },
-    {
-      "id": "t72fyvt2",
-      "parent_id": null,
-      "project": "enhancements",
-      "description": "Add subtask support (parent_id)",
-      "context": "Add parent_id to tasks for subtask hierarchy. Simpler than full dependency graph.\n\nBehavior:\n- Tasks can have a parent_id referencing another task\n- Parent can't complete until all children complete\n- List shows hierarchy (indented or tree view)\n- Optional: hierarchical IDs like beads (abc123.1, abc123.1.1)\n\nSkip for now:\n- Cross-task depends_on/blocked_by\n- 'ready' command (unblocked tasks)\n\nPrior art: github.com/steveyegge/beads (full graph model)",
-      "priority": 0,
-      "status": "completed",
-      "result": "Implemented parent_id support: create/edit with --parent, tree view in list, subtask count in show, completion blocking, cascade delete. Updated types, task-service, CLI, and MCP tools.",
-      "created_at": "2026-01-22T08:06:39.947Z",
-      "updated_at": "2026-01-22T08:13:39.602Z"
-    },
-    {
-      "id": "kkfwtp28",
-      "parent_id": null,
-      "project": "enhancements",
-      "description": "Update types.ts for parent_id",
-      "context": "Add parent_id: z.string().nullable().default(null) to TaskSchema. Add to CreateTaskInput and UpdateTaskInput schemas.",
-      "priority": 1,
-      "status": "completed",
-      "result": "Added parent_id to TaskSchema, CreateTaskInputSchema, and UpdateTaskInputSchema",
-      "created_at": "2026-01-22T08:09:32.617Z",
-      "updated_at": "2026-01-22T08:10:02.088Z"
-    },
-    {
-      "id": "gla3hnb2",
-      "parent_id": null,
-      "project": "enhancements",
-      "description": "Update task-service.ts for parent_id",
-      "context": "Handle parent validation on create/update. Add getChildren(id) method. Block completion if children pending. Cascade delete or error on parent delete.",
-      "priority": 1,
-      "status": "completed",
-      "result": "Added parent validation in create/update, cycle detection, cascade delete, getChildren method, and completion blocking on pending children",
-      "created_at": "2026-01-22T08:09:41.176Z",
-      "updated_at": "2026-01-22T08:10:56.697Z"
-    },
-    {
-      "id": "qshyah2e",
-      "parent_id": null,
-      "project": "enhancements",
-      "description": "Update CLI for parent_id",
-      "context": "Add --parent flag to create command. Update list to show tree structure. Update show to display subtask count. Update complete to check for pending children.",
-      "priority": 1,
-      "status": "completed",
-      "result": "Added --parent flag to create/edit, tree display in list with --flat option, subtask count in show, error handling for completion blocking",
-      "created_at": "2026-01-22T08:09:41.607Z",
-      "updated_at": "2026-01-22T08:12:26.059Z"
-    },
-    {
-      "id": "g67lqf69",
-      "parent_id": null,
-      "project": "enhancements",
-      "description": "Update MCP tools for parent_id",
-      "context": "Add parent_id to create_task and update_task schemas. Update list_tasks to include parent info.",
-      "priority": 1,
-      "status": "completed",
-      "result": "Added parent_id to create_task and update_task schemas with error handling",
-      "created_at": "2026-01-22T08:09:42.043Z",
-      "updated_at": "2026-01-22T08:13:02.607Z"
-    },
-    {
-      "id": "2mzbmm8x",
-      "parent_id": null,
-      "project": "enhancements",
-      "description": "Update dex skill with subtask guidance",
-      "context": "Update skills/dex/SKILL.md to explain subtask usage. Keep concise. Cover: --parent flag for creating subtasks, tree display in list, completion blocking, when to use subtasks vs separate tasks.",
-      "priority": 1,
-      "status": "completed",
-      "result": "Added Subtasks section covering --parent flag, tree view, and completion rules",
-      "created_at": "2026-01-22T08:11:47.782Z",
-      "updated_at": "2026-01-22T08:15:52.205Z"
-    },
-    {
-      "id": "p2tt9ce8",
-      "parent_id": null,
-      "project": "enhancements",
-      "description": "Optimize AGENTS.md for minimal token usage",
-      "context": "Find the most concise way to instruct agents to use dex instead of TodoWrite. Current text may be too verbose. Goal: minimal tokens while being unambiguous.",
-      "priority": 1,
-      "status": "completed",
-      "result": "Reduced to single line: 50% token reduction while maintaining clarity",
-      "created_at": "2026-01-22T08:12:31.851Z",
-      "updated_at": "2026-01-22T08:15:52.301Z"
-    },
-    {
-      "id": "odn7uz8l",
-      "parent_id": null,
-      "project": "enhancements",
-      "description": "Make CLI a great user experience",
-      "context": "Improve CLI UX while maintaining terminal compatibility. Consider:\n- Better output formatting and alignment\n- Color support (with fallback for no-color terminals)\n- Clearer error messages with suggestions\n- Progress indicators for operations\n- Interactive confirmations for destructive actions\n- Tab completion\n- Consistent output for scripting (--json flag?)\n\nMust work in all terminals - no fancy Unicode that might not render.",
-      "priority": 1,
-      "status": "completed",
-      "result": "Added colors (NO_COLOR support), --json output, command suggestions, delete confirmation, improved error messages, column alignment",
-      "created_at": "2026-01-22T08:13:50.998Z",
-      "updated_at": "2026-01-22T08:19:33.565Z"
-    },
-    {
-      "id": "lujm9kvt",
-      "parent_id": null,
-      "project": "enhancements",
-      "description": "Add test suite",
-      "context": "Set up a basic test suite using modern tooling (Vitest recommended). Focus on:\n- Core business logic (TaskService CRUD, parent/child relationships)\n- Storage layer (read/write, error handling)\n- CLI argument parsing\n\nBest practices:\n- Use real file system with temp directories, avoid mocking storage\n- Test behavior not implementation\n- Focus on edge cases and error paths\n- Keep tests fast and isolated",
-      "priority": 0,
-      "status": "completed",
-      "result": "Added Vitest with 59 tests covering TaskService and Storage",
-      "created_at": "2026-01-22T08:22:33.268Z",
-      "updated_at": "2026-01-22T08:25:59.166Z"
-    },
+
     {
       "id": "162r0wsp",
       "parent_id": null,
@@ -250,8 +38,122 @@
       "status": "completed",
       "result": "Added --help/-h to all commands with usage and examples",
       "created_at": "2026-01-22T08:26:06.782Z",
-      "updated_at": "2026-01-22T08:32:51.840Z"
+      "updated_at": "2026-01-22T08:32:51.840Z",
+      "completed_at": null
     },
+
+    {
+      "id": "1u1i8r5k",
+      "parent_id": null,
+      "project": "code-review",
+      "description": "Review core/task-service.ts",
+      "context": "Review business logic, edge cases, consistency. Check update/delete semantics, ID generation, and proper timestamp handling.",
+      "priority": 1,
+      "status": "completed",
+      "result": "Fixed complete() to check all descendants, update() now throws on not found",
+      "created_at": "2026-01-22T08:05:20.413Z",
+      "updated_at": "2026-01-22T08:22:25.574Z",
+      "completed_at": null
+    },
+
+    {
+      "id": "2mzbmm8x",
+      "parent_id": null,
+      "project": "enhancements",
+      "description": "Update dex skill with subtask guidance",
+      "context": "Update skills/dex/SKILL.md to explain subtask usage. Keep concise. Cover: --parent flag for creating subtasks, tree display in list, completion blocking, when to use subtasks vs separate tasks.",
+      "priority": 1,
+      "status": "completed",
+      "result": "Added Subtasks section covering --parent flag, tree view, and completion rules",
+      "created_at": "2026-01-22T08:11:47.782Z",
+      "updated_at": "2026-01-22T08:15:52.205Z",
+      "completed_at": null
+    },
+
+    {
+      "id": "72swtblt",
+      "parent_id": null,
+      "project": "code-review",
+      "description": "Add test coverage",
+      "context": "The project has no tests. Add unit tests for core logic (TaskService, Storage) and integration tests for CLI and MCP interfaces.",
+      "priority": 1,
+      "status": "completed",
+      "result": "Added Vitest test suite with 59 tests",
+      "created_at": "2026-01-22T08:05:31.581Z",
+      "updated_at": "2026-01-22T08:26:18.799Z",
+      "completed_at": null
+    },
+
+    {
+      "id": "8d0cnol6",
+      "parent_id": null,
+      "project": "code-review",
+      "description": "Review index.ts",
+      "context": "Review entry point, argument parsing, error handling. Check for edge cases in arg parsing and proper error propagation.",
+      "priority": 1,
+      "status": "completed",
+      "result": "Better --storage-path error handling and =value syntax support",
+      "created_at": "2026-01-22T08:05:19.627Z",
+      "updated_at": "2026-01-22T08:22:25.385Z",
+      "completed_at": null
+    },
+
+    {
+      "id": "94b4gmzs",
+      "parent_id": null,
+      "project": "code-review",
+      "description": "Review core/storage.ts",
+      "context": "Review file I/O, git root detection, error handling. Check for race conditions, proper error messages, and edge cases like missing directories or corrupted JSON.",
+      "priority": 1,
+      "status": "completed",
+      "result": "Atomic writes, safe JSON parsing, TOCTOU fixes, worktree support",
+      "created_at": "2026-01-22T08:05:20.017Z",
+      "updated_at": "2026-01-22T08:22:25.480Z",
+      "completed_at": null
+    },
+
+    {
+      "id": "cywm9e1w",
+      "parent_id": null,
+      "project": "enhancements",
+      "description": "Add completed_at timestamp to tasks",
+      "context": "Track when tasks are completed separately from updated_at. Add completed_at field that gets set when status changes to completed.",
+      "priority": 1,
+      "status": "completed",
+      "result": "Added completed_at field, set on completion, cleared on reopen",
+      "created_at": "2026-01-22T08:33:03.475Z",
+      "updated_at": "2026-01-22T08:38:39.461Z",
+      "completed_at": "2026-01-22T08:38:39.461Z"
+    },
+
+    {
+      "id": "g67lqf69",
+      "parent_id": null,
+      "project": "enhancements",
+      "description": "Update MCP tools for parent_id",
+      "context": "Add parent_id to create_task and update_task schemas. Update list_tasks to include parent info.",
+      "priority": 1,
+      "status": "completed",
+      "result": "Added parent_id to create_task and update_task schemas with error handling",
+      "created_at": "2026-01-22T08:09:42.043Z",
+      "updated_at": "2026-01-22T08:13:02.607Z",
+      "completed_at": null
+    },
+
+    {
+      "id": "gla3hnb2",
+      "parent_id": null,
+      "project": "enhancements",
+      "description": "Update task-service.ts for parent_id",
+      "context": "Handle parent validation on create/update. Add getChildren(id) method. Block completion if children pending. Cascade delete or error on parent delete.",
+      "priority": 1,
+      "status": "completed",
+      "result": "Added parent validation in create/update, cycle detection, cascade delete, getChildren method, and completion blocking on pending children",
+      "created_at": "2026-01-22T08:09:41.176Z",
+      "updated_at": "2026-01-22T08:10:56.697Z",
+      "completed_at": null
+    },
+
     {
       "id": "gxxrliuo",
       "parent_id": null,
@@ -262,44 +164,10 @@
       "status": "completed",
       "result": "Created .claude/settings.json with build, test, and read-only permissions",
       "created_at": "2026-01-22T08:26:06.877Z",
-      "updated_at": "2026-01-22T08:32:51.937Z"
+      "updated_at": "2026-01-22T08:32:51.937Z",
+      "completed_at": null
     },
-    {
-      "id": "cywm9e1w",
-      "parent_id": null,
-      "project": "enhancements",
-      "description": "Add completed_at timestamp to tasks",
-      "context": "Track when tasks are completed separately from updated_at. Add completed_at field that gets set when status changes to completed.",
-      "priority": 1,
-      "status": "pending",
-      "result": null,
-      "created_at": "2026-01-22T08:33:03.475Z",
-      "updated_at": "2026-01-22T08:33:03.475Z"
-    },
-    {
-      "id": "0exr3phi",
-      "parent_id": null,
-      "project": "enhancements",
-      "description": "Improve CLI list output with nested subtasks",
-      "context": "The list command should visually nest subtasks under their parents with tree-like formatting (indentation or tree characters).",
-      "priority": 1,
-      "status": "pending",
-      "result": null,
-      "created_at": "2026-01-22T08:33:03.571Z",
-      "updated_at": "2026-01-22T08:33:03.571Z"
-    },
-    {
-      "id": "vflxvmp7",
-      "parent_id": null,
-      "project": "enhancements",
-      "description": "Add proper CLI argument validation",
-      "context": "Use a proper CLI parser or add validation to reject unknown flags/arguments instead of silently ignoring them. Consider using a lightweight parser like minimist or just improve the existing parser.",
-      "priority": 1,
-      "status": "pending",
-      "result": null,
-      "created_at": "2026-01-22T08:33:03.665Z",
-      "updated_at": "2026-01-22T08:33:03.665Z"
-    },
+
     {
       "id": "h3npzw1n",
       "parent_id": null,
@@ -307,10 +175,207 @@
       "description": "Make storage format git-friendly",
       "context": "Ensure the .dex/tasks.json format won't cause merge conflicts for teams who commit it. Consider: stable sorting, deterministic output, maybe one task per line (JSONL)?",
       "priority": 1,
+      "status": "completed",
+      "result": "Sort by ID, consistent field order, blank lines between tasks",
+      "created_at": "2026-01-22T08:33:03.766Z",
+      "updated_at": "2026-01-22T08:38:39.772Z",
+      "completed_at": "2026-01-22T08:38:39.772Z"
+    },
+
+    {
+      "id": "i727cnlw",
+      "parent_id": null,
+      "project": "code-review",
+      "description": "Review types.ts",
+      "context": "Review Zod schemas, validation rules, type safety. Check for missing validations, proper defaults, and schema consistency.",
+      "priority": 1,
+      "status": "completed",
+      "result": "Added min validations, datetime for timestamps. Priority allows 0 for highest.",
+      "created_at": "2026-01-22T08:05:19.226Z",
+      "updated_at": "2026-01-22T08:22:18.195Z",
+      "completed_at": null
+    },
+
+    {
+      "id": "jp2shtxi",
+      "parent_id": null,
+      "project": "code-review",
+      "description": "Review mcp/server.ts",
+      "context": "Review MCP setup, tool registration, error handling. Check for proper async handling and schema validation.",
+      "priority": 1,
+      "status": "completed",
+      "result": "Added Zod error handling with user-friendly formatting",
+      "created_at": "2026-01-22T08:05:20.795Z",
+      "updated_at": "2026-01-22T08:25:58.881Z",
+      "completed_at": null
+    },
+
+    {
+      "id": "kkfwtp28",
+      "parent_id": null,
+      "project": "enhancements",
+      "description": "Update types.ts for parent_id",
+      "context": "Add parent_id: z.string().nullable().default(null) to TaskSchema. Add to CreateTaskInput and UpdateTaskInput schemas.",
+      "priority": 1,
+      "status": "completed",
+      "result": "Added parent_id to TaskSchema, CreateTaskInputSchema, and UpdateTaskInputSchema",
+      "created_at": "2026-01-22T08:09:32.617Z",
+      "updated_at": "2026-01-22T08:10:02.088Z",
+      "completed_at": null
+    },
+
+    {
+      "id": "llqse2o0",
+      "parent_id": null,
+      "project": "code-review",
+      "description": "Review config files",
+      "context": "Review tsconfig.json and package.json for correctness. Check compiler options, dependencies, and package metadata.",
+      "priority": 1,
+      "status": "completed",
+      "result": "Added main, types, exports, files fields to package.json",
+      "created_at": "2026-01-22T08:05:30.768Z",
+      "updated_at": "2026-01-22T08:25:59.072Z",
+      "completed_at": null
+    },
+
+    {
+      "id": "lujm9kvt",
+      "parent_id": null,
+      "project": "enhancements",
+      "description": "Add test suite",
+      "context": "Set up a basic test suite using modern tooling (Vitest recommended). Focus on:\n- Core business logic (TaskService CRUD, parent/child relationships)\n- Storage layer (read/write, error handling)\n- CLI argument parsing\n\nBest practices:\n- Use real file system with temp directories, avoid mocking storage\n- Test behavior not implementation\n- Focus on edge cases and error paths\n- Keep tests fast and isolated",
+      "priority": 0,
+      "status": "completed",
+      "result": "Added Vitest with 59 tests covering TaskService and Storage",
+      "created_at": "2026-01-22T08:22:33.268Z",
+      "updated_at": "2026-01-22T08:25:59.166Z",
+      "completed_at": null
+    },
+
+    {
+      "id": "n37z272m",
+      "parent_id": null,
+      "project": "code-review",
+      "description": "Review error handling patterns",
+      "context": "Cross-cutting review of error handling across the codebase. Look for inconsistent patterns, silent failures, missing error cases.",
+      "priority": 1,
+      "status": "completed",
+      "result": "Added typed error classes with suggestions, consistent throw-based errors",
+      "created_at": "2026-01-22T08:05:31.179Z",
+      "updated_at": "2026-01-22T08:32:51.744Z",
+      "completed_at": null
+    },
+
+    {
+      "id": "nz04jz9i",
+      "parent_id": null,
+      "project": "enhancements",
+      "description": "Clean up list command output",
+      "context": "Issues to fix:\n1. Show completed age/duration for finished tasks (e.g., 'completed 2h ago') instead of or in addition to timestamps\n2. Verify tree view is working - subtasks should show with |-- connectors\n3. Remove project display from list output - we have parent/child relationships now, projects may be obsolete\n4. Consider if projects should be removed entirely in favor of parent task hierarchy",
+      "priority": 0,
       "status": "pending",
       "result": null,
-      "created_at": "2026-01-22T08:33:03.766Z",
-      "updated_at": "2026-01-22T08:33:03.766Z"
+      "created_at": "2026-01-22T08:39:21.899Z",
+      "updated_at": "2026-01-22T08:39:21.899Z",
+      "completed_at": null
+    },
+
+    {
+      "id": "odn7uz8l",
+      "parent_id": null,
+      "project": "enhancements",
+      "description": "Make CLI a great user experience",
+      "context": "Improve CLI UX while maintaining terminal compatibility. Consider:\n- Better output formatting and alignment\n- Color support (with fallback for no-color terminals)\n- Clearer error messages with suggestions\n- Progress indicators for operations\n- Interactive confirmations for destructive actions\n- Tab completion\n- Consistent output for scripting (--json flag?)\n\nMust work in all terminals - no fancy Unicode that might not render.",
+      "priority": 1,
+      "status": "completed",
+      "result": "Added colors (NO_COLOR support), --json output, command suggestions, delete confirmation, improved error messages, column alignment",
+      "created_at": "2026-01-22T08:13:50.998Z",
+      "updated_at": "2026-01-22T08:19:33.565Z",
+      "completed_at": null
+    },
+
+    {
+      "id": "p2tt9ce8",
+      "parent_id": null,
+      "project": "enhancements",
+      "description": "Optimize AGENTS.md for minimal token usage",
+      "context": "Find the most concise way to instruct agents to use dex instead of TodoWrite. Current text may be too verbose. Goal: minimal tokens while being unambiguous.",
+      "priority": 1,
+      "status": "completed",
+      "result": "Reduced to single line: 50% token reduction while maintaining clarity",
+      "created_at": "2026-01-22T08:12:31.851Z",
+      "updated_at": "2026-01-22T08:15:52.301Z",
+      "completed_at": null
+    },
+
+    {
+      "id": "q8i8zrtv",
+      "parent_id": null,
+      "project": "code-review",
+      "description": "Review tools/*.ts",
+      "context": "Review MCP tool handlers (create-task, update-task, list-tasks, list-projects, response). Check for response consistency, proper error handling, and schema alignment.",
+      "priority": 1,
+      "status": "completed",
+      "result": "Aligned schemas with types.ts, consistent JSON responses, added error handling",
+      "created_at": "2026-01-22T08:05:30.379Z",
+      "updated_at": "2026-01-22T08:25:58.976Z",
+      "completed_at": null
+    },
+
+    {
+      "id": "qshyah2e",
+      "parent_id": null,
+      "project": "enhancements",
+      "description": "Update CLI for parent_id",
+      "context": "Add --parent flag to create command. Update list to show tree structure. Update show to display subtask count. Update complete to check for pending children.",
+      "priority": 1,
+      "status": "completed",
+      "result": "Added --parent flag to create/edit, tree display in list with --flat option, subtask count in show, error handling for completion blocking",
+      "created_at": "2026-01-22T08:09:41.607Z",
+      "updated_at": "2026-01-22T08:12:26.059Z",
+      "completed_at": null
+    },
+
+    {
+      "id": "t72fyvt2",
+      "parent_id": null,
+      "project": "enhancements",
+      "description": "Add subtask support (parent_id)",
+      "context": "Add parent_id to tasks for subtask hierarchy. Simpler than full dependency graph.\n\nBehavior:\n- Tasks can have a parent_id referencing another task\n- Parent can't complete until all children complete\n- List shows hierarchy (indented or tree view)\n- Optional: hierarchical IDs like beads (abc123.1, abc123.1.1)\n\nSkip for now:\n- Cross-task depends_on/blocked_by\n- 'ready' command (unblocked tasks)\n\nPrior art: github.com/steveyegge/beads (full graph model)",
+      "priority": 0,
+      "status": "completed",
+      "result": "Implemented parent_id support: create/edit with --parent, tree view in list, subtask count in show, completion blocking, cascade delete. Updated types, task-service, CLI, and MCP tools.",
+      "created_at": "2026-01-22T08:06:39.947Z",
+      "updated_at": "2026-01-22T08:13:39.602Z",
+      "completed_at": null
+    },
+
+    {
+      "id": "vflxvmp7",
+      "parent_id": null,
+      "project": "enhancements",
+      "description": "Add proper CLI argument validation",
+      "context": "Use a proper CLI parser or add validation to reject unknown flags/arguments instead of silently ignoring them. Consider using a lightweight parser like minimist or just improve the existing parser.",
+      "priority": 1,
+      "status": "completed",
+      "result": "Reject unknown flags with error and suggestions",
+      "created_at": "2026-01-22T08:33:03.665Z",
+      "updated_at": "2026-01-22T08:38:39.669Z",
+      "completed_at": "2026-01-22T08:38:39.669Z"
+    },
+
+    {
+      "id": "zhpk2mgj",
+      "parent_id": null,
+      "project": "code-review",
+      "description": "Review cli/commands.ts",
+      "context": "Review command handling, UX, error messages. Check for consistent error handling, helpful output, and proper exit codes.",
+      "priority": 1,
+      "status": "completed",
+      "result": "Validated --status and numeric flags, fixed empty flag handling",
+      "created_at": "2026-01-22T08:05:21.191Z",
+      "updated_at": "2026-01-22T08:32:51.648Z",
+      "completed_at": null
     }
   ]
 }
