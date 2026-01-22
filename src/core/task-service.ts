@@ -1,5 +1,6 @@
 import { customAlphabet } from "nanoid";
-import { TaskStorage } from "./storage.js";
+import { StorageEngine } from "./storage-engine.js";
+import { FileStorage } from "./storage.js";
 import {
   Task,
   CreateTaskInput,
@@ -11,10 +12,15 @@ import { NotFoundError, ValidationError } from "../errors.js";
 const generateId = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 8);
 
 export class TaskService {
-  private storage: TaskStorage;
+  private storage: StorageEngine;
 
-  constructor(storagePath?: string) {
-    this.storage = new TaskStorage(storagePath);
+  constructor(storage?: StorageEngine | string) {
+    // Accept either a StorageEngine instance or a path string for backward compatibility
+    if (typeof storage === "string" || storage === undefined) {
+      this.storage = new FileStorage(storage);
+    } else {
+      this.storage = storage;
+    }
   }
 
   create(input: CreateTaskInput): Task {
@@ -207,6 +213,6 @@ export class TaskService {
   }
 
   getStoragePath(): string {
-    return this.storage.getPath();
+    return this.storage.getIdentifier();
   }
 }

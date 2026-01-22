@@ -3,6 +3,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { Task, TaskStore, TaskStoreSchema, TaskSchema } from "../types.js";
 import { DataCorruptionError, StorageError } from "../errors.js";
+import { StorageEngine } from "./storage-engine.js";
 
 function findGitRoot(startDir: string): string | null {
   let currentDir: string;
@@ -39,7 +40,7 @@ function getStoragePath(): string {
   return process.env.DEX_STORAGE_PATH || getDefaultStoragePath();
 }
 
-export class TaskStorage {
+export class FileStorage implements StorageEngine {
   private storagePath: string;
 
   constructor(storagePath?: string) {
@@ -192,7 +193,17 @@ export class TaskStorage {
     }
   }
 
-  getPath(): string {
+  getIdentifier(): string {
     return this.storagePath;
   }
+
+  /**
+   * @deprecated Use getIdentifier() instead. Kept for backward compatibility.
+   */
+  getPath(): string {
+    return this.getIdentifier();
+  }
 }
+
+// Backward compatibility alias
+export const TaskStorage = FileStorage;
