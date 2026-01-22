@@ -57,7 +57,6 @@ describe("TaskStorage", () => {
           {
             id: "test123",
             parent_id: null,
-            project: "default",
             description: "Test task",
             context: "Test context",
             priority: 1,
@@ -124,7 +123,6 @@ describe("TaskStorage", () => {
           {
             id: "abc12345",
             parent_id: null,
-            project: "test",
             description: "Test",
             context: "Context",
             priority: 1,
@@ -151,7 +149,6 @@ describe("TaskStorage", () => {
           {
             id: "new12345",
             parent_id: null,
-            project: "default",
             description: "New",
             context: "Context",
             priority: 1,
@@ -187,7 +184,6 @@ describe("TaskStorage", () => {
           {
             id: "zzz",
             parent_id: null,
-            project: "default",
             description: "Last alphabetically",
             context: "Context",
             priority: 1,
@@ -199,7 +195,6 @@ describe("TaskStorage", () => {
           {
             id: "aaa",
             parent_id: null,
-            project: "default",
             description: "First alphabetically",
             context: "Context",
             priority: 1,
@@ -227,7 +222,6 @@ describe("TaskStorage", () => {
           {
             id: "task1",
             parent_id: null,
-            project: "default",
             description: "Task 1",
             context: "Context",
             priority: 1,
@@ -239,7 +233,6 @@ describe("TaskStorage", () => {
           {
             id: "task2",
             parent_id: null,
-            project: "default",
             description: "Task 2",
             context: "Context",
             priority: 1,
@@ -272,7 +265,6 @@ describe("TaskStorage", () => {
             description: "Task",
             priority: 1,
             parent_id: null,
-            project: "default",
             result: null,
             created_at: "2024-01-01T00:00:00.000Z",
           },
@@ -319,7 +311,6 @@ describe("TaskStorage", () => {
           {
             id: "task0001",
             parent_id: null,
-            project: "my-project",
             description: "First task",
             context: "Some context here",
             priority: 5,
@@ -332,7 +323,6 @@ describe("TaskStorage", () => {
           {
             id: "task0002",
             parent_id: "task0001",
-            project: "my-project",
             description: "Child task",
             context: "Child context",
             priority: 1,
@@ -359,7 +349,6 @@ describe("TaskStorage", () => {
           {
             id: "special1",
             parent_id: null,
-            project: "default",
             description: 'Task with "quotes" and \\backslashes\\',
             context: "Context with\nnewlines\tand\ttabs",
             priority: 1,
@@ -386,7 +375,6 @@ describe("TaskStorage", () => {
           {
             id: "unicode1",
             parent_id: null,
-            project: "default",
             description: "Task with emoji and unicode",
             context: "Context with Chinese and Japanese characters",
             priority: 1,
@@ -417,7 +405,6 @@ describe("TaskStorage", () => {
             {
               id: `task${i.toString().padStart(4, "0")}`,
               parent_id: null,
-              project: "default",
               description: `Task ${i}`,
               context: "Context",
               priority: 1,
@@ -453,7 +440,6 @@ describe("TaskStorage", () => {
       const tasks = Array.from({ length: 100 }, (_, i) => ({
         id: `task${i.toString().padStart(4, "0")}`,
         parent_id: null,
-        project: "default",
         description: `Task number ${i}`,
         context: `Context for task ${i}`,
         priority: i % 10,
@@ -478,7 +464,6 @@ describe("TaskStorage", () => {
           {
             id: "longtext",
             parent_id: null,
-            project: "default",
             description: longText,
             context: longText,
             priority: 1,

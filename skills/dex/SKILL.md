@@ -33,11 +33,29 @@ Options:
 - `--context` (required): Full implementation details
 - `-p, --priority <n>`: Lower = higher priority (default: 1)
 
+Context should include:
+- Requirements and constraints
+- Technical approach
+- Acceptance criteria (what "done" looks like)
+- Related files or dependencies
+
 Example:
 ```bash
 dex create -d "Add user authentication" \
-  --context "Implement JWT-based auth with refresh tokens. Use bcrypt for password hashing. Add /login and /register endpoints." \
-  -p 0
+  --context "Requirements:
+- JWT-based auth with refresh tokens
+- bcrypt for password hashing
+- Rate limiting on login endpoint
+
+Approach:
+- Add /login and /register endpoints
+- Store refresh tokens in DB
+- 15min access token, 7-day refresh
+
+Done when:
+- Users can register, login, logout
+- Tokens refresh automatically
+- Tests cover auth flows"
 ```
 
 ### List Tasks
@@ -61,14 +79,26 @@ dex show <id>
 dex complete <id> --result "What was accomplished"
 ```
 
-Always include a meaningful result describing:
-- What was implemented
-- Key decisions made
-- Any follow-up items identified
+Result should include:
+- What was implemented (specifics)
+- Key decisions and rationale
+- Any follow-up items or tech debt
 
 Example:
 ```bash
-dex complete abc123 --result "Implemented JWT auth with 15min access tokens and 7-day refresh tokens. Added rate limiting to login endpoint. Follow-up: add email verification"
+dex complete abc123 --result "Implemented JWT auth:
+- Added /login, /register, /logout endpoints
+- Using bcrypt with cost=12 for passwords
+- Access tokens: 15min, refresh: 7 days
+- Added rate limiting: 5 attempts per minute
+
+Decisions:
+- Chose JWT over sessions for stateless scaling
+- Stored refresh tokens in Redis for fast lookup
+
+Follow-up:
+- Add email verification (created task xyz789)
+- Consider 2FA support"
 ```
 
 ### Edit a Task

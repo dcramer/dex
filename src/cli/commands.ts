@@ -250,7 +250,6 @@ function formatTaskJson(task: Task): object {
   return {
     id: task.id,
     parent_id: task.parent_id,
-    project: task.project,
     description: task.description,
     context: task.context,
     priority: task.priority,
@@ -422,7 +421,6 @@ function createCommand(args: string[], options: CliOptions): void {
   const { flags } = parseArgs(args, {
     description: { short: "d", hasValue: true },
     context: { hasValue: true },
-    project: { hasValue: true },
     priority: { short: "p", hasValue: true },
     parent: { hasValue: true },
     help: { short: "h", hasValue: false },
@@ -437,14 +435,13 @@ ${colors.bold}USAGE:${colors.reset}
 ${colors.bold}OPTIONS:${colors.reset}
   -d, --description <text>   Task description (required)
   --context <text>           Task context/details (required)
-  --project <name>           Project grouping (default: "default")
   -p, --priority <n>         Priority level (lower = higher priority, default: 1)
   --parent <id>              Parent task ID (creates subtask)
   -h, --help                 Show this help message
 
 ${colors.bold}EXAMPLE:${colors.reset}
   dex create -d "Fix login bug" --context "Users report 500 errors on /login"
-  dex create -d "Write tests" --context "Cover auth module" --project auth -p 2
+  dex create -d "Write tests" --context "Cover auth module" -p 2
   dex create -d "Subtask" --context "Part of bigger task" --parent abc123
 `);
     return;
@@ -471,7 +468,6 @@ ${colors.bold}EXAMPLE:${colors.reset}
       description,
       context,
       parent_id: getStringFlag(flags, "parent"),
-      project: getStringFlag(flags, "project"),
       priority: parseIntFlag(flags, "priority"),
     });
 
@@ -513,7 +509,6 @@ function listCommand(args: string[], options: CliOptions): void {
   const { flags } = parseArgs(args, {
     all: { short: "a", hasValue: false },
     status: { short: "s", hasValue: true },
-    project: { hasValue: true },
     query: { short: "q", hasValue: true },
     flat: { short: "f", hasValue: false },
     json: { hasValue: false },
@@ -529,7 +524,6 @@ ${colors.bold}USAGE:${colors.reset}
 ${colors.bold}OPTIONS:${colors.reset}
   -a, --all                  Include completed tasks
   -s, --status <status>      Filter by status (pending, completed)
-  --project <name>           Filter by project
   -q, --query <text>         Search in description and context
   -f, --flat                 Show flat list instead of tree view
   --json                     Output as JSON
@@ -538,7 +532,6 @@ ${colors.bold}OPTIONS:${colors.reset}
 ${colors.bold}EXAMPLE:${colors.reset}
   dex list                   # Show pending tasks as tree
   dex list --all             # Include completed tasks
-  dex list --project auth    # Filter by project
   dex list -q "login" --flat # Search and show flat list
   dex list --json | jq '.'   # Output JSON for scripting
 `);
@@ -559,7 +552,6 @@ ${colors.bold}EXAMPLE:${colors.reset}
   const tasks = service.list({
     all: getBooleanFlag(flags, "all") || undefined,
     status,
-    project: getStringFlag(flags, "project"),
     query: getStringFlag(flags, "query"),
   });
 
@@ -627,9 +619,6 @@ function formatTaskShow(task: Task, full: boolean = false): string {
   lines.push(`${"Updated:".padEnd(labelWidth)} ${colors.dim}${task.updated_at}${colors.reset}`);
   if (task.completed_at) {
     lines.push(`${"Completed:".padEnd(labelWidth)} ${colors.dim}${task.completed_at}${colors.reset}`);
-  }
-  if (task.project && task.project !== "default") {
-    lines.push(`${"Project:".padEnd(labelWidth)} ${colors.cyan}${task.project}${colors.reset}`);
   }
 
   // Add hint if text was truncated
@@ -722,7 +711,6 @@ function editCommand(args: string[], options: CliOptions): void {
   const { positional, flags } = parseArgs(args, {
     description: { short: "d", hasValue: true },
     context: { hasValue: true },
-    project: { hasValue: true },
     priority: { short: "p", hasValue: true },
     parent: { hasValue: true },
     help: { short: "h", hasValue: false },
@@ -740,14 +728,13 @@ ${colors.bold}ARGUMENTS:${colors.reset}
 ${colors.bold}OPTIONS:${colors.reset}
   -d, --description <text>   New task description
   --context <text>           New task context/details
-  --project <name>           Move to different project
   -p, --priority <n>         New priority level
   --parent <id>              New parent task ID
   -h, --help                 Show this help message
 
 ${colors.bold}EXAMPLE:${colors.reset}
   dex edit abc123 -d "Updated description"
-  dex edit abc123 --project backend -p 1
+  dex edit abc123 -p 1
   dex edit abc123 --context "More details about the task"
 `);
     return;
@@ -768,7 +755,6 @@ ${colors.bold}EXAMPLE:${colors.reset}
       description: getStringFlag(flags, "description"),
       context: getStringFlag(flags, "context"),
       parent_id: getStringFlag(flags, "parent"),
-      project: getStringFlag(flags, "project"),
       priority: parseIntFlag(flags, "priority"),
     });
 
@@ -929,7 +915,6 @@ ${colors.bold}COMMANDS:${colors.reset}
   list --flat                      List without tree hierarchy
   list --all                       Include completed tasks
   list --status completed          Filter by status
-  list --project "auth"            Filter by project
   list --query "login"             Search description/context
   list --json                      Output as JSON (for scripts)
   show <id>                        View task details (truncated)
@@ -943,7 +928,6 @@ ${colors.bold}COMMANDS:${colors.reset}
 ${colors.bold}OPTIONS:${colors.reset}
   --storage-path <path>            Override storage file location
   -p, --priority <n>               Task priority (lower = higher priority)
-  --project <name>                 Project grouping
   --parent <id>                    Parent task (creates subtask)
   --json                           Output as JSON (list, show)
 
@@ -951,10 +935,22 @@ ${colors.bold}ENVIRONMENT:${colors.reset}
   NO_COLOR                         Disable colored output
 
 ${colors.bold}EXAMPLES:${colors.reset}
-  dex create -d "Fix login bug" --context "Users report 500 errors"
-  dex create -d "Subtask" --context "..." --parent abc123
-  dex list --project auth
+  ${colors.dim}# Create with detailed context (requirements, approach, done criteria):${colors.reset}
+  dex create -d "Add user auth" --context "Requirements:
+    - JWT with refresh tokens
+    - bcrypt for passwords
+    Approach: /login, /register endpoints
+    Done when: users can register/login, tests pass"
+
+  ${colors.dim}# Complete with detailed result (what, decisions, follow-ups):${colors.reset}
+  dex complete abc123 --result "Added JWT auth:
+    - /login, /register, /logout endpoints
+    - bcrypt cost=12, 15min access tokens
+    Decisions: JWT over sessions for scaling
+    Follow-up: add email verification"
+
+  ${colors.dim}# Other common operations:${colors.reset}
   dex list --json | jq '.[] | .id'
-  dex complete abc123 --result "Fixed by updating auth token refresh"
+  dex create -d "Subtask" --context "..." --parent abc123
 `);
 }

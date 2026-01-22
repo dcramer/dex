@@ -101,7 +101,6 @@ export class TaskStorage {
     return {
       id: task.id,
       parent_id: task.parent_id,
-      project: task.project,
       description: task.description,
       context: task.context,
       priority: task.priority,

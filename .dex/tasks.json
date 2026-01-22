@@ -295,6 +295,20 @@
     },
 
     {
+      "id": "o6o2x7y3",
+      "parent_id": null,
+      "project": "enhancements",
+      "description": "Update guidance for detailed context and result content",
+      "context": "The SKILL.md and CLI help need to emphasize that context and result should be detailed:\n\nCONTEXT should include:\n- Full requirements and constraints\n- Technical approach/decisions\n- Dependencies and blockers\n- Acceptance criteria / definition of done\n- Links to relevant files, docs, or issues\n\nRESULT should include:\n- What was actually implemented (specific details)\n- Key decisions made and why\n- Any deviations from plan\n- Follow-up items or tech debt noted\n- Links to commits, files changed\n\nUpdate:\n1. skills/dex/SKILL.md - expand examples and guidance\n2. CLI help text - improve examples in help command\n3. Error messages - if context/result is too short, suggest more detail?",
+      "priority": 0,
+      "status": "pending",
+      "result": null,
+      "created_at": "2026-01-22T08:51:59.351Z",
+      "updated_at": "2026-01-22T08:51:59.351Z",
+      "completed_at": null
+    },
+
+    {
       "id": "odn7uz8l",
       "parent_id": null,
       "project": "enhancements",
@@ -343,11 +357,11 @@
       "description": "Audit and improve CLI output formatting",
       "context": "The show command and others need better terminal display:\n\n1. show command:\n   - Context and result can be very long (multi-paragraph)\n   - Should wrap text at terminal width\n   - Consider collapsible sections or truncation with 'show --full'\n   - Better visual separation between fields\n\n2. Other commands to audit:\n   - list: Is tree view readable with long descriptions?\n   - help: Is it well-formatted?\n   - create/complete output: Is it clear and concise?\n\n3. General improvements:\n   - Respect terminal width (process.stdout.columns)\n   - Word-wrap long text\n   - Use visual separators (blank lines, headers)\n   - Consider pager for very long output?",
       "priority": 0,
-      "status": "pending",
-      "result": null,
+      "status": "completed",
+      "result": "Added word wrapping, truncation, --full flag, improved show command sections",
       "created_at": "2026-01-22T08:48:55.242Z",
-      "updated_at": "2026-01-22T08:48:55.242Z",
-      "completed_at": null
+      "updated_at": "2026-01-22T08:51:50.807Z",
+      "completed_at": "2026-01-22T08:51:50.807Z"
     },
 
     {

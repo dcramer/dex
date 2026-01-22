@@ -6,7 +6,6 @@ export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 export const TaskSchema = z.object({
   id: z.string().min(1, "Task ID is required"),
   parent_id: z.string().min(1).nullable().default(null),
-  project: z.string().min(1).default("default"),
   description: z.string().min(1, "Description is required"),
   context: z.string().min(1, "Context is required"),
   priority: z.number().int().min(0).default(1),
@@ -29,7 +28,6 @@ export const CreateTaskInputSchema = z.object({
   description: z.string().min(1, "Description is required"),
   context: z.string().min(1, "Context is required"),
   parent_id: z.string().min(1).optional(),
-  project: z.string().min(1).optional(),
   priority: z.number().int().min(0).optional(),
 });
 
@@ -40,7 +38,6 @@ export const UpdateTaskInputSchema = z.object({
   description: z.string().min(1, "Description cannot be empty").optional(),
   context: z.string().min(1, "Context cannot be empty").optional(),
   parent_id: z.string().min(1).nullable().optional(),
-  project: z.string().min(1, "Project cannot be empty").optional(),
   priority: z.number().int().min(0).optional(),
   status: TaskStatusSchema.optional(),
   result: z.string().optional(),
@@ -51,7 +48,6 @@ export type UpdateTaskInput = z.infer<typeof UpdateTaskInputSchema>;
 
 export const ListTasksInputSchema = z.object({
   status: TaskStatusSchema.optional(),
-  project: z.string().optional(),
   query: z.string().optional(),
   all: z.boolean().optional(),
 });

@@ -5,7 +5,6 @@ import { jsonResponse, McpToolResponse } from "./response.js";
 
 export const ListTasksArgsSchema = z.object({
   status: TaskStatusSchema.optional().describe("Filter by status"),
-  project: z.string().optional().describe("Filter by project"),
   query: z.string().optional().describe("Search in description and context"),
   all: z.boolean().optional().describe("Show all tasks (pending and completed)"),
 });

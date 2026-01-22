@@ -8,7 +8,6 @@ export const UpdateTaskArgsSchema = z.object({
   description: z.string().min(1).optional().describe("Updated description"),
   context: z.string().min(1).optional().describe("Updated context"),
   parent_id: z.string().min(1).nullable().optional().describe("Parent task ID (null to remove parent)"),
-  project: z.string().min(1).optional().describe("Updated project"),
   priority: z.number().int().min(0).optional().describe("Updated priority"),
   status: TaskStatusSchema.optional().describe("Updated status"),
   result: z.string().optional().describe("Final output when completing task"),

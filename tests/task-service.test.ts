@@ -30,21 +30,18 @@ describe("TaskService", () => {
       expect(task.description).toBe("Test task");
       expect(task.context).toBe("Test context");
       expect(task.status).toBe("pending");
-      expect(task.project).toBe("default");
       expect(task.priority).toBe(1);
       expect(task.parent_id).toBeNull();
       expect(task.result).toBeNull();
     });
 
-    it("creates a task with custom project and priority", () => {
+    it("creates a task with custom priority", () => {
       const task = service.create({
         description: "Test task",
         context: "Test context",
-        project: "my-project",
         priority: 5,
       });
 
-      expect(task.project).toBe("my-project");
       expect(task.priority).toBe(5);
     });
 
@@ -52,7 +49,6 @@ describe("TaskService", () => {
       const parent = service.create({
         description: "Parent task",
         context: "Parent context",
-        project: "test-project",
       });
 
       const child = service.create({
@@ -62,7 +58,6 @@ describe("TaskService", () => {
       });
 
       expect(child.parent_id).toBe(parent.id);
-      expect(child.project).toBe("test-project"); // Inherits from parent
     });
 
     it("throws when parent task does not exist", () => {
@@ -73,23 +68,6 @@ describe("TaskService", () => {
           parent_id: "nonexistent",
         })
       ).toThrow('Task "nonexistent" not found');
-    });
-
-    it("uses explicit project over inherited project", () => {
-      const parent = service.create({
-        description: "Parent",
-        context: "Context",
-        project: "parent-project",
-      });
-
-      const child = service.create({
-        description: "Child",
-        context: "Context",
-        parent_id: parent.id,
-        project: "child-project",
-      });
-
-      expect(child.project).toBe("child-project");
     });
   });
 
@@ -137,13 +115,11 @@ describe("TaskService", () => {
         description: "New description",
         context: "New context",
         priority: 10,
-        project: "new-project",
       });
 
       expect(updated.description).toBe("New description");
       expect(updated.context).toBe("New context");
       expect(updated.priority).toBe(10);
-      expect(updated.project).toBe("new-project");
     });
 
     it("throws when task does not exist", () => {
@@ -409,23 +385,6 @@ describe("TaskService", () => {
 
       const tasks = service.list({ all: true });
       expect(tasks).toHaveLength(2);
-    });
-
-    it("filters by project", () => {
-      service.create({
-        description: "Project A",
-        context: "Context",
-        project: "a",
-      });
-      service.create({
-        description: "Project B",
-        context: "Context",
-        project: "b",
-      });
-
-      const tasks = service.list({ project: "a" });
-      expect(tasks).toHaveLength(1);
-      expect(tasks[0].project).toBe("a");
     });
 
     it("filters by query in description", () => {

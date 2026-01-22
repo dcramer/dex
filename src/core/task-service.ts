@@ -22,7 +22,6 @@ export class TaskService {
     const now = new Date().toISOString();
 
     let parentId: string | null = null;
-    let project = input.project || "default";
 
     if (input.parent_id) {
       const parent = store.tasks.find((t) => t.id === input.parent_id);
@@ -30,16 +29,11 @@ export class TaskService {
         throw new NotFoundError("Task", input.parent_id, "The specified parent task does not exist");
       }
       parentId = input.parent_id;
-      // Inherit project from parent if not explicitly set
-      if (!input.project) {
-        project = parent.project;
-      }
     }
 
     const task: Task = {
       id: generateId(),
       parent_id: parentId,
-      project,
       description: input.description,
       context: input.context,
       priority: input.priority ?? 1,
@@ -99,7 +93,6 @@ export class TaskService {
       }
       task.parent_id = input.parent_id;
     }
-    if (input.project !== undefined) task.project = input.project;
     if (input.priority !== undefined) task.priority = input.priority;
     if (input.status !== undefined) {
       // Handle completed_at timestamp based on status transition
@@ -177,10 +170,6 @@ export class TaskService {
     if (!input.all) {
       const statusFilter = input.status ?? "pending";
       tasks = tasks.filter((t) => t.status === statusFilter);
-    }
-
-    if (input.project) {
-      tasks = tasks.filter((t) => t.project === input.project);
     }
 
     if (input.query) {
