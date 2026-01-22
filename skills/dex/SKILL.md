@@ -80,6 +80,28 @@ dex edit <id> -d "Updated description" --context "Updated context"
 dex delete <id>
 ```
 
+Note: Deleting a parent task also deletes all its subtasks.
+
+## Subtasks
+
+Use subtasks to break complex work into smaller, trackable pieces.
+
+### Creating Subtasks
+
+```bash
+dex create -d "Implement login form" --context "..." --parent <parent-id>
+```
+
+### Viewing Subtasks
+
+- `dex list` displays tasks as a tree (use `--flat` for plain list)
+- `dex show <id>` includes subtask count
+
+### Completion Rules
+
+- A task cannot be completed while it has pending subtasks
+- Complete all children before completing the parent
+
 ### List Projects
 
 ```bash

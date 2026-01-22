@@ -25,6 +25,4 @@ src/
 - Fallback: `~/.dex/tasks.json`
 
 ## Task Management
-**Use dex instead of TodoWrite** for all task tracking.
-- See `skills/dex/SKILL.md` for full CLI reference
-- Use `/dex` skill or run `dex` CLI directly
+Use `dex` CLI (not TodoWrite): `/dex` or `dex create|list|complete`
