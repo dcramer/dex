@@ -1,0 +1,26 @@
+{
+  "name": "dex",
+  "version": "1.0.0",
+  "description": "Task tracking tool with MCP server and CLI interfaces",
+  "type": "module",
+  "bin": {
+    "dex": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "nanoid": "^5.0.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.5.0"
+  }
+}
