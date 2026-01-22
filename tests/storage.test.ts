@@ -65,6 +65,7 @@ describe("TaskStorage", () => {
             result: null,
             created_at: "2024-01-01T00:00:00.000Z",
             updated_at: "2024-01-01T00:00:00.000Z",
+            completed_at: null,
           },
         ],
       };
@@ -178,6 +179,117 @@ describe("TaskStorage", () => {
       expect(content).toBe('{\n  "tasks": []\n}');
     });
 
+    it("sorts tasks by ID for deterministic output", () => {
+      const storagePath = path.join(tempDir, "tasks.json");
+      const storage = new TaskStorage(storagePath);
+      const taskData = {
+        tasks: [
+          {
+            id: "zzz",
+            parent_id: null,
+            project: "default",
+            description: "Last alphabetically",
+            context: "Context",
+            priority: 1,
+            status: "pending" as const,
+            result: null,
+            created_at: "2024-01-01T00:00:00.000Z",
+            updated_at: "2024-01-01T00:00:00.000Z",
+          },
+          {
+            id: "aaa",
+            parent_id: null,
+            project: "default",
+            description: "First alphabetically",
+            context: "Context",
+            priority: 1,
+            status: "pending" as const,
+            result: null,
+            created_at: "2024-01-01T00:00:00.000Z",
+            updated_at: "2024-01-01T00:00:00.000Z",
+          },
+        ],
+      };
+
+      storage.write(taskData);
+
+      const content = fs.readFileSync(storagePath, "utf-8");
+      const parsed = JSON.parse(content);
+      expect(parsed.tasks[0].id).toBe("aaa");
+      expect(parsed.tasks[1].id).toBe("zzz");
+    });
+
+    it("formats tasks with newlines between them for git-friendly diffs", () => {
+      const storagePath = path.join(tempDir, "tasks.json");
+      const storage = new TaskStorage(storagePath);
+      const taskData = {
+        tasks: [
+          {
+            id: "task1",
+            parent_id: null,
+            project: "default",
+            description: "Task 1",
+            context: "Context",
+            priority: 1,
+            status: "pending" as const,
+            result: null,
+            created_at: "2024-01-01T00:00:00.000Z",
+            updated_at: "2024-01-01T00:00:00.000Z",
+          },
+          {
+            id: "task2",
+            parent_id: null,
+            project: "default",
+            description: "Task 2",
+            context: "Context",
+            priority: 1,
+            status: "pending" as const,
+            result: null,
+            created_at: "2024-01-01T00:00:00.000Z",
+            updated_at: "2024-01-01T00:00:00.000Z",
+          },
+        ],
+      };
+
+      storage.write(taskData);
+
+      const content = fs.readFileSync(storagePath, "utf-8");
+      // Tasks should be separated by blank line (double newline after comma)
+      expect(content).toContain("},\n\n    {");
+    });
+
+    it("maintains consistent field ordering", () => {
+      const storagePath = path.join(tempDir, "tasks.json");
+      const storage = new TaskStorage(storagePath);
+      // Create task with fields in non-standard order
+      const taskData = {
+        tasks: [
+          {
+            updated_at: "2024-01-01T00:00:00.000Z",
+            status: "pending" as const,
+            id: "task1",
+            context: "Context",
+            description: "Task",
+            priority: 1,
+            parent_id: null,
+            project: "default",
+            result: null,
+            created_at: "2024-01-01T00:00:00.000Z",
+          },
+        ],
+      };
+
+      storage.write(taskData);
+
+      const content = fs.readFileSync(storagePath, "utf-8");
+      // Check field order: id should come before description
+      const idIndex = content.indexOf('"id"');
+      const descIndex = content.indexOf('"description"');
+      const contextIndex = content.indexOf('"context"');
+      expect(idIndex).toBeLessThan(descIndex);
+      expect(descIndex).toBeLessThan(contextIndex);
+    });
+
     it("performs atomic write (no temp files left behind)", () => {
       const storagePath = path.join(tempDir, "tasks.json");
       const storage = new TaskStorage(storagePath);
@@ -215,6 +327,7 @@ describe("TaskStorage", () => {
             result: null,
             created_at: "2024-06-15T10:30:00.000Z",
             updated_at: "2024-06-15T10:30:00.000Z",
+            completed_at: null,
           },
           {
             id: "task0002",
@@ -227,6 +340,7 @@ describe("TaskStorage", () => {
             result: "Done!",
             created_at: "2024-06-15T11:00:00.000Z",
             updated_at: "2024-06-15T12:00:00.000Z",
+            completed_at: "2024-06-15T12:00:00.000Z",
           },
         ],
       };
@@ -253,6 +367,7 @@ describe("TaskStorage", () => {
             result: null,
             created_at: "2024-01-01T00:00:00.000Z",
             updated_at: "2024-01-01T00:00:00.000Z",
+            completed_at: null,
           },
         ],
       };
@@ -279,6 +394,7 @@ describe("TaskStorage", () => {
             result: null,
             created_at: "2024-01-01T00:00:00.000Z",
             updated_at: "2024-01-01T00:00:00.000Z",
+            completed_at: null,
           },
         ],
       };

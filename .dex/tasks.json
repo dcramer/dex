@@ -67,10 +67,10 @@
       "description": "Review cli/commands.ts",
       "context": "Review command handling, UX, error messages. Check for consistent error handling, helpful output, and proper exit codes.",
       "priority": 1,
-      "status": "pending",
-      "result": null,
+      "status": "completed",
+      "result": "Validated --status and numeric flags, fixed empty flag handling",
       "created_at": "2026-01-22T08:05:21.191Z",
-      "updated_at": "2026-01-22T08:05:21.191Z"
+      "updated_at": "2026-01-22T08:32:51.648Z"
     },
     {
       "id": "q8i8zrtv",
@@ -103,10 +103,10 @@
       "description": "Review error handling patterns",
       "context": "Cross-cutting review of error handling across the codebase. Look for inconsistent patterns, silent failures, missing error cases.",
       "priority": 1,
-      "status": "pending",
-      "result": null,
+      "status": "completed",
+      "result": "Added typed error classes with suggestions, consistent throw-based errors",
       "created_at": "2026-01-22T08:05:31.179Z",
-      "updated_at": "2026-01-22T08:05:31.179Z"
+      "updated_at": "2026-01-22T08:32:51.744Z"
     },
     {
       "id": "72swtblt",
@@ -247,10 +247,10 @@
       "description": "Add per-command --help support",
       "context": "Commands like 'dex list --help' should show command-specific help. Currently only 'dex help' or 'dex --help' works.",
       "priority": 1,
-      "status": "pending",
-      "result": null,
+      "status": "completed",
+      "result": "Added --help/-h to all commands with usage and examples",
       "created_at": "2026-01-22T08:26:06.782Z",
-      "updated_at": "2026-01-22T08:26:06.782Z"
+      "updated_at": "2026-01-22T08:32:51.840Z"
     },
     {
       "id": "gxxrliuo",
@@ -259,10 +259,58 @@
       "description": "Run claude-settings-audit",
       "context": "Use the claude-settings-audit skill to generate recommended Claude Code settings.json permissions for this project.",
       "priority": 1,
+      "status": "completed",
+      "result": "Created .claude/settings.json with build, test, and read-only permissions",
+      "created_at": "2026-01-22T08:26:06.877Z",
+      "updated_at": "2026-01-22T08:32:51.937Z"
+    },
+    {
+      "id": "cywm9e1w",
+      "parent_id": null,
+      "project": "enhancements",
+      "description": "Add completed_at timestamp to tasks",
+      "context": "Track when tasks are completed separately from updated_at. Add completed_at field that gets set when status changes to completed.",
+      "priority": 1,
       "status": "pending",
       "result": null,
-      "created_at": "2026-01-22T08:26:06.877Z",
-      "updated_at": "2026-01-22T08:26:06.877Z"
+      "created_at": "2026-01-22T08:33:03.475Z",
+      "updated_at": "2026-01-22T08:33:03.475Z"
+    },
+    {
+      "id": "0exr3phi",
+      "parent_id": null,
+      "project": "enhancements",
+      "description": "Improve CLI list output with nested subtasks",
+      "context": "The list command should visually nest subtasks under their parents with tree-like formatting (indentation or tree characters).",
+      "priority": 1,
+      "status": "pending",
+      "result": null,
+      "created_at": "2026-01-22T08:33:03.571Z",
+      "updated_at": "2026-01-22T08:33:03.571Z"
+    },
+    {
+      "id": "vflxvmp7",
+      "parent_id": null,
+      "project": "enhancements",
+      "description": "Add proper CLI argument validation",
+      "context": "Use a proper CLI parser or add validation to reject unknown flags/arguments instead of silently ignoring them. Consider using a lightweight parser like minimist or just improve the existing parser.",
+      "priority": 1,
+      "status": "pending",
+      "result": null,
+      "created_at": "2026-01-22T08:33:03.665Z",
+      "updated_at": "2026-01-22T08:33:03.665Z"
+    },
+    {
+      "id": "h3npzw1n",
+      "parent_id": null,
+      "project": "enhancements",
+      "description": "Make storage format git-friendly",
+      "context": "Ensure the .dex/tasks.json format won't cause merge conflicts for teams who commit it. Consider: stable sorting, deterministic output, maybe one task per line (JSONL)?",
+      "priority": 1,
+      "status": "pending",
+      "result": null,
+      "created_at": "2026-01-22T08:33:03.766Z",
+      "updated_at": "2026-01-22T08:33:03.766Z"
     }
   ]
 }

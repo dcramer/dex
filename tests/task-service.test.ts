@@ -372,12 +372,12 @@ describe("TaskService", () => {
         description: "Pending",
         context: "Context",
       });
-      service.create({
+      const toComplete = service.create({
         description: "Completed",
         context: "Context",
       });
       service.update({
-        id: service.list({ all: true })[1].id,
+        id: toComplete.id,
         status: "completed",
       });
 

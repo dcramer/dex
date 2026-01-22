@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import * as crypto from "node:crypto";
-import { TaskStore, TaskStoreSchema } from "../types.js";
+import { Task, TaskStore, TaskStoreSchema } from "../types.js";
 import { DataCorruptionError, StorageError } from "../errors.js";
 
 function findGitRoot(startDir: string): string | null {
@@ -93,9 +93,54 @@ export class TaskStorage {
     return result.data;
   }
 
+  /**
+   * Normalizes a task object to have consistent field ordering.
+   * This ensures deterministic JSON output for git-friendly diffs.
+   */
+  private normalizeTask(task: Task): Task {
+    return {
+      id: task.id,
+      parent_id: task.parent_id,
+      project: task.project,
+      description: task.description,
+      context: task.context,
+      priority: task.priority,
+      status: task.status,
+      result: task.result,
+      created_at: task.created_at,
+      updated_at: task.updated_at,
+      completed_at: task.completed_at,
+    };
+  }
+
+  /**
+   * Formats the task store as git-friendly JSON.
+   * - Tasks are sorted by ID for deterministic order
+   * - Each task has consistent field ordering
+   * - Tasks are separated by newlines for easier merging
+   */
+  private formatForGit(store: TaskStore): string {
+    // Sort tasks by ID for deterministic order
+    const sortedTasks = [...store.tasks].sort((a, b) => a.id.localeCompare(b.id));
+
+    // Normalize field ordering for each task
+    const normalizedTasks = sortedTasks.map((task) => this.normalizeTask(task));
+
+    if (normalizedTasks.length === 0) {
+      return '{\n  "tasks": []\n}';
+    }
+
+    // Format each task on its own lines with extra spacing between tasks
+    const taskStrings = normalizedTasks.map((task) => {
+      return "    " + JSON.stringify(task, null, 2).split("\n").join("\n    ");
+    });
+
+    return '{\n  "tasks": [\n' + taskStrings.join(",\n\n") + "\n  ]\n}";
+  }
+
   write(store: TaskStore): void {
     this.ensureDirectory();
-    const content = JSON.stringify(store, null, 2);
+    const content = this.formatForGit(store);
 
     // Atomic write: write to temp file, then rename
     const dir = path.dirname(this.storagePath);

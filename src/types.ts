@@ -14,6 +14,7 @@ export const TaskSchema = z.object({
   result: z.string().nullable().default(null),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
+  completed_at: z.string().datetime().nullable().default(null),
 });
 
 export type Task = z.infer<typeof TaskSchema>;

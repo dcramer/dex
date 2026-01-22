@@ -111,23 +111,29 @@ function promptConfirm(question: string): Promise<boolean> {
   });
 }
 
-function formatTask(task: Task, verbose: boolean = false, indent: number = 0): string {
-  const prefix = "  ".repeat(indent);
+function formatTask(task: Task, verbose: boolean = false, treePrefix: string = ""): string {
   const statusIcon = task.status === "completed" ? "[x]" : "[ ]";
   const statusColor = task.status === "completed" ? colors.green : colors.yellow;
   const priority = task.priority !== 1 ? ` ${colors.cyan}[p${task.priority}]${colors.reset}` : "";
   const project = task.project !== "default" ? ` ${colors.dim}(${task.project})${colors.reset}` : "";
 
-  let output = `${prefix}${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}${priority}${project}: ${task.description}`;
+  let output = `${treePrefix}${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}${priority}${project}: ${task.description}`;
 
   if (verbose) {
-    const labelWidth = 10;
-    output += `\n${prefix}  ${"Context:".padEnd(labelWidth)} ${task.context}`;
+    const labelWidth = 12;
+    // For verbose output, create a continuation prefix that aligns with the tree
+    const verbosePrefix = treePrefix
+      .replace(/\|-- $/, "|   ")
+      .replace(/`-- $/, "    ");
+    output += `\n${verbosePrefix}  ${"Context:".padEnd(labelWidth)} ${task.context}`;
     if (task.result) {
-      output += `\n${prefix}  ${"Result:".padEnd(labelWidth)} ${colors.green}${task.result}${colors.reset}`;
+      output += `\n${verbosePrefix}  ${"Result:".padEnd(labelWidth)} ${colors.green}${task.result}${colors.reset}`;
     }
-    output += `\n${prefix}  ${"Created:".padEnd(labelWidth)} ${colors.dim}${task.created_at}${colors.reset}`;
-    output += `\n${prefix}  ${"Updated:".padEnd(labelWidth)} ${colors.dim}${task.updated_at}${colors.reset}`;
+    output += `\n${verbosePrefix}  ${"Created:".padEnd(labelWidth)} ${colors.dim}${task.created_at}${colors.reset}`;
+    output += `\n${verbosePrefix}  ${"Updated:".padEnd(labelWidth)} ${colors.dim}${task.updated_at}${colors.reset}`;
+    if (task.completed_at) {
+      output += `\n${verbosePrefix}  ${"Completed:".padEnd(labelWidth)} ${colors.dim}${task.completed_at}${colors.reset}`;
+    }
   }
 
   return output;
@@ -145,6 +151,7 @@ function formatTaskJson(task: Task): object {
     result: task.result,
     created_at: task.created_at,
     updated_at: task.updated_at,
+    completed_at: task.completed_at,
   };
 }
 
@@ -215,12 +222,33 @@ interface FlagConfig {
   hasValue: boolean;
 }
 
+/**
+ * Suggest a similar flag name using Levenshtein distance.
+ */
+function getFlagSuggestion(input: string, flagDefs: Record<string, FlagConfig>): string | null {
+  const flagNames = Object.keys(flagDefs);
+  let bestMatch: string | null = null;
+  let bestDistance = Infinity;
+
+  for (const flag of flagNames) {
+    const distance = levenshtein(input.toLowerCase(), flag.toLowerCase());
+    if (distance < bestDistance && distance <= 2) {
+      bestDistance = distance;
+      bestMatch = flag;
+    }
+  }
+
+  return bestMatch;
+}
+
 function parseArgs(
   args: string[],
-  flagDefs: Record<string, FlagConfig>
+  flagDefs: Record<string, FlagConfig>,
+  commandName?: string
 ): ParsedArgs {
   const positional: string[] = [];
   const flags: Record<string, string | boolean> = {};
+  const unknownFlags: string[] = [];
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -229,10 +257,15 @@ function parseArgs(
       const flagName = arg.slice(2);
       const flagConfig = flagDefs[flagName];
 
-      if (flagConfig?.hasValue) {
-        flags[flagName] = args[++i] || "";
+      if (flagConfig) {
+        if (flagConfig.hasValue) {
+          flags[flagName] = args[++i] || "";
+        } else {
+          flags[flagName] = true;
+        }
       } else {
-        flags[flagName] = true;
+        // Unknown long flag
+        unknownFlags.push(arg);
       }
     } else if (arg.startsWith("-") && arg.length === 2) {
       const shortFlag = arg.slice(1);
@@ -247,10 +280,34 @@ function parseArgs(
         } else {
           flags[flagName] = true;
         }
+      } else {
+        // Unknown short flag
+        unknownFlags.push(arg);
       }
+    } else if (arg.startsWith("-") && arg.length > 2) {
+      // Unknown flag like -abc or --flag=value style not supported
+      unknownFlags.push(arg);
     } else {
       positional.push(arg);
     }
+  }
+
+  // Report unknown flags
+  if (unknownFlags.length > 0) {
+    const flag = unknownFlags[0];
+    const flagName = flag.replace(/^-+/, "");
+    const suggestion = getFlagSuggestion(flagName, flagDefs);
+
+    let errorMsg = `${colors.red}Error:${colors.reset} Unknown option: ${flag}`;
+    if (suggestion) {
+      errorMsg += `\nDid you mean "--${suggestion}"?`;
+    }
+
+    const cmd = commandName ? `dex ${commandName}` : "dex <command>";
+    errorMsg += `\nRun '${colors.dim}${cmd} --help${colors.reset}' for usage.`;
+
+    console.error(errorMsg);
+    process.exit(1);
   }
 
   return { positional, flags };
@@ -264,7 +321,7 @@ function createCommand(args: string[], options: CliOptions): void {
     priority: { short: "p", hasValue: true },
     parent: { hasValue: true },
     help: { short: "h", hasValue: false },
-  });
+  }, "create");
 
   if (getBooleanFlag(flags, "help")) {
     console.log(`${colors.bold}dex create${colors.reset} - Create a new task
@@ -321,14 +378,26 @@ ${colors.bold}EXAMPLE:${colors.reset}
   }
 }
 
-function printTaskTree(tasks: Task[], parentId: string | null, indent: number): void {
+function printTaskTree(tasks: Task[], parentId: string | null, prefix: string = "", isRoot: boolean = true): void {
   const children = tasks
     .filter((t) => t.parent_id === parentId)
     .toSorted((a, b) => a.priority - b.priority);
 
-  for (const task of children) {
-    console.log(formatTask(task, false, indent));
-    printTaskTree(tasks, task.id, indent + 1);
+  for (let i = 0; i < children.length; i++) {
+    const task = children[i];
+    const isLast = i === children.length - 1;
+
+    if (isRoot) {
+      // Root level tasks: no tree connectors
+      console.log(formatTask(task, false, ""));
+      printTaskTree(tasks, task.id, "", false);
+    } else {
+      // Child tasks: use tree connectors
+      const connector = isLast ? "`-- " : "|-- ";
+      const childPrefix = prefix + (isLast ? "    " : "|   ");
+      console.log(formatTask(task, false, prefix + connector));
+      printTaskTree(tasks, task.id, childPrefix, false);
+    }
   }
 }
 
@@ -341,7 +410,7 @@ function listCommand(args: string[], options: CliOptions): void {
     flat: { short: "f", hasValue: false },
     json: { hasValue: false },
     help: { short: "h", hasValue: false },
-  });
+  }, "list");
 
   if (getBooleanFlag(flags, "help")) {
     console.log(`${colors.bold}dex list${colors.reset} - List tasks
@@ -402,7 +471,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
       console.log(formatTask(task));
     }
   } else {
-    printTaskTree(tasks, null, 0);
+    printTaskTree(tasks, null, "");
   }
 }
 
@@ -410,7 +479,7 @@ function showCommand(args: string[], options: CliOptions): void {
   const { positional, flags } = parseArgs(args, {
     json: { hasValue: false },
     help: { short: "h", hasValue: false },
-  });
+  }, "show");
 
   if (getBooleanFlag(flags, "help")) {
     console.log(`${colors.bold}dex show${colors.reset} - Show task details
@@ -486,7 +555,7 @@ function editCommand(args: string[], options: CliOptions): void {
     priority: { short: "p", hasValue: true },
     parent: { hasValue: true },
     help: { short: "h", hasValue: false },
-  });
+  }, "edit");
 
   if (getBooleanFlag(flags, "help")) {
     console.log(`${colors.bold}dex edit${colors.reset} - Edit an existing task
@@ -544,7 +613,7 @@ function completeCommand(args: string[], options: CliOptions): void {
   const { positional, flags } = parseArgs(args, {
     result: { short: "r", hasValue: true },
     help: { short: "h", hasValue: false },
-  });
+  }, "complete");
 
   if (getBooleanFlag(flags, "help")) {
     console.log(`${colors.bold}dex complete${colors.reset} - Mark a task as completed
@@ -597,7 +666,7 @@ function deleteCommandAsync(args: string[], options: CliOptions): void {
   const { positional, flags } = parseArgs(args, {
     force: { short: "f", hasValue: false },
     help: { short: "h", hasValue: false },
-  });
+  }, "delete");
 
   if (getBooleanFlag(flags, "help")) {
     console.log(`${colors.bold}dex delete${colors.reset} - Delete a task
@@ -680,7 +749,7 @@ function projectsCommand(args: string[], options: CliOptions): void {
   const { flags } = parseArgs(args, {
     json: { hasValue: false },
     help: { short: "h", hasValue: false },
-  });
+  }, "projects");
 
   if (getBooleanFlag(flags, "help")) {
     console.log(`${colors.bold}dex projects${colors.reset} - List all projects

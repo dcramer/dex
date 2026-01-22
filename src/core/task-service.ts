@@ -47,6 +47,7 @@ export class TaskService {
       result: null,
       created_at: now,
       updated_at: now,
+      completed_at: null,
     };
 
     store.tasks.push(task);
@@ -100,7 +101,15 @@ export class TaskService {
     }
     if (input.project !== undefined) task.project = input.project;
     if (input.priority !== undefined) task.priority = input.priority;
-    if (input.status !== undefined) task.status = input.status;
+    if (input.status !== undefined) {
+      // Handle completed_at timestamp based on status transition
+      if (input.status === "completed" && task.status !== "completed") {
+        task.completed_at = now;
+      } else if (input.status === "pending" && task.status === "completed") {
+        task.completed_at = null;
+      }
+      task.status = input.status;
+    }
     if (input.result !== undefined) task.result = input.result;
 
     task.updated_at = now;
