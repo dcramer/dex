@@ -15,6 +15,9 @@ interface ParsedArgs {
 // Color support: disable if NO_COLOR is set or stdout is not a TTY
 const useColors = !process.env.NO_COLOR && process.stdout.isTTY;
 
+// Terminal width for text wrapping
+const terminalWidth = process.stdout.columns || 80;
+
 // ANSI color codes (only used when colors are enabled)
 const colors = {
   reset: useColors ? "\x1b[0m" : "",
@@ -120,7 +123,96 @@ function formatAge(isoDate: string): string {
   return `${days}d ago`;
 }
 
-function formatTask(task: Task, verbose: boolean = false, treePrefix: string = ""): string {
+/**
+ * Strip ANSI color codes from a string for accurate length calculation.
+ */
+function stripAnsi(str: string): string {
+  // eslint-disable-next-line no-control-regex
+  return str.replace(/\x1b\[[0-9;]*m/g, "");
+}
+
+/**
+ * Wrap text to fit within a specified width, with proper indentation for continuation lines.
+ * Handles ANSI color codes correctly by not counting them toward line length.
+ */
+function wrapText(text: string, width: number, indent: string = ""): string {
+  if (!text) return "";
+
+  const effectiveWidth = width - indent.length;
+  if (effectiveWidth <= 10) {
+    // Too narrow, just return with indent
+    return indent + text;
+  }
+
+  const lines: string[] = [];
+  // Split on existing newlines first
+  const paragraphs = text.split(/\n/);
+
+  for (const paragraph of paragraphs) {
+    if (paragraph.length === 0) {
+      lines.push("");
+      continue;
+    }
+
+    const words = paragraph.split(/\s+/);
+    let currentLine = "";
+    let currentVisibleLength = 0;
+
+    for (const word of words) {
+      if (!word) continue;
+
+      const wordVisibleLength = stripAnsi(word).length;
+      const separator = currentLine ? " " : "";
+      const separatorLength = separator.length;
+
+      if (currentVisibleLength + separatorLength + wordVisibleLength <= effectiveWidth) {
+        currentLine += separator + word;
+        currentVisibleLength += separatorLength + wordVisibleLength;
+      } else {
+        if (currentLine) {
+          lines.push(currentLine);
+        }
+        // Handle very long words that exceed line width
+        if (wordVisibleLength > effectiveWidth) {
+          // Just add the word as-is, it will overflow but that's acceptable
+          lines.push(word);
+          currentLine = "";
+          currentVisibleLength = 0;
+        } else {
+          currentLine = word;
+          currentVisibleLength = wordVisibleLength;
+        }
+      }
+    }
+
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+  }
+
+  return lines.map((line, i) => (i === 0 ? indent : indent) + line).join("\n");
+}
+
+/**
+ * Truncate text to a maximum length, adding ellipsis if truncated.
+ */
+function truncateText(text: string, maxLength: number): string {
+  if (!text) return "";
+  const visibleLength = stripAnsi(text).length;
+  if (visibleLength <= maxLength) return text;
+  if (maxLength <= 3) return "...";
+  return text.slice(0, maxLength - 3) + "...";
+}
+
+interface FormatTaskOptions {
+  verbose?: boolean;
+  treePrefix?: string;
+  truncateDescription?: number;
+}
+
+function formatTask(task: Task, options: FormatTaskOptions = {}): string {
+  const { verbose = false, treePrefix = "", truncateDescription } = options;
+
   const statusIcon = task.status === "completed" ? "[x]" : "[ ]";
   const statusColor = task.status === "completed" ? colors.green : colors.yellow;
   const priority = task.priority !== 1 ? ` ${colors.cyan}[p${task.priority}]${colors.reset}` : "";
@@ -128,7 +220,11 @@ function formatTask(task: Task, verbose: boolean = false, treePrefix: string = "
     ? ` ${colors.dim}(${formatAge(task.completed_at)})${colors.reset}`
     : "";
 
-  let output = `${treePrefix}${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}${priority}: ${task.description}${completionAge}`;
+  const description = truncateDescription
+    ? truncateText(task.description, truncateDescription)
+    : task.description;
+
+  let output = `${treePrefix}${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}${priority}: ${description}${completionAge}`;
 
   if (verbose) {
     const labelWidth = 12;
@@ -380,12 +476,15 @@ ${colors.bold}EXAMPLE:${colors.reset}
     });
 
     console.log(`${colors.green}Created${colors.reset} task ${colors.bold}${task.id}${colors.reset}`);
-    console.log(formatTask(task));
+    console.log(formatTask(task, {}));
   } catch (err) {
     console.error(formatCliError(err));
     process.exit(1);
   }
 }
+
+// Max description length for list view (to keep tree readable)
+const LIST_DESCRIPTION_MAX_LENGTH = 60;
 
 function printTaskTree(tasks: Task[], parentId: string | null, prefix: string = "", isRoot: boolean = true): void {
   const children = tasks
@@ -398,13 +497,13 @@ function printTaskTree(tasks: Task[], parentId: string | null, prefix: string = 
 
     if (isRoot) {
       // Root level tasks: no tree connectors
-      console.log(formatTask(task, false, ""));
+      console.log(formatTask(task, { truncateDescription: LIST_DESCRIPTION_MAX_LENGTH }));
       printTaskTree(tasks, task.id, "", false);
     } else {
       // Child tasks: use tree connectors
       const connector = isLast ? "└── " : "├── ";
       const childPrefix = prefix + (isLast ? "    " : "│   ");
-      console.log(formatTask(task, false, prefix + connector));
+      console.log(formatTask(task, { treePrefix: prefix + connector, truncateDescription: LIST_DESCRIPTION_MAX_LENGTH }));
       printTaskTree(tasks, task.id, childPrefix, false);
     }
   }
@@ -477,16 +576,75 @@ ${colors.bold}EXAMPLE:${colors.reset}
 
   if (getBooleanFlag(flags, "flat")) {
     for (const task of tasks) {
-      console.log(formatTask(task));
+      console.log(formatTask(task, { truncateDescription: LIST_DESCRIPTION_MAX_LENGTH }));
     }
   } else {
     printTaskTree(tasks, null, "");
   }
 }
 
+// Default max length for context/result text in show command (use --full to see all)
+const SHOW_TEXT_MAX_LENGTH = 200;
+
+/**
+ * Format the detailed show view for a task with proper text wrapping.
+ */
+function formatTaskShow(task: Task, full: boolean = false): string {
+  const statusIcon = task.status === "completed" ? "[x]" : "[ ]";
+  const statusColor = task.status === "completed" ? colors.green : colors.yellow;
+  const priority = task.priority !== 1 ? ` ${colors.cyan}[p${task.priority}]${colors.reset}` : "";
+
+  const lines: string[] = [];
+
+  // Header line with status, ID, priority, and description
+  lines.push(`${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}${priority}: ${task.description}`);
+  lines.push(""); // Blank line after header
+
+  // Context section with word wrapping
+  const indent = "  ";
+  let contextText = task.context;
+  if (!full && contextText.length > SHOW_TEXT_MAX_LENGTH) {
+    contextText = contextText.slice(0, SHOW_TEXT_MAX_LENGTH) + "...";
+  }
+  lines.push(`${colors.bold}Context:${colors.reset}`);
+  lines.push(wrapText(contextText, terminalWidth, indent));
+
+  // Result section (if present) with word wrapping
+  if (task.result) {
+    lines.push(""); // Blank line before result
+    let resultText = task.result;
+    if (!full && resultText.length > SHOW_TEXT_MAX_LENGTH) {
+      resultText = resultText.slice(0, SHOW_TEXT_MAX_LENGTH) + "...";
+    }
+    lines.push(`${colors.bold}Result:${colors.reset}`);
+    lines.push(wrapText(`${colors.green}${resultText}${colors.reset}`, terminalWidth, indent));
+  }
+
+  // Metadata section
+  lines.push(""); // Blank line before metadata
+  const labelWidth = 10;
+  lines.push(`${"Created:".padEnd(labelWidth)} ${colors.dim}${task.created_at}${colors.reset}`);
+  lines.push(`${"Updated:".padEnd(labelWidth)} ${colors.dim}${task.updated_at}${colors.reset}`);
+  if (task.completed_at) {
+    lines.push(`${"Completed:".padEnd(labelWidth)} ${colors.dim}${task.completed_at}${colors.reset}`);
+  }
+  if (task.project && task.project !== "default") {
+    lines.push(`${"Project:".padEnd(labelWidth)} ${colors.cyan}${task.project}${colors.reset}`);
+  }
+
+  // Add hint if text was truncated
+  if (!full && (task.context.length > SHOW_TEXT_MAX_LENGTH || (task.result && task.result.length > SHOW_TEXT_MAX_LENGTH))) {
+    lines.push("");
+    lines.push(`${colors.dim}(Text truncated. Use --full to see complete content.)${colors.reset}`);
+  }
+
+  return lines.join("\n");
+}
+
 function showCommand(args: string[], options: CliOptions): void {
   const { positional, flags } = parseArgs(args, {
     json: { hasValue: false },
+    full: { short: "f", hasValue: false },
     help: { short: "h", hasValue: false },
   }, "show");
 
@@ -500,11 +658,13 @@ ${colors.bold}ARGUMENTS:${colors.reset}
   <task-id>                  Task ID to display (required)
 
 ${colors.bold}OPTIONS:${colors.reset}
+  -f, --full                 Show full context/result (no truncation)
   --json                     Output as JSON
   -h, --help                 Show this help message
 
 ${colors.bold}EXAMPLE:${colors.reset}
-  dex show abc123            # Show task details and subtask count
+  dex show abc123            # Show task details (truncated)
+  dex show abc123 --full     # Show complete context and result
   dex show abc123 --json     # Output as JSON for scripting
 `);
     return;
@@ -532,6 +692,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
   }
 
   const children = service.getChildren(id);
+  const full = getBooleanFlag(flags, "full");
 
   // JSON output mode
   if (getBooleanFlag(flags, "json")) {
@@ -547,12 +708,13 @@ ${colors.bold}EXAMPLE:${colors.reset}
     return;
   }
 
-  console.log(formatTask(task, true));
+  console.log(formatTaskShow(task, full));
 
   if (children.length > 0) {
     const pending = children.filter((c) => c.status === "pending").length;
     const completed = children.filter((c) => c.status === "completed").length;
-    console.log(`\n  Subtasks: ${colors.yellow}${pending} pending${colors.reset}, ${colors.green}${completed} completed${colors.reset}`);
+    console.log("");
+    console.log(`Subtasks: ${colors.yellow}${pending} pending${colors.reset}, ${colors.green}${completed} completed${colors.reset}`);
   }
 }
 
@@ -611,7 +773,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
     });
 
     console.log(`${colors.green}Updated${colors.reset} task ${colors.bold}${id}${colors.reset}`);
-    console.log(formatTask(task));
+    console.log(formatTask(task, {}));
   } catch (err) {
     console.error(formatCliError(err));
     process.exit(1);
@@ -664,7 +826,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
     const task = service.complete(id, result);
 
     console.log(`${colors.green}Completed${colors.reset} task ${colors.bold}${id}${colors.reset}`);
-    console.log(formatTask(task, true));
+    console.log(formatTaskShow(task, true));
   } catch (err) {
     console.error(formatCliError(err));
     process.exit(1);
@@ -770,7 +932,8 @@ ${colors.bold}COMMANDS:${colors.reset}
   list --project "auth"            Filter by project
   list --query "login"             Search description/context
   list --json                      Output as JSON (for scripts)
-  show <id>                        View task details + subtask count
+  show <id>                        View task details (truncated)
+  show <id> --full                 View full context and result
   show <id> --json                 Output as JSON (for scripts)
   edit <id> [-d "..."]             Edit task
   complete <id> --result "..."     Mark completed with result

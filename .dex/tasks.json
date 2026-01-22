@@ -259,11 +259,11 @@
       "description": "Update SKILL.md with task breakdown guidance",
       "context": "Update skills/dex/SKILL.md:\n\n1. Remove outdated 'dex projects' section\n2. Add guidance on WHEN to use subtasks (and when not to)\n3. Add guidance on task granularity\n4. Add guidance on breaking down complex work\n5. Keep it concise - this is reference doc, not tutorial\n\nKey points to cover:\n- Use subtasks when work decomposes into 3+ discrete steps\n- Don't use subtasks for simple atomic tasks or just 1-2 items\n- Each task should be completable in one session\n- 3-7 subtasks per parent is usually right\n- Context should have clear completion criteria",
       "priority": 1,
-      "status": "pending",
-      "result": null,
+      "status": "completed",
+      "result": "Removed projects, added when to use subtasks, task granularity guidance, updated best practices",
       "created_at": "2026-01-22T08:47:26.044Z",
-      "updated_at": "2026-01-22T08:47:26.044Z",
-      "completed_at": null
+      "updated_at": "2026-01-22T08:48:19.065Z",
+      "completed_at": "2026-01-22T08:48:19.065Z"
     },
 
     {
@@ -333,6 +333,20 @@
       "result": "Aligned schemas with types.ts, consistent JSON responses, added error handling",
       "created_at": "2026-01-22T08:05:30.379Z",
       "updated_at": "2026-01-22T08:25:58.976Z",
+      "completed_at": null
+    },
+
+    {
+      "id": "qgeekbje",
+      "parent_id": null,
+      "project": "enhancements",
+      "description": "Audit and improve CLI output formatting",
+      "context": "The show command and others need better terminal display:\n\n1. show command:\n   - Context and result can be very long (multi-paragraph)\n   - Should wrap text at terminal width\n   - Consider collapsible sections or truncation with 'show --full'\n   - Better visual separation between fields\n\n2. Other commands to audit:\n   - list: Is tree view readable with long descriptions?\n   - help: Is it well-formatted?\n   - create/complete output: Is it clear and concise?\n\n3. General improvements:\n   - Respect terminal width (process.stdout.columns)\n   - Word-wrap long text\n   - Use visual separators (blank lines, headers)\n   - Consider pager for very long output?",
+      "priority": 0,
+      "status": "pending",
+      "result": null,
+      "created_at": "2026-01-22T08:48:55.242Z",
+      "updated_at": "2026-01-22T08:48:55.242Z",
       "completed_at": null
     },
 
