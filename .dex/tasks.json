@@ -253,6 +253,20 @@
     },
 
     {
+      "id": "mmljra0a",
+      "parent_id": null,
+      "project": "enhancements",
+      "description": "Update SKILL.md with task breakdown guidance",
+      "context": "Update skills/dex/SKILL.md:\n\n1. Remove outdated 'dex projects' section\n2. Add guidance on WHEN to use subtasks (and when not to)\n3. Add guidance on task granularity\n4. Add guidance on breaking down complex work\n5. Keep it concise - this is reference doc, not tutorial\n\nKey points to cover:\n- Use subtasks when work decomposes into 3+ discrete steps\n- Don't use subtasks for simple atomic tasks or just 1-2 items\n- Each task should be completable in one session\n- 3-7 subtasks per parent is usually right\n- Context should have clear completion criteria",
+      "priority": 1,
+      "status": "pending",
+      "result": null,
+      "created_at": "2026-01-22T08:47:26.044Z",
+      "updated_at": "2026-01-22T08:47:26.044Z",
+      "completed_at": null
+    },
+
+    {
       "id": "n37z272m",
       "parent_id": null,
       "project": "code-review",

@@ -10,9 +10,15 @@ Use the `dex` CLI to track and manage work items during complex tasks.
 ## When to Create Tasks
 
 Create tasks when:
-- Breaking down complex work into discrete steps
-- Tracking implementation items that span multiple interactions
-- Recording context that needs to persist across sessions
+- Work requires 3+ discrete, non-trivial steps
+- Implementation spans multiple sessions or interactions
+- Context needs to persist (decisions, constraints, progress)
+- You need to track dependencies between work items
+
+Skip task creation when:
+- Work is a single atomic action
+- Everything fits in one session with no follow-up
+- Overhead of tracking exceeds value
 
 ## CLI Usage
 
@@ -25,14 +31,12 @@ dex create -d "Short description" --context "Full implementation context"
 Options:
 - `-d, --description` (required): One-line summary
 - `--context` (required): Full implementation details
-- `--project <name>`: Group related tasks
 - `-p, --priority <n>`: Lower = higher priority (default: 1)
 
 Example:
 ```bash
 dex create -d "Add user authentication" \
   --context "Implement JWT-based auth with refresh tokens. Use bcrypt for password hashing. Add /login and /register endpoints." \
-  --project "auth" \
   -p 0
 ```
 
@@ -42,7 +46,6 @@ dex create -d "Add user authentication" \
 dex list                      # Show pending tasks (default)
 dex list --all                # Include completed
 dex list --status completed   # Only completed
-dex list --project "auth"     # Filter by project
 dex list --query "login"      # Search in description/context
 ```
 
@@ -84,7 +87,14 @@ Note: Deleting a parent task also deletes all its subtasks.
 
 ## Subtasks
 
-Use subtasks to break complex work into smaller, trackable pieces.
+Break complex work into subtasks when:
+- Work naturally decomposes into 3+ discrete steps
+- You want to track progress through a larger effort
+- Subtasks could be worked on independently
+
+Don't use subtasks when:
+- Task is simple/atomic (one step)
+- You'd only have 1-2 subtasks (just make separate tasks)
 
 ### Creating Subtasks
 
@@ -102,19 +112,13 @@ dex create -d "Implement login form" --context "..." --parent <parent-id>
 - A task cannot be completed while it has pending subtasks
 - Complete all children before completing the parent
 
-### List Projects
-
-```bash
-dex projects
-```
-
 ## Best Practices
 
-1. **Write clear descriptions**: Use action verbs ("Add", "Fix", "Update")
-2. **Provide rich context**: Include requirements, constraints, and approach
-3. **Use projects**: Group related tasks for better organization
-4. **Set priorities**: Use priority 0 for urgent items
-5. **Complete with results**: Document what was done for future reference
+1. **Right-size tasks**: Completable in one focused session
+2. **Clear completion criteria**: Context should define "done"
+3. **Don't over-decompose**: 3-7 subtasks per parent is usually right
+4. **Action-oriented descriptions**: Start with verbs ("Add", "Fix", "Update")
+5. **Document results**: Record what was done and any follow-ups
 
 ## Storage
 
