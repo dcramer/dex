@@ -1,7 +1,7 @@
 # Agent Instructions
 
 ## Package Manager
-Use **pnpm**: `pnpm install`, `pnpm build`
+Use **pnpm**: `pnpm install`, `pnpm build`, `pnpm test`
 
 ## Commit Attribution
 AI commits MUST include:
@@ -21,8 +21,7 @@ src/
 ```
 
 ## Storage
-- Per-repo: `<git-root>/.dex/tasks.json`
-- Fallback: `~/.dex/tasks.json`
+One file per task: `.dex/tasks/{id}.json`
 
 ## Task Management
-Use `dex` CLI (not TodoWrite): `/dex` or `dex create|list|complete`
+Use `dex` skill for todos. See `skills/dex/SKILL.md`
