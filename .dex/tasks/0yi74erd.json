@@ -1,0 +1,12 @@
+{
+  "id": "0yi74erd",
+  "parent_id": null,
+  "description": "Verify dex command points to local build",
+  "context": "Run 'which dex' and test 'dex list' to confirm local build is active",
+  "priority": 1,
+  "status": "pending",
+  "result": null,
+  "created_at": "2026-01-22T20:08:31.387Z",
+  "updated_at": "2026-01-22T20:08:31.387Z",
+  "completed_at": null
+}

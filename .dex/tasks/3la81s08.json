@@ -1,0 +1,12 @@
+{
+  "id": "3la81s08",
+  "parent_id": null,
+  "description": "Implement GitHub Issues storage engine",
+  "context": "Create storage backend that uses GitHub Issues as task storage.\n\nRequirements:\n- Implement StorageEngine interface\n- Use GitHub REST API via Octokit\n- Map dex tasks to GitHub issues\n- Support authentication via token\n- Handle rate limiting gracefully\n\nMapping:\n- id → issue.number (as string)\n- description → issue.title  \n- context → issue.body\n- result → comment with ## Result header or body update\n- status → issue.state + labels (dex:pending, dex:completed)\n- priority → label (dex:priority-0, dex:priority-1, etc.)\n- parent_id → sub-issues API (added Dec 2024)\n- timestamps → issue created/updated/closed_at\n\nImplementation approach:\n1. Add @octokit/rest dependency\n2. Create src/core/github-issues-storage.ts\n3. Implement read() - fetch issues, parse to TaskStore\n4. Implement write() - create/update/close issues\n5. Handle authentication (token from env or config)\n6. Add retry logic for rate limits\n\nDone when:\n- GitHubIssuesStorage class implements StorageEngine\n- Can create/read/update/delete tasks via GitHub Issues\n- Respects dex label prefix for filtering\n- Authentication works with token\n- Unit tests with mocked API calls\n- Integration test with real GitHub (optional)\n\nRelated: GitHub Issues REST API, sub-issues support\nConfig: [storage.github-issues] owner, repo, token_env, label_prefix",
+  "priority": 1,
+  "status": "pending",
+  "result": null,
+  "created_at": "2026-01-22T20:00:00.786Z",
+  "updated_at": "2026-01-22T20:00:00.786Z",
+  "completed_at": null
+}

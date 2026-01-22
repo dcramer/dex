@@ -1,0 +1,12 @@
+{
+  "id": "h9uv7oej",
+  "parent_id": null,
+  "description": "Update AGENTS.md with skill testing documentation",
+  "context": "Add new section after 'Local Development' explaining how to test the /dex skill locally using pnpm link --global workflow",
+  "priority": 1,
+  "status": "completed",
+  "result": "Successfully updated AGENTS.md with complete skill testing documentation including setup, development cycle, and cleanup instructions",
+  "created_at": "2026-01-22T20:08:11.524Z",
+  "updated_at": "2026-01-22T20:10:14.658Z",
+  "completed_at": "2026-01-22T20:10:14.658Z"
+}

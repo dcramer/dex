@@ -4,3 +4,4 @@ dist/
 .DS_Store
 .task/
 .claude/settings.local.json
+dex.toml

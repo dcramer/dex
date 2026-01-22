@@ -1,0 +1,12 @@
+{
+  "id": "q7hgpz17",
+  "parent_id": "0319t60q",
+  "description": "Wire config loading into index.ts and TaskService",
+  "context": "Integrate config file loading with existing CLI and service initialization.\n\nWhat it does:\n- Use config to determine which storage engine to create\n- Respect priority: CLI flags > env vars > config file > defaults\n- Pass storage engine to TaskService\n\nImplementation:\n- Update src/index.ts:\n  - Load config file\n  - Check CLI --storage-path flag (highest priority)\n  - Check DEX_STORAGE_PATH env var\n  - Fall back to config file settings\n  - Fall back to auto-detect (git root or home)\n  - Create appropriate StorageEngine instance\n  - Pass to TaskService\n- Update TaskService constructor to accept StorageEngine\n- Add .gitignore entry for example config\n\nDone when:\n- Config loads on startup\n- CLI flags override config\n- TaskService accepts StorageEngine parameter\n- All existing functionality works\n- pnpm test passes\n- Example config documented in README",
+  "priority": 1,
+  "status": "completed",
+  "result": "Wired config loading into application:\n\nImplementation:\n- Updated index.ts with createStorageEngine() function\n- Config file determines engine type (priority over env vars)\n- For file storage path priority: CLI flag > config > env var > auto-detect\n- Updated MCP server and CLI to accept StorageEngine instead of path string\n- Added 'dex init' command to generate default config file\n- Config created at ~/.config/dex/dex.toml with all engine examples\n- Added dex.toml to .gitignore\n- Created dex.toml.example for reference\n\nPriority order:\n1. Config determines engine type\n2. For file storage: CLI --storage-path > config path > DEX_STORAGE_PATH > auto-detect\n\nNew features:\n- dex init: Creates ~/.config/dex/dex.toml with defaults\n- Error if init run when config already exists\n- All engines load from config (github-issues/projects throw 'not implemented' for now)\n\nAll 69 tests passing. Storage abstraction complete and ready for GitHub backends.",
+  "created_at": "2026-01-22T19:59:45.866Z",
+  "updated_at": "2026-01-22T20:12:44.617Z",
+  "completed_at": "2026-01-22T20:12:44.617Z"
+}

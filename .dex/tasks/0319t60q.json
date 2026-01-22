@@ -1,0 +1,12 @@
+{
+  "id": "0319t60q",
+  "parent_id": null,
+  "description": "Add storage engine abstraction and config file support",
+  "context": "Add support for multiple storage backends (file, GitHub Issues, GitHub Projects v2) with system-wide configuration.\n\nRequirements:\n- Create StorageEngine interface that file/GitHub backends implement\n- Add TOML config file support (~/.config/dex/dex.toml)\n- Config should specify engine type and engine-specific settings\n- Maintain backward compatibility with current file storage\n- Config loading priority: CLI flags > env vars > config file > auto-detect\n\nImplementation approach:\n1. Create StorageEngine interface (read/write/getPath)\n2. Refactor TaskStorage → FileStorage implementing interface\n3. Add TOML config loading (use a TOML parser library)\n4. Update index.ts and TaskService to accept engine parameter\n5. Add config file to .gitignore\n\nDone when:\n- StorageEngine interface exists\n- FileStorage implements it\n- Config file loads and selects engine\n- All existing tests pass\n- Can specify engine via config\n\nRelated: src/core/storage.ts, src/core/task-service.ts, src/index.ts",
+  "priority": 1,
+  "status": "pending",
+  "result": null,
+  "created_at": "2026-01-22T19:59:11.178Z",
+  "updated_at": "2026-01-22T19:59:11.178Z",
+  "completed_at": null
+}

@@ -35,3 +35,33 @@ pnpm start create -d "..."    # Run CLI commands
 pnpm dev                      # Watch mode in one terminal
 node dist/index.js <command>  # Run in another terminal
 ```
+
+## Testing the /dex Skill Locally
+
+The `/dex` skill is auto-discovered from `skills/dex/SKILL.md` when working in this repo. To test the skill with your local build:
+
+### Setup
+```bash
+pnpm build
+pnpm link --global  # Makes local build available as 'dex' command
+```
+
+Now the `/dex` skill in Claude Code will use your local build.
+
+### Development Cycle
+```bash
+# Make code changes...
+pnpm build          # Rebuild
+# Test skill via Claude Code
+```
+
+Or use watch mode:
+```bash
+pnpm dev            # Auto-rebuild on changes
+# Test skill after rebuild completes
+```
+
+### Cleanup
+```bash
+pnpm unlink --global  # Remove global link
+```

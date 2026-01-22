@@ -1,0 +1,12 @@
+{
+  "id": "k6vy8mgx",
+  "parent_id": null,
+  "description": "Verify complete workflow end-to-end",
+  "context": "Test: pnpm build && pnpm link --global, verify which dex, test dex list, verify skill discovery in Claude Code, test skill execution, verify task persistence, cleanup with pnpm unlink --global",
+  "priority": 1,
+  "status": "pending",
+  "result": null,
+  "created_at": "2026-01-22T20:08:12.297Z",
+  "updated_at": "2026-01-22T20:08:12.297Z",
+  "completed_at": null
+}

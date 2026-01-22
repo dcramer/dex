@@ -1,0 +1,12 @@
+{
+  "id": "47smxc8f",
+  "parent_id": "0319t60q",
+  "description": "Add TOML config file loading",
+  "context": "Implement configuration file support using TOML format.\n\nWhat it does:\n- Load config from ~/.config/dex/dex.toml\n- Parse storage engine settings\n- Provide defaults if config doesn't exist\n\nImplementation:\n- Add dependency: '@iarna/toml' or 'smol-toml' (research which is better)\n- Create src/core/config.ts with:\n  - loadConfig(): Config function\n  - Config type with storage settings\n  - Path: ~/.config/dex/dex.toml\n- Config structure:\n  [storage]\n  engine = \"file\"\n  [storage.file]\n  path = \"~/.dex\"\n- Handle missing config gracefully (use defaults)\n\nDone when:\n- TOML parser dependency added\n- Config loading function exists\n- Returns config object or defaults\n- Config file path is ~/.config/dex/dex.toml\n- Unit tests for config loading",
+  "priority": 1,
+  "status": "completed",
+  "result": "Added TOML config file loading:\n\nImplementation:\n- Installed smol-toml (faster, TOML 1.1.0 compliant, actively maintained)\n- Created src/core/config.ts with Config types and loading\n- Config path: ~/.config/dex/dex.toml (respects XDG_CONFIG_HOME)\n- Supports all three storage engines: file, github-issues, github-projects\n- Handles missing config gracefully (returns defaults)\n- Handles malformed TOML gracefully (warns and returns defaults)\n\nTesting:\n- Added comprehensive test suite in tests/config.test.ts\n- Tests config path resolution, XDG_CONFIG_HOME support\n- Tests all storage engine configurations\n- Tests error handling for malformed TOML\n\nAll 69 tests passing (9 new config tests). Ready to wire into app.",
+  "created_at": "2026-01-22T19:59:36.826Z",
+  "updated_at": "2026-01-22T20:06:28.598Z",
+  "completed_at": "2026-01-22T20:06:28.598Z"
+}

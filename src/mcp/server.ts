@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { ZodError, ZodType } from "zod";
 import { TaskService } from "../core/task-service.js";
+import { StorageEngine } from "../core/storage-engine.js";
 import { CreateTaskArgsSchema, handleCreateTask } from "../tools/create-task.js";
 import { UpdateTaskArgsSchema, handleUpdateTask } from "../tools/update-task.js";
 import { ListTasksArgsSchema, handleListTasks } from "../tools/list-tasks.js";
@@ -30,8 +31,8 @@ function wrapHandler<T>(
   };
 }
 
-export async function startMcpServer(storagePath?: string): Promise<void> {
-  const service = new TaskService(storagePath);
+export async function startMcpServer(storage: StorageEngine): Promise<void> {
+  const service = new TaskService(storage);
   const server = new McpServer({
     name: "dex",
     version: "1.0.0",

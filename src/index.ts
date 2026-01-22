@@ -2,6 +2,9 @@
 
 import { startMcpServer } from "./mcp/server.js";
 import { runCli } from "./cli/commands.js";
+import { loadConfig } from "./core/config.js";
+import { StorageEngine } from "./core/storage-engine.js";
+import { FileStorage } from "./core/storage.js";
 
 const args = process.argv.slice(2);
 
@@ -32,6 +35,47 @@ for (let i = 0; i < args.length; i++) {
   }
 }
 
+/**
+ * Create storage engine based on configuration priority:
+ * 1. Config file determines engine type
+ * 2. For file storage specifically:
+ *    a. CLI --storage-path flag
+ *    b. Config file path setting
+ *    c. DEX_STORAGE_PATH environment variable
+ *    d. Auto-detect (git root or home)
+ */
+function createStorageEngine(cliStoragePath?: string): StorageEngine {
+  // Load config to determine engine type
+  const config = loadConfig();
+
+  // If CLI --storage-path is provided, force file storage
+  if (cliStoragePath) {
+    return new FileStorage(cliStoragePath);
+  }
+
+  // Otherwise, use configured engine
+  switch (config.storage.engine) {
+    case "file": {
+      // Priority for file storage path:
+      // 1. Config file path
+      // 2. DEX_STORAGE_PATH environment variable
+      // 3. Auto-detect
+      const filePath =
+        config.storage.file?.path || process.env.DEX_STORAGE_PATH || undefined;
+      return new FileStorage(filePath);
+    }
+
+    case "github-issues":
+      throw new Error("GitHub Issues storage not yet implemented");
+
+    case "github-projects":
+      throw new Error("GitHub Projects storage not yet implemented");
+
+    default:
+      throw new Error(`Unknown storage engine: ${config.storage.engine}`);
+  }
+}
+
 const command = filteredArgs[0];
 
 if (command === "mcp") {
@@ -57,15 +101,17 @@ ${bold}DESCRIPTION:${reset}
 
 ${bold}EXAMPLE:${reset}
   dex mcp                    # Start MCP server with default storage
-  dex mcp --storage-path ~/.dex/tasks.json
+  dex mcp --storage-path ~/.dex/tasks
 `);
     process.exit(0);
   }
 
-  startMcpServer(storagePath).catch((err) => {
+  const storage = createStorageEngine(storagePath);
+  startMcpServer(storage).catch((err) => {
     console.error("MCP server error:", err);
     process.exit(1);
   });
 } else {
-  runCli(filteredArgs, { storagePath });
+  const storage = createStorageEngine(storagePath);
+  runCli(filteredArgs, { storage });
 }

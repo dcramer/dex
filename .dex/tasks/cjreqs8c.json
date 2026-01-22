@@ -1,0 +1,12 @@
+{
+  "id": "cjreqs8c",
+  "parent_id": null,
+  "description": "Implement GitHub Projects v2 storage engine",
+  "context": "Create storage backend that uses GitHub Projects v2 as task storage.\n\nRequirements:\n- Implement StorageEngine interface\n- Use GitHub GraphQL API\n- Map dex tasks to project items (draft issues)\n- Support custom fields for metadata\n- Handle 2-step workflow (create then update)\n\nMapping:\n- id → projectItem.id\n- description → draft issue title\n- context → draft issue body\n- result → custom field: Result (text)\n- status → status field (pending/completed columns)\n- priority → custom field: Priority (number)\n- parent_id → custom field: Parent ID (text)\n- completed_at → custom field: Completed (date)\n- timestamps → projectItem created/updated\n\nImplementation approach:\n1. Add @octokit/graphql dependency\n2. Create src/core/github-projects-storage.ts\n3. Implement read() - query project items, parse to TaskStore\n4. Implement write() - use addProjectV2DraftIssue + updateProjectV2ItemFieldValue\n5. Handle field ID resolution (cache field IDs)\n6. Support both project_number and project_id config\n7. Handle 2-step workflow (create, then update fields)\n\nDone when:\n- GitHubProjectsStorage class implements StorageEngine\n- Can create/read/update/delete tasks via Projects v2\n- Field mappings configurable in config\n- Authentication works with token (project scope)\n- Handles field ID lookups efficiently\n- Unit tests with mocked GraphQL\n- Documentation on project setup (must pre-configure fields)\n\nRelated: GitHub Projects v2 GraphQL API, custom fields\nConfig: [storage.github-projects] owner, project_number, token_env, field_names\n\nNote: Status columns cannot be created via API - must be pre-configured in project",
+  "priority": 1,
+  "status": "pending",
+  "result": null,
+  "created_at": "2026-01-22T20:00:13.223Z",
+  "updated_at": "2026-01-22T20:00:13.223Z",
+  "completed_at": null
+}

@@ -23,7 +23,9 @@
     "dev": "tsc --watch",
     "start": "node dist/index.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "link": "pnpm build && pnpm link --global",
+    "unlink": "pnpm unlink --global"
   },
   "packageManager": "pnpm@10.28.0",
   "engines": {

@@ -1,0 +1,39 @@
+# Example dex configuration file
+# Copy to ~/.config/dex/dex.toml to use
+
+# Storage engine: "file", "github-issues", or "github-projects"
+[storage]
+engine = "file"
+
+# File storage settings (default)
+[storage.file]
+path = "~/.dex"
+
+# GitHub Issues storage (alternative)
+# [storage]
+# engine = "github-issues"
+#
+# [storage.github-issues]
+# owner = "your-username"
+# repo = "dex-tasks"
+# token_env = "GITHUB_TOKEN"    # Environment variable containing GitHub token
+# label_prefix = "dex"           # Prefix for dex-related labels
+
+# GitHub Projects v2 storage (alternative)
+# [storage]
+# engine = "github-projects"
+#
+# [storage.github-projects]
+# owner = "your-username"
+# project_number = 1             # Project number (e.g., #1)
+# # OR use project_id directly:
+# # project_id = "PVT_kwDOABcD1234"
+# token_env = "GITHUB_TOKEN"     # Environment variable containing GitHub token
+#
+# # Custom field name mappings (must be pre-configured in project)
+# [storage.github-projects.field_names]
+# status = "Status"
+# priority = "Priority"
+# result = "Result"
+# parent = "Parent ID"
+# completed_at = "Completed"
