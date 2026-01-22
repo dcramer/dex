@@ -190,7 +190,7 @@ function wrapText(text: string, width: number, indent: string = ""): string {
     }
   }
 
-  return lines.map((line, i) => (i === 0 ? indent : indent) + line).join("\n");
+  return lines.map((line) => indent + line).join("\n");
 }
 
 /**
@@ -246,19 +246,8 @@ function formatTask(task: Task, options: FormatTaskOptions = {}): string {
   return output;
 }
 
-function formatTaskJson(task: Task): object {
-  return {
-    id: task.id,
-    parent_id: task.parent_id,
-    description: task.description,
-    context: task.context,
-    priority: task.priority,
-    status: task.status,
-    result: task.result,
-    created_at: task.created_at,
-    updated_at: task.updated_at,
-    completed_at: task.completed_at,
-  };
+function formatTaskJson(task: Task): Task {
+  return task;
 }
 
 function getStringFlag(flags: ParsedArgs["flags"], name: string): string | undefined {

@@ -51,18 +51,15 @@ export class TaskService {
   }
 
   update(input: UpdateTaskInput): Task {
+    if (input.delete) {
+      return this.delete(input.id);
+    }
+
     const store = this.storage.read();
     const index = store.tasks.findIndex((t) => t.id === input.id);
 
     if (index === -1) {
       throw new NotFoundError("Task", input.id);
-    }
-
-    if (input.delete) {
-      const deleted = store.tasks[index];
-      store.tasks.splice(index, 1);
-      this.storage.write(store);
-      return deleted;
     }
 
     const task = store.tasks[index];

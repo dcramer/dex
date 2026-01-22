@@ -14,18 +14,10 @@ export const UpdateTaskArgsSchema = z.object({
   delete: z.boolean().optional().describe("Set to true to delete the task"),
 });
 
-export type UpdateTaskArgs = UpdateTaskInput;
-
-/**
- * Handle the update_task MCP tool call.
- * Errors are propagated to the MCP server layer for consistent handling.
- */
-export function handleUpdateTask(args: UpdateTaskArgs, service: TaskService): McpToolResponse {
+export function handleUpdateTask(args: UpdateTaskInput, service: TaskService): McpToolResponse {
   if (args.delete) {
-    const deletedTask = service.delete(args.id);
+    const deletedTask = service.update(args);
     return jsonResponse({ deleted: true, id: args.id, task: deletedTask });
   }
-
-  const task = service.update(args);
-  return jsonResponse(task);
+  return jsonResponse(service.update(args));
 }

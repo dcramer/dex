@@ -4,9 +4,9 @@
   "description": "Migrate storage to one file per task",
   "context": "Change storage format for git-friendliness:\n\nStructure:\n.dex/\n└── tasks/\n    ├── abc123.json\n    └── def456.json\n\nNO INDEX - just scan task files. For typical task counts (<100), this is fast.\n\nImplementation:\n1. Update storage.ts:\n   - read(): Scan .dex/tasks/*.json, parse each, return TaskStore\n   - write(task): Write single task to .dex/tasks/{id}.json\n   - delete(id): Remove .dex/tasks/{id}.json\n   - Add readTask(id) for single task lookup\n\n2. Task file format: Same as current Task schema (one task per file)\n\n3. Migration: On read, if old tasks.json exists, migrate to new format\n\n4. Update tests\n\nBenefits:\n- Create = new file (never conflicts)\n- Update = single file change  \n- Delete = remove file\n- No index to maintain or conflict\n- git diff shows exactly which tasks changed",
   "priority": 0,
-  "status": "pending",
-  "result": null,
+  "status": "completed",
+  "result": "Migrated storage from single tasks.json to one file per task:\n\nStructure:\n- Each task stored as .dex/tasks/{id}.json\n- No index file (avoids merge conflicts)\n- Directory scanned on read to build task list\n\nImplementation:\n- Modified Storage.read() to scan .dex/tasks/ directory\n- Modified Storage.write() to write/delete individual task files\n- Auto-migration from old single-file format on first read\n- Atomic writes using temp file + rename pattern\n\nTrade-offs:\n- Slightly slower reads (must scan directory + parse each file)\n- Acceptable since task count is typically small (<100)\n- Better git history - each task change is isolated\n\nAll 60 tests passing, build successful.",
   "created_at": "2026-01-22T09:03:27.315Z",
-  "updated_at": "2026-01-22T09:03:41.088Z",
-  "completed_at": null
+  "updated_at": "2026-01-22T09:07:55.665Z",
+  "completed_at": "2026-01-22T09:07:55.665Z"
 }

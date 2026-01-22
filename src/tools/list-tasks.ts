@@ -9,13 +9,6 @@ export const ListTasksArgsSchema = z.object({
   all: z.boolean().optional().describe("Show all tasks (pending and completed)"),
 });
 
-export type ListTasksArgs = ListTasksInput;
-
-/**
- * Handle the list_tasks MCP tool call.
- * Errors are propagated to the MCP server layer for consistent handling.
- */
-export function handleListTasks(args: ListTasksArgs, service: TaskService): McpToolResponse {
-  const tasks = service.list(args);
-  return jsonResponse(tasks);
+export function handleListTasks(args: ListTasksInput, service: TaskService): McpToolResponse {
+  return jsonResponse(service.list(args));
 }

@@ -10,19 +10,7 @@ export const CreateTaskArgsSchema = z.object({
   priority: z.number().int().min(0).optional().describe("Priority level - lower number = higher priority (default: 1)"),
 });
 
-export type CreateTaskArgs = CreateTaskInput;
-
-/**
- * Handle the create_task MCP tool call.
- * Errors are propagated to the MCP server layer for consistent handling.
- */
-export function handleCreateTask(args: CreateTaskArgs, service: TaskService): McpToolResponse {
-  const task = service.create({
-    description: args.description,
-    context: args.context,
-    parent_id: args.parent_id,
-    priority: args.priority,
-  });
-
+export function handleCreateTask(args: CreateTaskInput, service: TaskService): McpToolResponse {
+  const task = service.create(args);
   return jsonResponse(task);
 }

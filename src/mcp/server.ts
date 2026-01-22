@@ -1,26 +1,33 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { ZodError } from "zod";
+import { ZodError, ZodType } from "zod";
 import { TaskService } from "../core/task-service.js";
-import {
-  CreateTaskArgsSchema,
-  handleCreateTask,
-} from "../tools/create-task.js";
-import {
-  UpdateTaskArgsSchema,
-  handleUpdateTask,
-} from "../tools/update-task.js";
-import {
-  ListTasksArgsSchema,
-  handleListTasks,
-} from "../tools/list-tasks.js";
-import { errorResponse } from "../tools/response.js";
+import { CreateTaskArgsSchema, handleCreateTask } from "../tools/create-task.js";
+import { UpdateTaskArgsSchema, handleUpdateTask } from "../tools/update-task.js";
+import { ListTasksArgsSchema, handleListTasks } from "../tools/list-tasks.js";
+import { errorResponse, McpToolResponse } from "../tools/response.js";
 import { ValidationError } from "../errors.js";
 
 function formatZodError(error: ZodError): string {
-  return error.errors
-    .map((e) => `${e.path.join(".")}: ${e.message}`)
-    .join(", ");
+  return error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ");
+}
+
+function wrapHandler<T>(
+  schema: ZodType<T>,
+  handler: (args: T, service: TaskService) => McpToolResponse,
+  service: TaskService
+): (args: unknown) => Promise<McpToolResponse> {
+  return async (args) => {
+    try {
+      const parsed = schema.parse(args);
+      return handler(parsed, service);
+    } catch (err) {
+      if (err instanceof ZodError) {
+        return errorResponse(new ValidationError(`Validation error: ${formatZodError(err)}`));
+      }
+      return errorResponse(err);
+    }
+  };
 }
 
 export async function startMcpServer(storagePath?: string): Promise<void> {
@@ -34,51 +41,21 @@ export async function startMcpServer(storagePath?: string): Promise<void> {
     "create_task",
     "Create a new task with description and implementation context",
     CreateTaskArgsSchema.shape,
-    async (args) => {
-      try {
-        const parsed = CreateTaskArgsSchema.parse(args);
-        return handleCreateTask(parsed, service);
-      } catch (err) {
-        if (err instanceof ZodError) {
-          return errorResponse(new ValidationError(`Validation error: ${formatZodError(err)}`));
-        }
-        return errorResponse(err);
-      }
-    }
+    wrapHandler(CreateTaskArgsSchema, handleCreateTask, service)
   );
 
   server.tool(
     "update_task",
     "Update a task's fields, change status, complete with result, or delete",
     UpdateTaskArgsSchema.shape,
-    async (args) => {
-      try {
-        const parsed = UpdateTaskArgsSchema.parse(args);
-        return handleUpdateTask(parsed, service);
-      } catch (err) {
-        if (err instanceof ZodError) {
-          return errorResponse(new ValidationError(`Validation error: ${formatZodError(err)}`));
-        }
-        return errorResponse(err);
-      }
-    }
+    wrapHandler(UpdateTaskArgsSchema, handleUpdateTask, service)
   );
 
   server.tool(
     "list_tasks",
     "List tasks. By default shows only pending tasks. Filter by status, project, or search query.",
     ListTasksArgsSchema.shape,
-    async (args) => {
-      try {
-        const parsed = ListTasksArgsSchema.parse(args);
-        return handleListTasks(parsed, service);
-      } catch (err) {
-        if (err instanceof ZodError) {
-          return errorResponse(new ValidationError(`Validation error: ${formatZodError(err)}`));
-        }
-        return errorResponse(err);
-      }
-    }
+    wrapHandler(ListTasksArgsSchema, handleListTasks, service)
   );
 
   const transport = new StdioServerTransport();
