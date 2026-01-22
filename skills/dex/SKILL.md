@@ -169,12 +169,140 @@ dex complete abc123 --result "Fixed the storage issue"
 ```
 ❌ Missing: What was actually implemented, how, what decisions were made, what trade-offs
 
+### Verification is Critical
+
+**Before marking any task complete, you MUST verify your work.** Verification isn't optional - it's what separates "I think it's done" from "it's actually done."
+
+Real examples of strong verification from actual dex tasks:
+- ✅ **c2w75okn**: "All 60 tests passing, build successful"
+- ✅ **0319t60q**: "All 69 tests passing. Ready for GitHub Issues and Projects v2 implementations"
+- ✅ **47smxc8f**: "Added comprehensive test suite in tests/config.test.ts. All 69 tests passing (9 new config tests)"
+- ✅ **ke17bmvd**: "All 60 tests passing. FileStorage is ready as base implementation"
+
+Real example of weak verification to avoid:
+- ❌ **ok1oseqh**: "Added 'link' and 'unlink' scripts to package.json after test:watch"
+  - No evidence the scripts actually work
+  - No test run, no manual execution
+
+**Verification methods by task type**:
+- **Code changes**: Run full test suite, document passing test count
+- **New features**: Run tests + manual testing of feature functionality
+- **Configuration**: Test the config works (run commands, check workflows)
+- **Documentation**: Verify examples work, links resolve, formatting renders
+- **Refactoring**: Confirm tests still pass, no behavior changes
+
+Your result MUST include explicit verification evidence. Don't just describe what you did - prove it works.
+
 Result should include:
 - What was implemented (the approach, how it works, what changed conceptually)
 - Key decisions made and rationale
 - Trade-offs or alternatives considered
 - Any follow-up work or tech debt created
-- Verification done (tests passing, manual testing)
+- **Verification evidence** (test results, build status, manual testing outcomes)
+
+### Verifying Task Completion
+
+Systematic verification is what separates high-quality task completion from guesswork. Before marking any task complete, follow this process:
+
+#### The Verification Process
+
+1. **Re-read the task context**: What did you originally commit to do?
+2. **Check acceptance criteria**: Does your implementation satisfy the "Done when" conditions?
+3. **Run relevant tests**: Execute the test suite and document results
+4. **Test manually**: Actually try the feature/change yourself
+5. **Compare with requirements**: Does what you built match what was asked?
+
+#### What to Include in Your Result
+
+**Code implementation example**:
+```bash
+dex complete xyz789 --result "Implemented JWT middleware for route protection:
+
+Implementation:
+- Created src/middleware/verify-token.ts with verifyToken function
+- Uses jsonwebtoken library for signature verification
+- Extracts user ID from payload and attaches to request
+- Returns 401 for invalid/expired tokens with descriptive error messages
+
+Key decisions:
+- Separated 'expired' vs 'invalid' error codes for better client handling
+- Made middleware reusable by accepting optional role requirements
+
+Verification:
+- All 69 tests passing (4 new tests for middleware edge cases)
+- Manually tested with valid token: ✅ Access granted
+- Manually tested with expired token: ✅ 401 with 'token_expired' code
+- Manually tested with invalid signature: ✅ 401 with 'invalid_token' code
+- Integrated into auth routes, confirmed protected endpoints work"
+```
+
+**Configuration/infrastructure example**:
+```bash
+dex complete abc456 --result "Added GitHub Actions workflow for CI:
+
+Implementation:
+- Created .github/workflows/ci.yml
+- Runs on push to main and all PRs
+- Jobs: lint, test, build
+- Uses pnpm cache for faster runs
+
+Verification:
+- Pushed to test branch and opened PR #123
+- Workflow triggered automatically: ✅
+- All jobs passed (lint: 0 errors, test: 69/69 passing, build: successful)
+- Build artifacts generated correctly
+- Total run time: 2m 34s"
+```
+
+**Refactoring example**:
+```bash
+dex complete def123 --result "Refactored storage to one file per task:
+
+Implementation:
+- Split tasks.json into .dex/tasks/{id}.json files
+- Modified Storage.read() to scan directory
+- Modified Storage.write() for individual file operations
+- Added auto-migration from old format
+
+Trade-offs:
+- Slightly slower reads (directory scan + parse each file)
+- Acceptable for typical task counts (<100)
+- Major benefit: git-friendly diffs, no merge conflicts
+
+Verification:
+- All 60 tests passing (including 8 storage tests)
+- Build successful
+- Manually tested migration: old tasks.json → individual files ✅
+- Manually tested create/update/delete operations ✅
+- Confirmed git diff shows only changed tasks"
+```
+
+#### Red Flags - Insufficient Verification
+
+These are **NOT acceptable** completion results:
+
+- ❌ "Fixed the bug" - What bug? How? Did you verify the fix?
+- ❌ "Should work now" - "Should" means you didn't verify
+- ❌ "Made the changes" - What changes? Did they work?
+- ❌ "Updated the config" - Did you test the config?
+- ❌ "Added tests" - Did the tests pass? What's the count?
+
+If your result looks like these, **stop and verify your work properly**.
+
+#### Cross-Reference Checklist
+
+Before marking complete, verify all of these:
+
+- [ ] Task description requirements met
+- [ ] Context "Done when" criteria satisfied
+- [ ] Tests passing (document count: "All X tests passing")
+- [ ] Build succeeds (if applicable)
+- [ ] Manual testing done (describe what you tested)
+- [ ] No regressions introduced (existing features still work)
+- [ ] Edge cases considered (error handling, invalid input)
+- [ ] Follow-up work identified (created new tasks if needed)
+
+**If you can't check all applicable boxes, the task isn't done yet.**
 
 ### Edit a Task
 
@@ -274,13 +402,17 @@ Done when:
 
 ### Recording Results
 
-Complete tasks **immediately after implementing**:
+Complete tasks **immediately after implementing AND verifying**:
 - Capture decisions while fresh in context
 - Record trade-offs considered during implementation
 - Note any deviations from original plan
+- **Document verification performed (tests, manual testing, build success)**
 - Create follow-up tasks for tech debt or future work
 
+**Critical: Always verify before completing**. Re-read the original task context and confirm your implementation matches all requirements. Your result should include explicit verification evidence.
+
 This practice ensures:
+- **Completed tasks are actually done** (not just 'probably done')
 - Future you/agents understand the reasoning
 - Decisions can be reconciled across sessions
 - Implementation history is preserved
