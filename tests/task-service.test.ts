@@ -487,55 +487,6 @@ describe("TaskService", () => {
     });
   });
 
-  describe("listProjects", () => {
-    it("returns project counts", () => {
-      service.create({
-        description: "Task 1",
-        context: "Context",
-        project: "project-a",
-      });
-      service.create({
-        description: "Task 2",
-        context: "Context",
-        project: "project-a",
-      });
-      const completedTask = service.create({
-        description: "Task 3",
-        context: "Context",
-        project: "project-a",
-      });
-      service.update({ id: completedTask.id, status: "completed" });
-
-      service.create({
-        description: "Task 4",
-        context: "Context",
-        project: "project-b",
-      });
-
-      const projects = service.listProjects();
-      expect(projects).toHaveLength(2);
-
-      const projectA = projects.find((p) => p.project === "project-a");
-      expect(projectA).toEqual({
-        project: "project-a",
-        pending: 2,
-        completed: 1,
-      });
-
-      const projectB = projects.find((p) => p.project === "project-b");
-      expect(projectB).toEqual({
-        project: "project-b",
-        pending: 1,
-        completed: 0,
-      });
-    });
-
-    it("returns empty array when no tasks exist", () => {
-      const projects = service.listProjects();
-      expect(projects).toEqual([]);
-    });
-  });
-
   describe("complete", () => {
     it("marks task as completed with result", () => {
       const task = service.create({

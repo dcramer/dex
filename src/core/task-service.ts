@@ -195,26 +195,6 @@ export class TaskService {
     return tasks.toSorted((a, b) => a.priority - b.priority);
   }
 
-  listProjects(): Array<{ project: string; pending: number; completed: number }> {
-    const store = this.storage.read();
-    const projectMap = new Map<string, { pending: number; completed: number }>();
-
-    for (const task of store.tasks) {
-      const counts = projectMap.get(task.project) || { pending: 0, completed: 0 };
-      if (task.status === "pending") {
-        counts.pending++;
-      } else {
-        counts.completed++;
-      }
-      projectMap.set(task.project, counts);
-    }
-
-    return Array.from(projectMap.entries()).map(([project, counts]) => ({
-      project,
-      ...counts,
-    }));
-  }
-
   complete(id: string, result: string): Task {
     const store = this.storage.read();
 

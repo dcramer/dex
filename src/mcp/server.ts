@@ -14,12 +14,8 @@ import {
   ListTasksArgsSchema,
   handleListTasks,
 } from "../tools/list-tasks.js";
-import {
-  ListProjectsArgsSchema,
-  handleListProjects,
-} from "../tools/list-projects.js";
 import { errorResponse } from "../tools/response.js";
-import { DexError, ValidationError } from "../errors.js";
+import { ValidationError } from "../errors.js";
 
 function formatZodError(error: ZodError): string {
   return error.errors
@@ -80,19 +76,6 @@ export async function startMcpServer(storagePath?: string): Promise<void> {
         if (err instanceof ZodError) {
           return errorResponse(new ValidationError(`Validation error: ${formatZodError(err)}`));
         }
-        return errorResponse(err);
-      }
-    }
-  );
-
-  server.tool(
-    "list_projects",
-    "List all projects with task counts",
-    ListProjectsArgsSchema.shape,
-    async () => {
-      try {
-        return handleListProjects(service);
-      } catch (err) {
         return errorResponse(err);
       }
     }

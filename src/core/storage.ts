@@ -36,7 +36,7 @@ function getDefaultStoragePath(): string {
   return path.join(os.homedir(), ".dex", "tasks.json");
 }
 
-export function getStoragePath(): string {
+function getStoragePath(): string {
   return process.env.DEX_STORAGE_PATH || getDefaultStoragePath();
 }
 

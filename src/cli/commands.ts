@@ -23,12 +23,11 @@ const colors = {
   red: useColors ? "\x1b[31m" : "",
   green: useColors ? "\x1b[32m" : "",
   yellow: useColors ? "\x1b[33m" : "",
-  blue: useColors ? "\x1b[34m" : "",
   cyan: useColors ? "\x1b[36m" : "",
 };
 
 // Available commands for suggestions
-const COMMANDS = ["create", "list", "show", "edit", "complete", "delete", "projects", "help", "mcp"];
+const COMMANDS = ["create", "list", "show", "edit", "complete", "delete", "help", "mcp"];
 
 function createService(options: CliOptions): TaskService {
   return new TaskService(options.storagePath);
@@ -209,8 +208,6 @@ export function runCli(args: string[], options: CliOptions = {}): void {
       return completeCommand(args.slice(1), options);
     case "delete":
       return deleteCommandAsync(args.slice(1), options);
-    case "projects":
-      return projectsCommand(args.slice(1), options);
     case "help":
     case "--help":
     case "-h":
@@ -757,53 +754,6 @@ ${colors.bold}EXAMPLE:${colors.reset}
   }
 }
 
-function projectsCommand(args: string[], options: CliOptions): void {
-  const { flags } = parseArgs(args, {
-    json: { hasValue: false },
-    help: { short: "h", hasValue: false },
-  }, "projects");
-
-  if (getBooleanFlag(flags, "help")) {
-    console.log(`${colors.bold}dex projects${colors.reset} - List all projects
-
-${colors.bold}USAGE:${colors.reset}
-  dex projects [options]
-
-${colors.bold}OPTIONS:${colors.reset}
-  --json                     Output as JSON
-  -h, --help                 Show this help message
-
-${colors.bold}EXAMPLE:${colors.reset}
-  dex projects               # List all projects with task counts
-  dex projects --json        # Output as JSON for scripting
-`);
-    return;
-  }
-
-  const service = createService(options);
-  const projects = service.listProjects();
-
-  // JSON output mode
-  if (getBooleanFlag(flags, "json")) {
-    console.log(JSON.stringify(projects, null, 2));
-    return;
-  }
-
-  if (projects.length === 0) {
-    console.log("No projects found.");
-    return;
-  }
-
-  // Calculate max project name width for alignment
-  const maxNameWidth = Math.max(...projects.map((p) => p.project.length));
-
-  for (const proj of projects) {
-    const total = proj.pending + proj.completed;
-    const name = proj.project.padEnd(maxNameWidth);
-    console.log(`${colors.bold}${name}${colors.reset}  ${colors.yellow}${proj.pending} pending${colors.reset}, ${colors.green}${proj.completed} completed${colors.reset} ${colors.dim}(${total} total)${colors.reset}`);
-  }
-}
-
 function helpCommand(): void {
   console.log(`${colors.bold}dex${colors.reset} - Task tracking tool
 
@@ -826,15 +776,13 @@ ${colors.bold}COMMANDS:${colors.reset}
   complete <id> --result "..."     Mark completed with result
   delete <id>                      Remove task (prompts if has subtasks)
   delete <id> -f                   Force delete without confirmation
-  projects                         List all projects
-  projects --json                  Output as JSON (for scripts)
 
 ${colors.bold}OPTIONS:${colors.reset}
   --storage-path <path>            Override storage file location
   -p, --priority <n>               Task priority (lower = higher priority)
   --project <name>                 Project grouping
   --parent <id>                    Parent task (creates subtask)
-  --json                           Output as JSON (list, show, projects)
+  --json                           Output as JSON (list, show)
 
 ${colors.bold}ENVIRONMENT:${colors.reset}
   NO_COLOR                         Disable colored output

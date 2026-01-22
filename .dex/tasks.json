@@ -273,11 +273,11 @@
       "description": "Clean up list command output",
       "context": "Issues to fix:\n1. Show completed age/duration for finished tasks (e.g., 'completed 2h ago') instead of or in addition to timestamps\n2. Verify tree view is working - subtasks should show with |-- connectors\n3. Remove project display from list output - we have parent/child relationships now, projects may be obsolete\n4. Consider if projects should be removed entirely in favor of parent task hierarchy",
       "priority": 0,
-      "status": "pending",
-      "result": null,
+      "status": "completed",
+      "result": "Removed project display, added completion age, Unicode tree characters (├── └── │)",
       "created_at": "2026-01-22T08:39:21.899Z",
-      "updated_at": "2026-01-22T08:39:21.899Z",
-      "completed_at": null
+      "updated_at": "2026-01-22T08:41:50.056Z",
+      "completed_at": "2026-01-22T08:41:50.056Z"
     },
 
     {

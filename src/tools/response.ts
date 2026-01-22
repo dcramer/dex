@@ -16,15 +16,6 @@ export function jsonResponse(data: unknown): McpToolResponse {
 }
 
 /**
- * Create a successful text response.
- */
-export function textResponse(message: string): McpToolResponse {
-  return {
-    content: [{ type: "text", text: message }],
-  };
-}
-
-/**
  * Create an error response with the isError flag set.
  * This properly signals to MCP clients that the operation failed.
  */
