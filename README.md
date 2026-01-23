@@ -49,6 +49,27 @@ pnpm build
 pnpm link --global  # Makes 'dex' command available globally
 ```
 
+### Shell Completions
+
+Enable tab completion for dex commands and task IDs:
+
+**Bash** - add to `~/.bashrc`:
+```bash
+eval "$(dex completion bash)"
+```
+
+**Zsh** - add to `~/.zshrc` (after compinit):
+```bash
+eval "$(dex completion zsh)"
+```
+
+**Fish** - add to `~/.config/fish/config.fish`:
+```fish
+dex completion fish | source
+```
+
+Run `dex completion --help` for more options.
+
 ## Why dex?
 
 **For Agent Coordination**: Dex enables agents to work as master coordinators on complex tasks - breaking down work, tracking structured deliverables, and recording comprehensive results.

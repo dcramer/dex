@@ -17,7 +17,7 @@ export async function runCli(args: string[], options: CliOptions): Promise<void>
 
   switch (command) {
     case "init":
-      return initCommand();
+      return await initCommand(args.slice(1));
     case "create":
       return await createCommand(args.slice(1), options);
     case "list":
