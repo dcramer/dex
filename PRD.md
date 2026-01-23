@@ -49,12 +49,14 @@ Subtask result here...
 
 ## Implementation Steps
 
-### 1. Create `src/core/subtask-markdown.ts` (new file)
+### 1. Create `src/core/subtask-markdown.ts` (new file) ✅ DONE
 Parsing/rendering helpers:
 - `parseIssueBody(body)` → `{ context, subtasks[] }`
 - `renderIssueBody(context, subtasks)` → markdown string
 - `parseSubtaskId(id)` → `{ parentId, localIndex }` or null
 - `createSubtaskId(parentId, index)` → compound ID string
+- Also added: `taskToEmbeddedSubtask()`, `embeddedSubtaskToTask()`, `getNextSubtaskIndex()`
+- Unit tests: 17 tests in `src/core/subtask-markdown.test.ts`
 
 ### 2. Modify `src/core/github-issues-storage.ts`
 

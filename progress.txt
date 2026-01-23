@@ -1,0 +1,21 @@
+## 2026-01-23: Step 1 Complete - subtask-markdown.ts
+
+Created `src/core/subtask-markdown.ts` with parsing/rendering helpers for embedding subtasks in GitHub Issue bodies.
+
+### Functions implemented:
+- `parseSubtaskId(id)` - Parse compound ID (e.g., "9-1") to { parentId, localIndex }
+- `createSubtaskId(parentId, index)` - Create compound ID string
+- `parseIssueBody(body)` - Extract parent context and embedded subtasks from issue body
+- `renderIssueBody(context, subtasks)` - Render issue body with embedded subtasks as <details> blocks
+- `taskToEmbeddedSubtask(task)` - Convert Task to EmbeddedSubtask format
+- `embeddedSubtaskToTask(subtask, parentId)` - Convert EmbeddedSubtask to Task with parent_id
+- `getNextSubtaskIndex(existingSubtasks)` - Get next available local index
+
+### Tests:
+- Created `src/core/subtask-markdown.test.ts` with 17 unit tests
+- All tests pass
+- Full test suite (207 tests) passes
+- TypeScript build passes
+
+### Next step:
+Step 2 - Modify `src/core/github-issues-storage.ts` to use the new subtask-markdown helpers
