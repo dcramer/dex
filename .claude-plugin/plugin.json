@@ -1,7 +1,0 @@
-{
-  "name": "dex",
-  "description": "Task tracking for LLM workflows with CLI and MCP interfaces",
-  "author": {
-    "name": "Sentry"
-  }
-}

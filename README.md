@@ -1,6 +1,53 @@
 # dex
 
-Task tracking for LLM workflows. CLI + MCP server.
+Task tracking for LLM workflows. CLI + MCP server + Claude Code plugin.
+
+## Installation
+
+### Claude Code (via Marketplace)
+
+```bash
+# Add the marketplace
+claude plugin marketplace add getsentry/dex
+
+# Install the plugin
+claude plugin install dex@dex
+```
+
+### Claude Code (from local clone)
+
+```bash
+# Clone the repository
+git clone git@github.com:getsentry/dex.git ~/dex
+
+# Add the marketplace from the local clone
+claude plugin marketplace add ~/dex
+
+# Install the plugin
+claude plugin install dex
+```
+
+After installation, restart Claude Code. The `/dex` skill will be available for task management.
+
+### Updating
+
+```bash
+# Update the marketplace index
+claude plugin marketplace update
+
+# Update the plugin
+claude plugin update dex@dex
+```
+
+### CLI Only
+
+```bash
+git clone git@github.com:getsentry/dex.git
+cd dex
+pnpm install
+pnpm build
+pnpm link --global  # Makes 'dex' command available globally
+```
 
 ## Why dex?
 
@@ -27,11 +74,9 @@ Tasks have three key components:
 
 2. **Context** (required): Comprehensive background like an issue body
    - What/why, requirements, constraints, approach, acceptance criteria
-   - Example: See `.dex/tasks/c2w75okn.json`
 
 3. **Result** (when completing): Implementation summary like a PR description
    - What was built, key decisions, trade-offs, follow-ups
-   - Example: See `.dex/tasks/c2w75okn.json`
 
 This structure ensures tasks are self-contained artifacts that anyone can understand without additional context.
 
@@ -125,7 +170,7 @@ Store tasks as GitHub Issues in a repository.
    label_prefix = "dex"
    ```
 
-**Status:** Infrastructure implemented. Requires async TaskService support (see task `6r7es13r`).
+**Status:** Infrastructure implemented. Async TaskService support completed.
 
 ### GitHub Projects v2 Storage
 Store tasks as items in a GitHub Project board.

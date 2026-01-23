@@ -1,0 +1,20 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "dex",
+  "description": "Task tracking for LLM workflows with CLI, MCP, and Claude Code interfaces",
+  "owner": {
+    "name": "Sentry",
+    "email": "oss@sentry.io"
+  },
+  "plugins": [
+    {
+      "name": "dex",
+      "description": "Task management skill for coordinating complex agent work",
+      "author": {
+        "name": "Sentry"
+      },
+      "source": "./plugins/dex",
+      "category": "productivity"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "dex",
+  "description": "Task management skill for coordinating complex agent work",
+  "author": {
+    "name": "Sentry"
+  }
+}

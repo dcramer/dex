@@ -24,7 +24,7 @@ src/
 One file per task: `.dex/tasks/{id}.json`
 
 ## Task Management
-Use `dex` skill to coordinate complex work. Create tickets with full context (like GitHub Issues), break down into subtasks, complete with detailed results (like PR descriptions). See `skills/dex/SKILL.md`.
+Use `dex` skill to coordinate complex work. Create tickets with full context (like GitHub Issues), break down into subtasks, complete with detailed results (like PR descriptions). See `plugins/dex/skills/dex/SKILL.md`.
 
 ## Local Development
 

@@ -71,7 +71,7 @@ Context should include:
 
 Include all essential information naturally - don't force rigid headers. Look at how the real example does it.
 
-**Good Example** (from actual task c2w75okn.json):
+**Good Example**:
 ```bash
 dex create -d "Migrate storage to one file per task" \
   --context "Change storage format for git-friendliness:
@@ -138,7 +138,7 @@ dex complete <id> --result "What was accomplished"
 
 Include all essential information naturally - explain what you did without requiring code review.
 
-**Good Example** (from actual task c2w75okn.json):
+**Good Example**:
 ```bash
 dex complete abc123 --result "Migrated storage from single tasks.json to one file per task:
 
@@ -173,14 +173,13 @@ dex complete abc123 --result "Fixed the storage issue"
 
 **Before marking any task complete, you MUST verify your work.** Verification isn't optional - it's what separates "I think it's done" from "it's actually done."
 
-Real examples of strong verification from actual dex tasks:
-- ✅ **c2w75okn**: "All 60 tests passing, build successful"
-- ✅ **0319t60q**: "All 69 tests passing. Ready for GitHub Issues and Projects v2 implementations"
-- ✅ **47smxc8f**: "Added comprehensive test suite in tests/config.test.ts. All 69 tests passing (9 new config tests)"
-- ✅ **ke17bmvd**: "All 60 tests passing. FileStorage is ready as base implementation"
+Examples of strong verification:
+- ✅ "All 60 tests passing, build successful"
+- ✅ "All 69 tests passing. Ready for GitHub Issues and Projects v2 implementations"
+- ✅ "Added comprehensive test suite in tests/config.test.ts. All 69 tests passing (9 new config tests)"
 
-Real example of weak verification to avoid:
-- ❌ **ok1oseqh**: "Added 'link' and 'unlink' scripts to package.json after test:watch"
+Example of weak verification to avoid:
+- ❌ "Added 'link' and 'unlink' scripts to package.json"
   - No evidence the scripts actually work
   - No test run, no manual execution
 
@@ -439,6 +438,20 @@ One file per task enables:
 
 Override storage directory with `--storage-path` or `DEX_STORAGE_PATH` env var.
 
-### Example Task File
+### Task File Format
 
-See `.dex/tasks/c2w75okn.json` for a well-structured task with comprehensive context and result.
+Each task is stored as a JSON file with the following structure:
+```json
+{
+  "id": "abc123",
+  "parent_id": null,
+  "description": "One-line summary",
+  "context": "Full implementation details...",
+  "priority": 1,
+  "status": "pending",
+  "result": null,
+  "created_at": "2026-01-01T00:00:00.000Z",
+  "updated_at": "2026-01-01T00:00:00.000Z",
+  "completed_at": null
+}
+```
