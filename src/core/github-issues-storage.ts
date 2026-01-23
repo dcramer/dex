@@ -2,6 +2,16 @@ import { Octokit } from "@octokit/rest";
 import { StorageEngine } from "./storage-engine.js";
 import { Task, TaskStore, TaskStatus } from "../types.js";
 import { StorageError, DataCorruptionError } from "../errors.js";
+import {
+  parseIssueBody,
+  renderIssueBody,
+  parseSubtaskId,
+  createSubtaskId,
+  taskToEmbeddedSubtask,
+  embeddedSubtaskToTask,
+  getNextSubtaskIndex,
+  EmbeddedSubtask,
+} from "./subtask-markdown.js";
 
 export interface GitHubIssuesConfig {
   /** Repository owner */
@@ -76,7 +86,15 @@ export class GitHubIssuesStorage implements StorageEngine {
           continue;
         }
 
-        tasks.push(this.issueToTask(issue));
+        // Convert issue to parent task
+        const parentTask = this.issueToTask(issue);
+        tasks.push(parentTask);
+
+        // Parse embedded subtasks from issue body
+        const { subtasks } = parseIssueBody(issue.body || "");
+        for (const subtask of subtasks) {
+          tasks.push(embeddedSubtaskToTask(subtask, parentTask.id));
+        }
       }
 
       return { tasks };
@@ -109,16 +127,45 @@ export class GitHubIssuesStorage implements StorageEngine {
           .filter((issue) => !issue.pull_request)
           .map((issue) => issue.number.toString())
       );
-      const currentTaskIds = new Set(store.tasks.map((task) => task.id));
 
-      // Create or update tasks
+      // Partition tasks into parents (no parent_id) and subtasks (have parent_id)
+      const parentTasks: Task[] = [];
+      const subtasksByParent = new Map<string, Task[]>();
+
       for (const task of store.tasks) {
-        if (existingIssueNumbers.has(task.id)) {
-          // Update existing issue
-          await this.updateIssue(task);
+        if (task.parent_id) {
+          // This is a subtask
+          const parentSubtasks = subtasksByParent.get(task.parent_id) || [];
+          parentSubtasks.push(task);
+          subtasksByParent.set(task.parent_id, parentSubtasks);
         } else {
-          // Create new issue
-          await this.createIssue(task);
+          // This is a parent task
+          parentTasks.push(task);
+        }
+      }
+
+      // Build a set of parent IDs for orphan detection
+      const parentIds = new Set(parentTasks.map((t) => t.id));
+
+      // Warn about orphaned subtasks (subtasks whose parent doesn't exist)
+      for (const [parentId, subtasks] of subtasksByParent) {
+        if (!parentIds.has(parentId)) {
+          console.warn(
+            `Warning: ${subtasks.length} orphaned subtask(s) found for non-existent parent "${parentId}". These will be skipped.`
+          );
+        }
+      }
+
+      // Create or update parent tasks with their embedded subtasks
+      for (const parentTask of parentTasks) {
+        const subtasks = subtasksByParent.get(parentTask.id) || [];
+
+        if (existingIssueNumbers.has(parentTask.id)) {
+          // Update existing issue with subtasks
+          await this.updateIssueWithSubtasks(parentTask, subtasks);
+        } else {
+          // Create new issue with subtasks
+          await this.createIssueWithSubtasks(parentTask, subtasks);
         }
       }
 
@@ -161,7 +208,7 @@ export class GitHubIssuesStorage implements StorageEngine {
   }
 
   /**
-   * Convert GitHub issue to dex task
+   * Convert GitHub issue to dex task (parent task only, excludes embedded subtasks)
    */
   private issueToTask(issue: any): Task {
     // Extract status from issue state and labels
@@ -186,15 +233,17 @@ export class GitHubIssuesStorage implements StorageEngine {
     // Note: Fetching comments would require an additional API call
     // For now, we'll leave result extraction as a future enhancement
 
-    // Extract parent_id from issue body or custom field
-    // For now, we'll set it to null and handle hierarchy later
+    // Parent tasks have no parent_id
     const parent_id: string | null = null;
+
+    // Extract only parent context (before ## Subtasks section)
+    const { context } = parseIssueBody(issue.body || "");
 
     return {
       id: issue.number.toString(),
       parent_id,
       description: issue.title,
-      context: issue.body || "",
+      context,
       priority,
       status,
       result,
@@ -205,10 +254,16 @@ export class GitHubIssuesStorage implements StorageEngine {
   }
 
   /**
-   * Create a new GitHub issue for a task
+   * Create a new GitHub issue for a parent task with embedded subtasks
    */
-  private async createIssue(task: Task): Promise<void> {
-    const labels = [this.labelPrefix, `${this.labelPrefix}:priority-${task.priority}`];
+  private async createIssueWithSubtasks(
+    task: Task,
+    subtasks: Task[]
+  ): Promise<void> {
+    const labels = [
+      this.labelPrefix,
+      `${this.labelPrefix}:priority-${task.priority}`,
+    ];
 
     if (task.status === "completed") {
       labels.push(`${this.labelPrefix}:completed`);
@@ -216,42 +271,86 @@ export class GitHubIssuesStorage implements StorageEngine {
       labels.push(`${this.labelPrefix}:pending`);
     }
 
-    const issueData: any = {
+    // Create the issue first to get the issue number
+    const { data: issue } = await this.octokit.issues.create({
       owner: this.owner,
       repo: this.repo,
       title: task.description,
-      body: task.context,
+      body: task.context, // Initial body without subtasks
       labels,
-    };
+    });
 
-    // If task is completed, create it as closed
-    if (task.status === "completed") {
-      issueData.state = "closed";
+    // Update the task ID to match the issue number
+    const issueNumber = issue.number;
+    task.id = issueNumber.toString();
+
+    // If there are subtasks, assign IDs and update the issue body
+    if (subtasks.length > 0) {
+      const embeddedSubtasks: EmbeddedSubtask[] = [];
+      let nextIndex = 1;
+
+      for (const subtask of subtasks) {
+        // Assign compound ID if not already set
+        if (!subtask.id || !parseSubtaskId(subtask.id)) {
+          subtask.id = createSubtaskId(task.id, nextIndex);
+          nextIndex++;
+        } else {
+          // Update parent portion of compound ID to match new issue number
+          const parsed = parseSubtaskId(subtask.id);
+          if (parsed) {
+            subtask.id = createSubtaskId(task.id, parsed.localIndex);
+            nextIndex = Math.max(nextIndex, parsed.localIndex + 1);
+          }
+        }
+
+        embeddedSubtasks.push(taskToEmbeddedSubtask(subtask));
+      }
+
+      // Render body with embedded subtasks
+      const bodyWithSubtasks = renderIssueBody(task.context, embeddedSubtasks);
+
+      await this.octokit.issues.update({
+        owner: this.owner,
+        repo: this.repo,
+        issue_number: issueNumber,
+        body: bodyWithSubtasks,
+      });
     }
-
-    const { data: issue } = await this.octokit.issues.create(issueData);
 
     // If there's a result, add it as a comment
     if (task.result) {
       await this.octokit.issues.createComment({
         owner: this.owner,
         repo: this.repo,
-        issue_number: issue.number,
+        issue_number: issueNumber,
         body: `## Result\n\n${task.result}`,
       });
     }
 
-    // Update the task ID to match the issue number
-    task.id = issue.number.toString();
+    // Close the issue if completed
+    if (task.status === "completed") {
+      await this.octokit.issues.update({
+        owner: this.owner,
+        repo: this.repo,
+        issue_number: issueNumber,
+        state: "closed",
+      });
+    }
   }
 
   /**
-   * Update an existing GitHub issue
+   * Update an existing GitHub issue with embedded subtasks
    */
-  private async updateIssue(task: Task): Promise<void> {
+  private async updateIssueWithSubtasks(
+    task: Task,
+    subtasks: Task[]
+  ): Promise<void> {
     const issueNumber = parseInt(task.id, 10);
 
-    const labels = [this.labelPrefix, `${this.labelPrefix}:priority-${task.priority}`];
+    const labels = [
+      this.labelPrefix,
+      `${this.labelPrefix}:priority-${task.priority}`,
+    ];
 
     if (task.status === "completed") {
       labels.push(`${this.labelPrefix}:completed`);
@@ -259,12 +358,50 @@ export class GitHubIssuesStorage implements StorageEngine {
       labels.push(`${this.labelPrefix}:pending`);
     }
 
+    // Fetch current issue to get existing subtasks
+    const { data: currentIssue } = await this.octokit.issues.get({
+      owner: this.owner,
+      repo: this.repo,
+      issue_number: issueNumber,
+    });
+
+    // Parse existing subtasks from current body
+    const { subtasks: existingSubtasks } = parseIssueBody(
+      currentIssue.body || ""
+    );
+
+    // Build a map of existing subtasks by ID for merging
+    const existingSubtaskMap = new Map<string, EmbeddedSubtask>();
+    for (const existing of existingSubtasks) {
+      if (existing.id) {
+        existingSubtaskMap.set(existing.id, existing);
+      }
+    }
+
+    // Process new/updated subtasks
+    const embeddedSubtasks: EmbeddedSubtask[] = [];
+    const nextIndex = getNextSubtaskIndex(existingSubtasks);
+    let currentIndex = nextIndex;
+
+    for (const subtask of subtasks) {
+      // Assign compound ID if not already a valid compound ID
+      if (!subtask.id || !parseSubtaskId(subtask.id)) {
+        subtask.id = createSubtaskId(task.id, currentIndex);
+        currentIndex++;
+      }
+
+      embeddedSubtasks.push(taskToEmbeddedSubtask(subtask));
+    }
+
+    // Render body with embedded subtasks
+    const bodyWithSubtasks = renderIssueBody(task.context, embeddedSubtasks);
+
     await this.octokit.issues.update({
       owner: this.owner,
       repo: this.repo,
       issue_number: issueNumber,
       title: task.description,
-      body: task.context,
+      body: bodyWithSubtasks,
       labels,
       state: task.status === "completed" ? "closed" : "open",
     });

@@ -58,20 +58,20 @@ Parsing/rendering helpers:
 - Also added: `taskToEmbeddedSubtask()`, `embeddedSubtaskToTask()`, `getNextSubtaskIndex()`
 - Unit tests: 17 tests in `src/core/subtask-markdown.test.ts`
 
-### 2. Modify `src/core/github-issues-storage.ts`
+### 2. Modify `src/core/github-issues-storage.ts` ✅ DONE
 
-**`issueToTask()`** - Extract only parent context (before `## Subtasks` section)
+**`issueToTask()`** - Extract only parent context (before `## Subtasks` section) ✅
 
-**`readAsync()`** - After converting issue to parent task, parse body for embedded subtasks and add them to tasks array with correct `parent_id` and compound IDs
+**`readAsync()`** - After converting issue to parent task, parse body for embedded subtasks and add them to tasks array with correct `parent_id` and compound IDs ✅
 
-**`writeAsync()`** - Partition tasks:
+**`writeAsync()`** - Partition tasks: ✅
 - Parents (no `parent_id`) → create/update as GitHub Issues
 - Subtasks (have `parent_id`) → group by parent, embed in parent body
 - Warn about orphaned subtasks (parent doesn't exist)
 
-**New: `createIssueWithSubtasks(task, subtasks[])`** - Render body with embedded subtasks, create issue, update IDs
+**New: `createIssueWithSubtasks(task, subtasks[])`** - Render body with embedded subtasks, create issue, update IDs ✅
 
-**New: `updateIssueWithSubtasks(task, subtasks[])`** - Fetch current issue, merge subtasks, update body
+**New: `updateIssueWithSubtasks(task, subtasks[])`** - Fetch current issue, merge subtasks, update body ✅
 
 ### 3. Add tests
 

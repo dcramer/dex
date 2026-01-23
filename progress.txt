@@ -19,3 +19,22 @@ Created `src/core/subtask-markdown.ts` with parsing/rendering helpers for embedd
 
 ### Next step:
 Step 2 - Modify `src/core/github-issues-storage.ts` to use the new subtask-markdown helpers
+
+## 2026-01-23: Step 2 Complete - github-issues-storage.ts
+
+Modified `src/core/github-issues-storage.ts` to use the subtask-markdown helpers for embedding subtasks in parent issue bodies.
+
+### Changes made:
+- **Imports**: Added imports from `subtask-markdown.ts`
+- **`issueToTask()`**: Now uses `parseIssueBody()` to extract only parent context (excludes `## Subtasks` section)
+- **`readAsync()`**: After converting issue to parent task, parses embedded subtasks and adds them to tasks array with `parent_id` set
+- **`writeAsync()`**: Partitions tasks into parents and subtasks, groups subtasks by parent, warns about orphans
+- **`createIssueWithSubtasks()`**: New method - creates GitHub Issue, assigns compound IDs to subtasks, renders body with embedded subtasks
+- **`updateIssueWithSubtasks()`**: New method - fetches current issue, merges subtasks, updates body
+
+### Verification:
+- TypeScript build passes (`npm run build`)
+- Full test suite passes (207 tests)
+
+### Next step:
+Step 3 - Add integration tests (mock Octokit) for the new github-issues-storage.ts functionality
