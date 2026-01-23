@@ -1,4 +1,4 @@
-import { DexError } from "../errors.js";
+import { extractErrorInfo } from "../errors.js";
 
 export interface McpToolResponse {
   [key: string]: unknown;
@@ -20,18 +20,7 @@ export function jsonResponse(data: unknown): McpToolResponse {
  * This properly signals to MCP clients that the operation failed.
  */
 export function errorResponse(err: unknown): McpToolResponse {
-  let message: string;
-  let suggestion: string | undefined;
-
-  if (err instanceof DexError) {
-    message = err.message;
-    suggestion = err.suggestion;
-  } else if (err instanceof Error) {
-    message = err.message;
-  } else {
-    message = String(err);
-  }
-
+  const { message, suggestion } = extractErrorInfo(err);
   const errorData: { error: string; suggestion?: string } = { error: message };
   if (suggestion) {
     errorData.suggestion = suggestion;

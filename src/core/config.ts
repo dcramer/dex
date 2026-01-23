@@ -110,11 +110,3 @@ export function loadConfig(): Config {
   }
 }
 
-/**
- * Get storage engine configuration
- * @param config Full configuration object
- * @returns Storage configuration for the selected engine
- */
-export function getStorageConfig(config: Config): StorageConfig {
-  return config.storage;
-}

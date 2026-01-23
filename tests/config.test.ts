@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { loadConfig, getConfigPath, getStorageConfig } from "../src/core/config.js";
+import { loadConfig, getConfigPath } from "../src/core/config.js";
 
 describe("Config", () => {
   describe("getConfigPath", () => {
@@ -159,19 +159,4 @@ result = "Result"
     });
   });
 
-  describe("getStorageConfig", () => {
-    it("returns storage config from full config", () => {
-      const config = {
-        storage: {
-          engine: "file" as const,
-          file: { path: "/test/path" },
-        },
-      };
-
-      const storageConfig = getStorageConfig(config);
-
-      expect(storageConfig.engine).toBe("file");
-      expect(storageConfig.file?.path).toBe("/test/path");
-    });
-  });
 });

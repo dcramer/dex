@@ -57,13 +57,8 @@ function createStorageEngine(cliStoragePath?: string): StorageEngine {
   // Otherwise, use configured engine
   switch (config.storage.engine) {
     case "file": {
-      // Priority for file storage path:
-      // 1. Config file path
-      // 2. DEX_STORAGE_PATH environment variable
-      // 3. Auto-detect
-      const filePath =
-        config.storage.file?.path || process.env.DEX_STORAGE_PATH || undefined;
-      return new FileStorage(filePath);
+      // FileStorage handles path resolution: config path -> DEX_STORAGE_PATH -> auto-detect
+      return new FileStorage(config.storage.file?.path);
     }
 
     case "github-issues": {

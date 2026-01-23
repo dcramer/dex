@@ -3,6 +3,7 @@ import {
   CliOptions,
   colors,
   createService,
+  exitIfTaskNotFound,
   formatAge,
   getBooleanFlag,
   parseArgs,
@@ -162,17 +163,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
   }
 
   const service = createService(options);
-  const task = await service.get(id);
-
-  if (!task) {
-    console.error(`${colors.red}Error:${colors.reset} Task ${colors.bold}${id}${colors.reset} not found`);
-    // Suggest looking at available tasks
-    const allTasks = await service.list({ all: true });
-    if (allTasks.length > 0) {
-      console.error(`Hint: Run "${colors.dim}dex list --all${colors.reset}" to see all tasks`);
-    }
-    process.exit(1);
-  }
+  const task = await exitIfTaskNotFound(await service.get(id), id, service);
 
   const children = await service.getChildren(id);
   const parentTask = task.parent_id ? await service.get(task.parent_id) : null;

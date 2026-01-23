@@ -2,9 +2,11 @@ import {
   CliOptions,
   colors,
   createService,
+  exitIfTaskNotFound,
   formatCliError,
   getBooleanFlag,
   parseArgs,
+  pluralize,
   promptConfirm,
 } from "./utils.js";
 
@@ -48,22 +50,13 @@ ${colors.bold}EXAMPLES:${colors.reset}
 
   const service = createService(options);
   const task = await service.get(id);
-
-  if (!task) {
-    console.error(`${colors.red}Error:${colors.reset} Task ${colors.bold}${id}${colors.reset} not found`);
-    const allTasks = await service.list({ all: true });
-    if (allTasks.length > 0) {
-      console.error(`${colors.dim}Hint: Run "dex list --all" to see all tasks${colors.reset}`);
-    }
-    process.exit(1);
-  }
+  await exitIfTaskNotFound(task, id, service);
 
   const children = await service.getChildren(id);
 
   // If task has children and not forced, prompt for confirmation
   if (children.length > 0 && !force) {
-    const childCount = children.length;
-    const message = `Task ${id} has ${childCount} subtask${childCount > 1 ? "s" : ""} that will also be deleted. Continue? (y/n) `;
+    const message = `Task ${id} has ${children.length} ${pluralize(children.length, "subtask")} that will also be deleted. Continue? (y/n) `;
 
     const confirmed = await promptConfirm(message);
     if (!confirmed) {
@@ -75,7 +68,7 @@ ${colors.bold}EXAMPLES:${colors.reset}
   try {
     await service.delete(id);
     if (children.length > 0) {
-      console.log(`${colors.green}Deleted${colors.reset} task ${colors.bold}${id}${colors.reset} and ${children.length} subtask${children.length > 1 ? "s" : ""}`);
+      console.log(`${colors.green}Deleted${colors.reset} task ${colors.bold}${id}${colors.reset} and ${children.length} ${pluralize(children.length, "subtask")}`);
     } else {
       console.log(`${colors.green}Deleted${colors.reset} task ${colors.bold}${id}${colors.reset}`);
     }

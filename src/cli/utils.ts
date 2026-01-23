@@ -1,7 +1,7 @@
 import { TaskService } from "../core/task-service.js";
 import { StorageEngine } from "../core/storage-engine.js";
 import { Task } from "../types.js";
-import { DexError } from "../errors.js";
+import { extractErrorInfo } from "../errors.js";
 import * as readline from "readline";
 
 export interface CliOptions {
@@ -49,21 +49,35 @@ export function createService(options: CliOptions): TaskService {
 }
 
 /**
+ * Simple pluralization helper.
+ */
+export function pluralize(count: number, singular: string, plural?: string): string {
+  return count === 1 ? singular : (plural ?? singular + "s");
+}
+
+/**
+ * Exit with error if task is not found, showing a hint to list all tasks.
+ * Returns the task (narrowed to non-null) if found.
+ */
+export async function exitIfTaskNotFound(
+  task: Task | null,
+  id: string,
+  service: TaskService
+): Promise<Task> {
+  if (task) return task;
+  console.error(`${colors.red}Error:${colors.reset} Task ${colors.bold}${id}${colors.reset} not found`);
+  const allTasks = await service.list({ all: true });
+  if (allTasks.length > 0) {
+    console.error(`${colors.dim}Hint: Run "dex list --all" to see all tasks${colors.reset}`);
+  }
+  process.exit(1);
+}
+
+/**
  * Format an error for CLI output with proper coloring and suggestions.
  */
 export function formatCliError(err: unknown): string {
-  let message: string;
-  let suggestion: string | undefined;
-
-  if (err instanceof DexError) {
-    message = err.message;
-    suggestion = err.suggestion;
-  } else if (err instanceof Error) {
-    message = err.message;
-  } else {
-    message = String(err);
-  }
-
+  const { message, suggestion } = extractErrorInfo(err);
   let output = `${colors.red}Error:${colors.reset} ${message}`;
   if (suggestion) {
     output += `\n${colors.dim}Hint: ${suggestion}${colors.reset}`;

@@ -84,3 +84,17 @@ export class DataCorruptionError extends StorageError {
     this.filePath = filePath;
   }
 }
+
+/**
+ * Extract error message and suggestion from any error type.
+ * Used for consistent error formatting across CLI and MCP interfaces.
+ */
+export function extractErrorInfo(err: unknown): { message: string; suggestion?: string } {
+  if (err instanceof DexError) {
+    return { message: err.message, suggestion: err.suggestion };
+  }
+  if (err instanceof Error) {
+    return { message: err.message };
+  }
+  return { message: String(err) };
+}
