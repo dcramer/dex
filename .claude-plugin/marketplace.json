@@ -3,15 +3,15 @@
   "name": "dex",
   "description": "Task tracking for LLM workflows with CLI, MCP, and Claude Code interfaces",
   "owner": {
-    "name": "Sentry",
-    "email": "oss@sentry.io"
+    "name": "dcramer",
+    "email": "dcramer@gmail.com"
   },
   "plugins": [
     {
       "name": "dex",
       "description": "Task management skill for coordinating complex agent work",
       "author": {
-        "name": "Sentry"
+        "name": "dcramer"
       },
       "source": "./plugins/dex",
       "category": "productivity"

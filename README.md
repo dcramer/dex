@@ -8,7 +8,7 @@ Task tracking for LLM workflows. CLI + MCP server + Claude Code plugin.
 
 ```bash
 # Add the marketplace
-claude plugin marketplace add getsentry/dex
+claude plugin marketplace add dcramer/dex
 
 # Install the plugin
 claude plugin install dex@dex
@@ -18,7 +18,7 @@ claude plugin install dex@dex
 
 ```bash
 # Clone the repository
-git clone git@github.com:getsentry/dex.git ~/dex
+git clone git@github.com:dcramer/dex.git ~/dex
 
 # Add the marketplace from the local clone
 claude plugin marketplace add ~/dex
@@ -42,7 +42,7 @@ claude plugin update dex@dex
 ### CLI Only
 
 ```bash
-git clone git@github.com:getsentry/dex.git
+git clone git@github.com:dcramer/dex.git
 cd dex
 pnpm install
 pnpm build
