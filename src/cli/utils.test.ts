@@ -1,10 +1,3 @@
-/**
- * CLI Utils Tests - Pure Function Unit Tests
- *
- * These test the pure utility functions in isolation.
- * No mocks needed - just input/output verification.
- */
-
 import { describe, it, expect } from "vitest";
 import {
   parseArgs,
@@ -15,7 +8,7 @@ import {
   stripAnsi,
   getStringFlag,
   getBooleanFlag,
-} from "../../src/cli/utils.js";
+} from "./utils.js";
 
 describe("parseArgs", () => {
   const flagDefs = {
@@ -127,9 +120,9 @@ describe("levenshtein", () => {
   });
 
   it("calculates single character operations", () => {
-    expect(levenshtein("test", "text")).toBe(1); // substitution
-    expect(levenshtein("test", "tests")).toBe(1); // insertion
-    expect(levenshtein("tests", "test")).toBe(1); // deletion
+    expect(levenshtein("test", "text")).toBe(1);
+    expect(levenshtein("test", "tests")).toBe(1);
+    expect(levenshtein("tests", "test")).toBe(1);
   });
 
   it("calculates multiple differences", () => {
