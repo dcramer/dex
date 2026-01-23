@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { startMcpServer } from "./mcp/server.js";
-import { runCli } from "./cli/commands.js";
+import { runCli } from "./cli/index.js";
 import { loadConfig } from "./core/config.js";
 import { StorageEngine } from "./core/storage-engine.js";
 import { FileStorage } from "./core/storage.js";
