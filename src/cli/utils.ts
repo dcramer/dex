@@ -42,7 +42,7 @@ export const colors = {
 };
 
 // Available commands for suggestions
-export const COMMANDS = ["create", "list", "show", "edit", "complete", "delete", "help", "mcp"];
+export const COMMANDS = ["create", "list", "show", "edit", "complete", "delete", "plan", "help", "mcp"];
 
 export function createService(options: CliOptions): TaskService {
   return new TaskService(options.storage);

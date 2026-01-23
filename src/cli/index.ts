@@ -7,6 +7,7 @@ import { completeCommand } from "./complete.js";
 import { deleteCommand } from "./delete.js";
 import { initCommand } from "./init.js";
 import { helpCommand } from "./help.js";
+import { planCommand } from "./plan.js";
 
 export type { CliOptions } from "./utils.js";
 
@@ -28,6 +29,8 @@ export async function runCli(args: string[], options: CliOptions): Promise<void>
       return await completeCommand(args.slice(1), options);
     case "delete":
       return await deleteCommand(args.slice(1), options);
+    case "plan":
+      return await planCommand(args.slice(1), options);
     case "help":
     case "--help":
     case "-h":

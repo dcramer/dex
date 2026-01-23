@@ -23,6 +23,7 @@ ${colors.bold}COMMANDS:${colors.reset}
   complete <id> --result "..."     Mark completed with result
   delete <id>                      Remove task (prompts if has subtasks)
   delete <id> -f                   Force delete without confirmation
+  plan <file>                      Create task from plan markdown file
 
 ${colors.bold}OPTIONS:${colors.reset}
   --storage-path <path>            Override storage file location
@@ -47,6 +48,9 @@ ${colors.bold}EXAMPLES:${colors.reset}
     - bcrypt cost=12, 15min access tokens
     Decisions: JWT over sessions for scaling
     Follow-up: add email verification"
+
+  ${colors.dim}# Create task from planning session:${colors.reset}
+  dex plan ~/.claude/plans/my-plan.md
 
   ${colors.dim}# Other common operations:${colors.reset}
   dex list --json | jq '.[] | .id'
