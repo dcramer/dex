@@ -25,6 +25,7 @@ ${colors.bold}COMMANDS:${colors.reset}
   delete <id> -f                   Force delete without confirmation
   rm, remove                       Aliases for delete command
   plan <file>                      Create task from plan markdown file
+  completion <shell>               Generate shell completion script
 
 ${colors.bold}OPTIONS:${colors.reset}
   --storage-path <path>            Override storage file location

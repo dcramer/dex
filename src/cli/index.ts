@@ -8,6 +8,7 @@ import { deleteCommand } from "./delete.js";
 import { initCommand } from "./init.js";
 import { helpCommand } from "./help.js";
 import { planCommand } from "./plan.js";
+import { completionCommand } from "./completion.js";
 
 export type { CliOptions } from "./utils.js";
 
@@ -33,6 +34,8 @@ export async function runCli(args: string[], options: CliOptions): Promise<void>
       return await deleteCommand(args.slice(1), options);
     case "plan":
       return await planCommand(args.slice(1), options);
+    case "completion":
+      return completionCommand(args.slice(1));
     case "help":
     case "--help":
     case "-h":
