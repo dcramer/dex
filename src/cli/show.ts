@@ -11,14 +11,10 @@ import {
   wrapText,
 } from "./utils.js";
 
-// Default max length for context/result text in show command (use --full to see all)
-const SHOW_TEXT_MAX_LENGTH = 200;
-
 // Max description length for subtask display in show command
 const SHOW_SUBTASK_DESCRIPTION_MAX_LENGTH = 50;
 
 interface FormatTaskShowOptions {
-  full?: boolean;
   parentTask?: Task | null;
   children?: Task[];
 }
@@ -27,7 +23,7 @@ interface FormatTaskShowOptions {
  * Format the detailed show view for a task with proper text wrapping.
  */
 export function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}): string {
-  const { full = false, parentTask, children = [] } = options;
+  const { parentTask, children = [] } = options;
   const statusIcon = task.status === "completed" ? "[x]" : "[ ]";
   const statusColor = task.status === "completed" ? colors.green : colors.yellow;
   const priority = task.priority !== 1 ? ` ${colors.cyan}[p${task.priority}]${colors.reset}` : "";
@@ -47,22 +43,14 @@ export function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}):
 
   // Context section with word wrapping
   const indent = "  ";
-  let contextText = task.context;
-  if (!full && contextText.length > SHOW_TEXT_MAX_LENGTH) {
-    contextText = contextText.slice(0, SHOW_TEXT_MAX_LENGTH) + "...";
-  }
   lines.push(`${colors.bold}Context:${colors.reset}`);
-  lines.push(wrapText(contextText, terminalWidth, indent));
+  lines.push(wrapText(task.context, terminalWidth, indent));
 
   // Result section (if present) with word wrapping
   if (task.result) {
     lines.push(""); // Blank line before result
-    let resultText = task.result;
-    if (!full && resultText.length > SHOW_TEXT_MAX_LENGTH) {
-      resultText = resultText.slice(0, SHOW_TEXT_MAX_LENGTH) + "...";
-    }
     lines.push(`${colors.bold}Result:${colors.reset}`);
-    lines.push(wrapText(`${colors.green}${resultText}${colors.reset}`, terminalWidth, indent));
+    lines.push(wrapText(`${colors.green}${task.result}${colors.reset}`, terminalWidth, indent));
   }
 
   // Metadata section
@@ -104,10 +92,17 @@ export function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}):
     }
   }
 
-  // Add hint if text was truncated
-  if (!full && (task.context.length > SHOW_TEXT_MAX_LENGTH || (task.result && task.result.length > SHOW_TEXT_MAX_LENGTH))) {
+  // More Information section (navigation hints)
+  if (parentTask || children.length > 0) {
     lines.push("");
-    lines.push(`${colors.dim}(Text truncated. Use --full to see complete content.)${colors.reset}`);
+    lines.push(`${colors.bold}More Information:${colors.reset}`);
+
+    if (parentTask) {
+      lines.push(`  ${colors.dim}•${colors.reset} View parent task: ${colors.cyan}dex show ${parentTask.id}${colors.reset}`);
+    }
+    if (children.length > 0) {
+      lines.push(`  ${colors.dim}•${colors.reset} View subtasks: ${colors.cyan}dex list --parent ${task.id}${colors.reset}`);
+    }
   }
 
   return lines.join("\n");
@@ -130,13 +125,12 @@ ${colors.bold}ARGUMENTS:${colors.reset}
   <task-id>                  Task ID to display (required)
 
 ${colors.bold}OPTIONS:${colors.reset}
-  -f, --full                 Show full context/result (no truncation)
+  -f, --full                 (Deprecated - kept for compatibility)
   --json                     Output as JSON
   -h, --help                 Show this help message
 
 ${colors.bold}EXAMPLE:${colors.reset}
-  dex show abc123            # Show task details (truncated)
-  dex show abc123 --full     # Show complete context and result
+  dex show abc123            # Show task details
   dex show abc123 --json     # Output as JSON for scripting
 `);
     return;
@@ -165,7 +159,6 @@ ${colors.bold}EXAMPLE:${colors.reset}
 
   const children = await service.getChildren(id);
   const parentTask = task.parent_id ? await service.get(task.parent_id) : null;
-  const full = getBooleanFlag(flags, "full");
 
   // JSON output mode
   if (getBooleanFlag(flags, "json")) {
@@ -183,5 +176,5 @@ ${colors.bold}EXAMPLE:${colors.reset}
     return;
   }
 
-  console.log(formatTaskShow(task, { full, parentTask, children }));
+  console.log(formatTaskShow(task, { parentTask, children }));
 }

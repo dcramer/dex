@@ -55,7 +55,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
     const task = await service.complete(id, result);
 
     console.log(`${colors.green}Completed${colors.reset} task ${colors.bold}${id}${colors.reset}`);
-    console.log(formatTaskShow(task, { full: true }));
+    console.log(formatTaskShow(task));
   } catch (err) {
     console.error(formatCliError(err));
     process.exit(1);
