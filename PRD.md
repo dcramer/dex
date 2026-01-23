@@ -73,19 +73,20 @@ Parsing/rendering helpers:
 
 **New: `updateIssueWithSubtasks(task, subtasks[])`** - Fetch current issue, merge subtasks, update body ✅
 
-### 3. Add tests
+### 3. Add tests ✅ DONE
 
-**Unit tests** (`src/core/subtask-markdown.test.ts`):
+**Unit tests** (`src/core/subtask-markdown.test.ts`): ✅
 - Parse body with/without subtasks
 - Render subtasks with various states
 - Round-trip parsing/rendering
 - Handle malformed markdown gracefully
 
-**Integration tests** (mock Octokit):
+**Integration tests** (`src/core/github-issues-storage.test.ts`): ✅
 - Read parent with embedded subtasks
 - Write parent + subtasks together
 - Update subtask status/result
 - Delete subtasks (remove from body)
+- 17 integration tests with mock Octokit
 
 ## Files to Modify
 - `src/core/github-issues-storage.ts` - main changes

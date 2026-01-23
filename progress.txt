@@ -38,3 +38,41 @@ Modified `src/core/github-issues-storage.ts` to use the subtask-markdown helpers
 
 ### Next step:
 Step 3 - Add integration tests (mock Octokit) for the new github-issues-storage.ts functionality
+
+## 2026-01-23: Step 3 Complete - Integration Tests
+
+Created `src/core/github-issues-storage.test.ts` with 17 integration tests using mocked Octokit.
+
+### Tests added:
+- **readAsync()**:
+  - Reads parent task without subtasks
+  - Reads parent task with embedded subtasks (verifies subtask parsing)
+  - Skips pull requests
+  - Reads closed issues as completed tasks
+  - Throws StorageError on API failure
+
+- **writeAsync()**:
+  - Creates new parent task without subtasks
+  - Creates parent task with subtasks embedded
+  - Updates existing issue with subtasks
+  - Creates completed parent task with closed state
+  - Warns about orphaned subtasks
+  - Throws StorageError on API failure
+  - Handles subtask status update (checkbox change)
+  - Removes subtask when not included in write
+
+- **Utility methods**:
+  - read() throws error (sync not supported)
+  - write() throws error (sync not supported)
+  - isSync() returns false
+  - getIdentifier() returns owner/repo
+
+### Verification:
+- TypeScript build passes (`npm run build`)
+- Full test suite passes (241 tests)
+
+### Implementation Complete
+All three steps from the PRD are now complete:
+1. ✅ subtask-markdown.ts - Parsing/rendering helpers
+2. ✅ github-issues-storage.ts - Integration with subtask embedding
+3. ✅ Integration tests - Mock Octokit tests for full coverage
