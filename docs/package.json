@@ -8,8 +8,9 @@
     "preview": "astro preview"
   },
   "dependencies": {
-    "astro": "^5.0.0",
     "@astrojs/mdx": "^4.0.0",
-    "shiki": "^1.0.0"
+    "astro": "^5.0.0",
+    "shiki": "^1.0.0",
+    "unist-util-visit": "^5.1.0"
   }
 }
