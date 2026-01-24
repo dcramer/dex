@@ -16,6 +16,7 @@ export async function createCommand(args: string[], options: CliOptions): Promis
     context: { hasValue: true },
     priority: { short: "p", hasValue: true },
     parent: { hasValue: true },
+    "blocked-by": { short: "b", hasValue: true },
     help: { short: "h", hasValue: false },
   }, "create");
 
@@ -30,12 +31,14 @@ ${colors.bold}OPTIONS:${colors.reset}
   --context <text>           Task context/details (required)
   -p, --priority <n>         Priority level (lower = higher priority, default: 1)
   --parent <id>              Parent task ID (creates subtask)
+  -b, --blocked-by <ids>     Comma-separated task IDs that block this task
   -h, --help                 Show this help message
 
 ${colors.bold}EXAMPLE:${colors.reset}
   dex create -d "Fix login bug" --context "Users report 500 errors on /login"
   dex create -d "Write tests" --context "Cover auth module" -p 2
   dex create -d "Subtask" --context "Part of bigger task" --parent abc123
+  dex create -d "Deploy" --context "Release to prod" --blocked-by abc123,def456
 `);
     return;
   }
@@ -55,6 +58,12 @@ ${colors.bold}EXAMPLE:${colors.reset}
     process.exit(1);
   }
 
+  // Parse blocked-by as comma-separated list
+  const blockedByStr = getStringFlag(flags, "blocked-by");
+  const blockedBy = blockedByStr
+    ? blockedByStr.split(",").map((s) => s.trim()).filter(Boolean)
+    : undefined;
+
   const service = createService(options);
   try {
     const task = await service.create({
@@ -62,6 +71,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
       context,
       parent_id: getStringFlag(flags, "parent"),
       priority: parseIntFlag(flags, "priority"),
+      blocked_by: blockedBy,
     });
 
     console.log(`${colors.green}Created${colors.reset} task ${colors.bold}${task.id}${colors.reset}`);

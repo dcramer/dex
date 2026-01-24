@@ -67,7 +67,8 @@ describe("TaskStorage", () => {
 
       const store = storage.read();
       expect(store.tasks).toHaveLength(1);
-      expect(store.tasks[0]).toEqual(taskData);
+      // Schema preprocessing adds default values for new fields
+      expect(store.tasks[0]).toMatchObject(taskData);
     });
 
     it("reads multiple tasks from individual files", () => {
@@ -486,7 +487,10 @@ describe("TaskStorage", () => {
       const sortedRead = [...readData.tasks].sort((a, b) =>
         a.id.localeCompare(b.id)
       );
-      expect(sortedRead).toEqual(sortedOriginal);
+      // Schema preprocessing adds default values for new fields (blockedBy, blocks, children)
+      for (let i = 0; i < sortedRead.length; i++) {
+        expect(sortedRead[i]).toMatchObject(sortedOriginal[i]);
+      }
     });
 
     it("handles special characters in task content", () => {
@@ -513,7 +517,8 @@ describe("TaskStorage", () => {
       storage.write(dataWithSpecialChars);
       const readData = storage.read();
 
-      expect(readData).toEqual(dataWithSpecialChars);
+      // Schema preprocessing adds default values for new fields
+      expect(readData.tasks[0]).toMatchObject(dataWithSpecialChars.tasks[0]);
     });
 
     it("handles unicode characters", () => {
@@ -540,7 +545,8 @@ describe("TaskStorage", () => {
       storage.write(dataWithUnicode);
       const readData = storage.read();
 
-      expect(readData).toEqual(dataWithUnicode);
+      // Schema preprocessing adds default values for new fields
+      expect(readData.tasks[0]).toMatchObject(dataWithUnicode.tasks[0]);
     });
   });
 

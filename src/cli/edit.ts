@@ -16,6 +16,8 @@ export async function editCommand(args: string[], options: CliOptions): Promise<
     context: { hasValue: true },
     priority: { short: "p", hasValue: true },
     parent: { hasValue: true },
+    "add-blocker": { hasValue: true },
+    "remove-blocker": { hasValue: true },
     help: { short: "h", hasValue: false },
   }, "edit");
 
@@ -33,12 +35,16 @@ ${colors.bold}OPTIONS:${colors.reset}
   --context <text>           New task context/details
   -p, --priority <n>         New priority level
   --parent <id>              New parent task ID
+  --add-blocker <ids>        Comma-separated task IDs to add as blockers
+  --remove-blocker <ids>     Comma-separated task IDs to remove as blockers
   -h, --help                 Show this help message
 
 ${colors.bold}EXAMPLE:${colors.reset}
   dex edit abc123 -d "Updated description"
   dex edit abc123 -p 1
   dex edit abc123 --context "More details about the task"
+  dex edit abc123 --add-blocker def456
+  dex edit abc123 --remove-blocker def456
 `);
     return;
   }
@@ -51,6 +57,17 @@ ${colors.bold}EXAMPLE:${colors.reset}
     process.exit(1);
   }
 
+  // Parse blocker flags as comma-separated lists
+  const addBlockerStr = getStringFlag(flags, "add-blocker");
+  const addBlockedBy = addBlockerStr
+    ? addBlockerStr.split(",").map((s) => s.trim()).filter(Boolean)
+    : undefined;
+
+  const removeBlockerStr = getStringFlag(flags, "remove-blocker");
+  const removeBlockedBy = removeBlockerStr
+    ? removeBlockerStr.split(",").map((s) => s.trim()).filter(Boolean)
+    : undefined;
+
   const service = createService(options);
   try {
     const task = await service.update({
@@ -59,6 +76,8 @@ ${colors.bold}EXAMPLE:${colors.reset}
       context: getStringFlag(flags, "context"),
       parent_id: getStringFlag(flags, "parent"),
       priority: parseIntFlag(flags, "priority"),
+      add_blocked_by: addBlockedBy,
+      remove_blocked_by: removeBlockedBy,
     });
 
     console.log(`${colors.green}Updated${colors.reset} task ${colors.bold}${id}${colors.reset}`);

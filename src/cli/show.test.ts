@@ -106,4 +106,40 @@ describe("show command", () => {
     expect(out).toContain(`dex list ${parentId}`);
     expect(out).not.toContain("--parent");
   });
+
+  it("shows blocked by section when task has blockers", async () => {
+    // Create blocker task
+    await runCli(["create", "-d", "Task A", "--context", "ctx"], { storage });
+    const blockerId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    output.stdout.length = 0; // Clear output before next command
+
+    // Create blocked task
+    await runCli(["create", "-d", "Task B", "--context", "ctx", "--blocked-by", blockerId!], { storage });
+    const blockedId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+
+    output.stdout.length = 0;
+    await runCli(["show", blockedId!], { storage });
+
+    const out = output.stdout.join("\n");
+    expect(out).toContain("Blocked by:");
+    expect(out).toContain("Task A");
+    expect(out).toContain(blockerId!);
+  });
+
+  it("shows blocks section when task blocks others", async () => {
+    // Create blocker task
+    await runCli(["create", "-d", "Task A", "--context", "ctx"], { storage });
+    const blockerId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    output.stdout.length = 0; // Clear output before next command
+
+    // Create blocked task
+    await runCli(["create", "-d", "Task B", "--context", "ctx", "--blocked-by", blockerId!], { storage });
+
+    output.stdout.length = 0;
+    await runCli(["show", blockerId!], { storage });
+
+    const out = output.stdout.join("\n");
+    expect(out).toContain("Blocks:");
+    expect(out).toContain("Task B");
+  });
 });

@@ -3,6 +3,7 @@ import { StorageEngine } from "./storage-engine.js";
 import { FileStorage } from "./storage.js";
 import {
   Task,
+  TaskStore,
   CreateTaskInput,
   UpdateTaskInput,
   ListTasksInput,
@@ -22,6 +23,131 @@ export class TaskService {
       this.storage = storage;
     }
   }
+
+  // ============ Bidirectional Sync Helpers ============
+
+  /**
+   * Sync parent-child relationship (bidirectional).
+   * Updates: parent.children[] ↔ child.parent_id
+   */
+  private syncParentChild(
+    store: TaskStore,
+    childId: string,
+    oldParentId: string | null,
+    newParentId: string | null
+  ): void {
+    // Remove from old parent's children[]
+    if (oldParentId) {
+      const oldParent = store.tasks.find((t) => t.id === oldParentId);
+      if (oldParent) {
+        oldParent.children = oldParent.children.filter((id) => id !== childId);
+      }
+    }
+
+    // Add to new parent's children[]
+    if (newParentId) {
+      const newParent = store.tasks.find((t) => t.id === newParentId);
+      if (!newParent) throw new NotFoundError("Task", newParentId, "The specified parent task does not exist");
+      if (!newParent.children.includes(childId)) {
+        newParent.children.push(childId);
+      }
+    }
+  }
+
+  /**
+   * Add blocking relationship (bidirectional).
+   * Updates: blocker.blocks[] ↔ blocked.blockedBy[]
+   */
+  private syncAddBlocker(store: TaskStore, blockerId: string, blockedId: string): void {
+    // Validate blocker exists
+    const blocker = store.tasks.find((t) => t.id === blockerId);
+    if (!blocker) throw new NotFoundError("Task", blockerId, "The specified blocker task does not exist");
+
+    // Update blocker's blocks[] (add blockedId)
+    if (!blocker.blocks.includes(blockedId)) {
+      blocker.blocks.push(blockedId);
+    }
+
+    // Update blocked's blockedBy[] (add blockerId)
+    const blocked = store.tasks.find((t) => t.id === blockedId);
+    if (blocked && !blocked.blockedBy.includes(blockerId)) {
+      blocked.blockedBy.push(blockerId);
+    }
+  }
+
+  /**
+   * Remove blocking relationship (bidirectional).
+   */
+  private syncRemoveBlocker(store: TaskStore, blockerId: string, blockedId: string): void {
+    // Update blocker's blocks[] (remove blockedId)
+    const blocker = store.tasks.find((t) => t.id === blockerId);
+    if (blocker) {
+      blocker.blocks = blocker.blocks.filter((id) => id !== blockedId);
+    }
+
+    // Update blocked's blockedBy[] (remove blockerId)
+    const blocked = store.tasks.find((t) => t.id === blockedId);
+    if (blocked) {
+      blocked.blockedBy = blocked.blockedBy.filter((id) => id !== blockerId);
+    }
+  }
+
+  /**
+   * Clean up all references to a deleted task.
+   */
+  private cleanupTaskReferences(store: TaskStore, taskId: string): void {
+    for (const task of store.tasks) {
+      task.children = task.children.filter((id) => id !== taskId);
+      task.blockedBy = task.blockedBy.filter((id) => id !== taskId);
+      task.blocks = task.blocks.filter((id) => id !== taskId);
+    }
+  }
+
+  /**
+   * Check if adding blocker→blocked would create a cycle.
+   * A cycle exists if 'blocked' is already in blocker's dependency chain.
+   */
+  private wouldCreateBlockingCycle(
+    tasks: Task[],
+    blockerId: string,
+    blockedId: string
+  ): boolean {
+    const visited = new Set<string>();
+    const stack = [blockerId];
+
+    while (stack.length > 0) {
+      const current = stack.pop()!;
+      if (current === blockedId) return true; // Cycle found!
+      if (visited.has(current)) continue;
+      visited.add(current);
+
+      const task = tasks.find((t) => t.id === current);
+      if (task?.blockedBy) {
+        stack.push(...task.blockedBy);
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Check if a task is blocked (has any incomplete tasks in blockedBy).
+   */
+  isBlocked(tasks: Task[], task: Task): boolean {
+    return task.blockedBy.some((blockerId) => {
+      const blocker = tasks.find((t) => t.id === blockerId);
+      return blocker && !blocker.completed;
+    });
+  }
+
+  /**
+   * Check if a task is ready (pending with all blockers completed or empty blockedBy).
+   */
+  isReady(tasks: Task[], task: Task): boolean {
+    if (task.completed) return false;
+    return !this.isBlocked(tasks, task);
+  }
+
+  // ============ CRUD Methods ============
 
   async create(input: CreateTaskInput): Promise<Task> {
     const store = await this.storage.readAsync();
@@ -45,6 +171,20 @@ export class TaskService {
       parentId = input.parent_id;
     }
 
+    // Validate blocked_by IDs exist and dedupe
+    const blockedBy: string[] = [];
+    if (input.blocked_by && input.blocked_by.length > 0) {
+      for (const blockerId of input.blocked_by) {
+        const blocker = store.tasks.find((t) => t.id === blockerId);
+        if (!blocker) {
+          throw new NotFoundError("Task", blockerId, "The specified blocker task does not exist");
+        }
+        if (!blockedBy.includes(blockerId)) {
+          blockedBy.push(blockerId);
+        }
+      }
+    }
+
     const task: Task = {
       id: generateId(),
       parent_id: parentId,
@@ -57,9 +197,23 @@ export class TaskService {
       created_at: now,
       updated_at: now,
       completed_at: null,
+      blockedBy: [],
+      blocks: [],
+      children: [],
     };
 
     store.tasks.push(task);
+
+    // Sync parent-child relationship
+    if (parentId) {
+      this.syncParentChild(store, task.id, null, parentId);
+    }
+
+    // Sync blocking relationships
+    for (const blockerId of blockedBy) {
+      this.syncAddBlocker(store, blockerId, task.id);
+    }
+
     await this.storage.writeAsync(store);
 
     return task;
@@ -78,6 +232,7 @@ export class TaskService {
     }
 
     const task = store.tasks[index];
+    const oldParentId = task.parent_id;
     const now = new Date().toISOString();
 
     if (input.description !== undefined) task.description = input.description;
@@ -114,6 +269,11 @@ export class TaskService {
         }
       }
       task.parent_id = input.parent_id;
+
+      // Sync parent-child relationship if parent changed
+      if (oldParentId !== input.parent_id) {
+        this.syncParentChild(store, task.id, oldParentId, input.parent_id);
+      }
     }
     if (input.priority !== undefined) task.priority = input.priority;
     if (input.completed !== undefined) {
@@ -128,6 +288,43 @@ export class TaskService {
     if (input.result !== undefined) task.result = input.result;
     if (input.metadata !== undefined) {
       task.metadata = input.metadata;
+    }
+
+    // Handle add_blocked_by
+    if (input.add_blocked_by && input.add_blocked_by.length > 0) {
+      for (const blockerId of input.add_blocked_by) {
+        // Check self-blocking
+        if (blockerId === input.id) {
+          throw new ValidationError(
+            "Task cannot block itself",
+            "Remove the task's own ID from the add_blocked_by list"
+          );
+        }
+
+        // Check blocker exists
+        const blocker = store.tasks.find((t) => t.id === blockerId);
+        if (!blocker) {
+          throw new NotFoundError("Task", blockerId, "The specified blocker task does not exist");
+        }
+
+        // Check for cycles
+        if (this.wouldCreateBlockingCycle(store.tasks, blockerId, input.id)) {
+          throw new ValidationError(
+            `Cannot add blocker ${blockerId}: would create a cycle`,
+            "The specified task is already blocked by this task (directly or indirectly)"
+          );
+        }
+
+        // Sync the relationship
+        this.syncAddBlocker(store, blockerId, input.id);
+      }
+    }
+
+    // Handle remove_blocked_by
+    if (input.remove_blocked_by && input.remove_blocked_by.length > 0) {
+      for (const blockerId of input.remove_blocked_by) {
+        this.syncRemoveBlocker(store, blockerId, input.id);
+      }
     }
 
     task.updated_at = now;
@@ -156,6 +353,11 @@ export class TaskService {
     // Cascade delete all descendants
     const toDelete = new Set<string>([id]);
     this.collectDescendants(store.tasks, id, toDelete);
+
+    // Clean up references to all deleted tasks
+    for (const taskId of toDelete) {
+      this.cleanupTaskReferences(store, taskId);
+    }
 
     store.tasks = store.tasks.filter((t) => !toDelete.has(t.id));
     await this.storage.writeAsync(store);
@@ -255,6 +457,16 @@ export class TaskService {
       );
     }
 
+    // Filter by blocked status: tasks that have incomplete blockers
+    if (input.blocked === true) {
+      tasks = tasks.filter((t) => this.isBlocked(store.tasks, t));
+    }
+
+    // Filter by ready status: pending tasks with all blockers completed (or none)
+    if (input.ready === true) {
+      tasks = tasks.filter((t) => this.isReady(store.tasks, t));
+    }
+
     return tasks.toSorted((a, b) => a.priority - b.priority);
   }
 
@@ -282,6 +494,33 @@ export class TaskService {
       result,
       metadata,
     });
+  }
+
+  /**
+   * Get incomplete blockers for a task.
+   * Returns an array of tasks that are blocking this one (not yet completed).
+   */
+  async getIncompleteBlockers(id: string): Promise<Task[]> {
+    const store = await this.storage.readAsync();
+    const task = store.tasks.find((t) => t.id === id);
+    if (!task) return [];
+
+    return task.blockedBy
+      .map((blockerId) => store.tasks.find((t) => t.id === blockerId))
+      .filter((t): t is Task => t !== undefined && !t.completed);
+  }
+
+  /**
+   * Get tasks that this task is blocking (that depend on this task).
+   */
+  async getBlockedTasks(id: string): Promise<Task[]> {
+    const store = await this.storage.readAsync();
+    const task = store.tasks.find((t) => t.id === id);
+    if (!task) return [];
+
+    return task.blocks
+      .map((blockedId) => store.tasks.find((t) => t.id === blockedId))
+      .filter((t): t is Task => t !== undefined && !t.completed);
   }
 
   getStoragePath(): string {

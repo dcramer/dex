@@ -29,17 +29,31 @@ const TaskSchemaBase = z.object({
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
   completed_at: z.string().datetime().nullable().default(null),
+  // Bidirectional blocking relationships
+  blockedBy: z.array(z.string().min(1)).default([]),  // Tasks that block this one
+  blocks: z.array(z.string().min(1)).default([]),     // Tasks this one blocks
+  children: z.array(z.string().min(1)).default([]),   // Child task IDs (inverse of parent_id)
 });
 
 // Preprocess to convert old `status` field to `completed` for backwards compatibility
+// and add defaults for new fields
 export const TaskSchema = z.preprocess((data) => {
-  if (typeof data === "object" && data !== null && "status" in data) {
-    const { status, ...rest } = data as Record<string, unknown>;
-    // Only convert if `completed` is not already present
-    if (!("completed" in rest)) {
-      return { ...rest, completed: status === "completed" };
+  if (typeof data === "object" && data !== null) {
+    const obj = data as Record<string, unknown>;
+
+    // Convert old status field
+    if ("status" in obj && !("completed" in obj)) {
+      const { status, ...rest } = obj;
+      obj.completed = status === "completed";
+      delete obj.status;
     }
-    return rest;
+
+    // Add defaults for new bidirectional relationship fields
+    if (!("blockedBy" in obj)) obj.blockedBy = [];
+    if (!("blocks" in obj)) obj.blocks = [];
+    if (!("children" in obj)) obj.children = [];
+
+    return obj;
   }
   return data;
 }, TaskSchemaBase);
@@ -57,6 +71,7 @@ export const CreateTaskInputSchema = z.object({
   context: z.string().min(1, "Context is required"),
   parent_id: z.string().min(1).optional(),
   priority: z.number().int().min(0).optional(),
+  blocked_by: z.array(z.string().min(1)).optional(),
 });
 
 export type CreateTaskInput = z.infer<typeof CreateTaskInputSchema>;
@@ -71,6 +86,8 @@ export const UpdateTaskInputSchema = z.object({
   result: z.string().optional(),
   metadata: TaskMetadataSchema.optional(),
   delete: z.boolean().optional(),
+  add_blocked_by: z.array(z.string().min(1)).optional(),
+  remove_blocked_by: z.array(z.string().min(1)).optional(),
 });
 
 export type UpdateTaskInput = z.infer<typeof UpdateTaskInputSchema>;
@@ -79,6 +96,8 @@ export const ListTasksInputSchema = z.object({
   completed: z.boolean().optional(),
   query: z.string().optional(),
   all: z.boolean().optional(),
+  blocked: z.boolean().optional(),
+  ready: z.boolean().optional(),
 });
 
 export type ListTasksInput = z.infer<typeof ListTasksInputSchema>;

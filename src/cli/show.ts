@@ -24,6 +24,8 @@ interface FormatTaskShowOptions {
   children?: Task[];
   grandchildren?: Task[];
   full?: boolean;
+  blockedByTasks?: Task[];  // Tasks that block this one
+  blocksTasks?: Task[];     // Tasks this one blocks
 }
 
 /**
@@ -128,7 +130,7 @@ function formatHierarchyTree(task: Task, ancestors: Task[], children: Task[], gr
  * Format the detailed show view for a task with proper text wrapping.
  */
 export function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}): string {
-  const { ancestors = [], children = [], grandchildren = [], full = false } = options;
+  const { ancestors = [], children = [], grandchildren = [], full = false, blockedByTasks = [], blocksTasks = [] } = options;
   let wasTruncated = false;
   const priority = task.priority !== 1 ? ` ${colors.cyan}[p${task.priority}]${colors.reset}` : "";
 
@@ -144,6 +146,26 @@ export function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}):
     const statusColor = task.completed ? colors.green : colors.yellow;
     lines.push(`${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}${priority}: ${task.description}`);
     lines.push(""); // Blank line after header
+  }
+
+  // Blocked by section (incomplete blockers)
+  const incompleteBlockers = blockedByTasks.filter((t) => !t.completed);
+  if (incompleteBlockers.length > 0) {
+    lines.push(`${colors.bold}${colors.red}Blocked by:${colors.reset}`);
+    for (const blocker of incompleteBlockers) {
+      lines.push(`  ${colors.dim}•${colors.reset} ${colors.bold}${blocker.id}${colors.reset}: ${truncateText(blocker.description, 50)}`);
+    }
+    lines.push(""); // Blank line after
+  }
+
+  // Blocks section (tasks this one blocks that are not completed)
+  const incompleteBlocked = blocksTasks.filter((t) => !t.completed);
+  if (incompleteBlocked.length > 0) {
+    lines.push(`${colors.bold}Blocks:${colors.reset}`);
+    for (const blocked of incompleteBlocked) {
+      lines.push(`  ${colors.dim}•${colors.reset} ${colors.bold}${blocked.id}${colors.reset}: ${truncateText(blocked.description, 50)}`);
+    }
+    lines.push(""); // Blank line after
   }
 
   // Context section with word wrapping
@@ -257,6 +279,10 @@ ${colors.bold}EXAMPLE:${colors.reset}
     grandchildren.push(...childChildren);
   }
 
+  // Get blocking relationship info
+  const blockedByTasks = await service.getIncompleteBlockers(id);
+  const blocksTasks = await service.getBlockedTasks(id);
+
   // JSON output mode
   if (getBooleanFlag(flags, "json")) {
     const pending = children.filter((c) => !c.completed);
@@ -275,11 +301,14 @@ ${colors.bold}EXAMPLE:${colors.reset}
         completed: grandchildren.length - pendingGrandchildren.length,
         tasks: grandchildren,
       } : null,
+      blockedBy: blockedByTasks.map((t) => ({ id: t.id, description: t.description, completed: t.completed })),
+      blocks: blocksTasks.map((t) => ({ id: t.id, description: t.description, completed: t.completed })),
+      isBlocked: blockedByTasks.some((t) => !t.completed),
     };
     console.log(JSON.stringify(jsonOutput, null, 2));
     return;
   }
 
   const full = getBooleanFlag(flags, "full");
-  console.log(formatTaskShow(task, { ancestors, children, grandchildren, full }));
+  console.log(formatTaskShow(task, { ancestors, children, grandchildren, full, blockedByTasks, blocksTasks }));
 }

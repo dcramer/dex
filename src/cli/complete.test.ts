@@ -45,4 +45,25 @@ describe("complete command", () => {
     await expect(runCli(["complete", taskId!], { storage })).rejects.toThrow("process.exit");
     expect(output.stderr.join("\n")).toContain("--result");
   });
+
+  it("warns when completing a blocked task but still completes", async () => {
+    // Create blocker task
+    await runCli(["create", "-d", "Task A", "--context", "ctx"], { storage });
+    const blockerId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    output.stdout.length = 0; // Clear output before next command
+
+    // Create blocked task
+    await runCli(["create", "-d", "Task B", "--context", "ctx", "--blocked-by", blockerId!], { storage });
+    const blockedId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    output.stdout.length = 0;
+
+    // Complete the blocked task
+    await runCli(["complete", blockedId!, "-r", "Done anyway"], { storage });
+
+    const out = output.stdout.join("\n");
+    expect(out).toContain("Warning:");
+    expect(out).toContain("blocked by");
+    expect(out).toContain("Task A");
+    expect(out).toContain("Completed");
+  });
 });

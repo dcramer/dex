@@ -113,4 +113,57 @@ describe("list command", () => {
     expect(out).toContain("Task under epic");
     expect(out).toContain("Subtask");
   });
+
+  it("shows blocked indicator for tasks with blockers", async () => {
+    // Create blocker task
+    await runCli(["create", "-d", "Task A", "--context", "ctx"], { storage });
+    const blockerMatch = output.stdout.join("\n").match(/\b([a-z0-9]{8})\b/);
+    const blockerId = blockerMatch?.[1];
+    expect(blockerId).toBeDefined();
+
+    // Create blocked task
+    await runCli(["create", "-d", "Task B", "--context", "ctx", "--blocked-by", blockerId!], { storage });
+    output.stdout.length = 0;
+
+    await runCli(["list"], { storage });
+
+    const out = output.stdout.join("\n");
+    expect(out).toContain("Task A");
+    expect(out).toContain("Task B");
+    expect(out).toContain(`[B: ${blockerId}]`);
+  });
+
+  it("filters to only blocked tasks with --blocked", async () => {
+    // Create blocker task
+    await runCli(["create", "-d", "Task A", "--context", "ctx"], { storage });
+    const blockerMatch = output.stdout.join("\n").match(/\b([a-z0-9]{8})\b/);
+    const blockerId = blockerMatch?.[1];
+
+    // Create blocked task
+    await runCli(["create", "-d", "Task B", "--context", "ctx", "--blocked-by", blockerId!], { storage });
+    output.stdout.length = 0;
+
+    await runCli(["list", "--blocked"], { storage });
+
+    const out = output.stdout.join("\n");
+    expect(out).toContain("Task B");
+    expect(out).not.toContain("Task A");
+  });
+
+  it("filters to only ready tasks with --ready", async () => {
+    // Create blocker task
+    await runCli(["create", "-d", "Task A", "--context", "ctx"], { storage });
+    const blockerMatch = output.stdout.join("\n").match(/\b([a-z0-9]{8})\b/);
+    const blockerId = blockerMatch?.[1];
+
+    // Create blocked task
+    await runCli(["create", "-d", "Task B", "--context", "ctx", "--blocked-by", blockerId!], { storage });
+    output.stdout.length = 0;
+
+    await runCli(["list", "--ready"], { storage });
+
+    const out = output.stdout.join("\n");
+    expect(out).toContain("Task A");
+    expect(out).not.toContain("Task B");
+  });
 });

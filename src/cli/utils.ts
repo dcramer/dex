@@ -22,6 +22,7 @@ export interface FormatTaskOptions {
   verbose?: boolean;
   treePrefix?: string;
   truncateDescription?: number;
+  blockedByIds?: string[];  // IDs of incomplete tasks blocking this one
 }
 
 // Color support: disable if NO_COLOR is set or stdout is not a TTY
@@ -46,6 +47,16 @@ export const COMMANDS = ["create", "list", "ls", "show", "edit", "update", "comp
 
 export function createService(options: CliOptions): TaskService {
   return new TaskService(options.storage);
+}
+
+/**
+ * Get IDs of incomplete tasks that are blocking a given task.
+ */
+export function getIncompleteBlockerIds(tasks: Task[], task: Task): string[] {
+  return task.blockedBy.filter((blockerId) => {
+    const blocker = tasks.find((t) => t.id === blockerId);
+    return blocker && !blocker.completed;
+  });
 }
 
 /**
@@ -242,7 +253,7 @@ export function truncateText(text: string, maxLength: number): string {
 }
 
 export function formatTask(task: Task, options: FormatTaskOptions = {}): string {
-  const { verbose = false, treePrefix = "", truncateDescription } = options;
+  const { verbose = false, treePrefix = "", truncateDescription, blockedByIds } = options;
 
   const statusIcon = task.completed ? "[x]" : "[ ]";
   const statusColor = task.completed ? colors.green : colors.yellow;
@@ -251,11 +262,21 @@ export function formatTask(task: Task, options: FormatTaskOptions = {}): string 
     ? ` ${colors.dim}(${formatAge(task.completed_at)})${colors.reset}`
     : "";
 
+  // Show blocked indicator if task has incomplete blockers
+  let blockedIndicator = "";
+  if (blockedByIds && blockedByIds.length > 0) {
+    if (blockedByIds.length === 1) {
+      blockedIndicator = ` ${colors.red}[B: ${blockedByIds[0]}]${colors.reset}`;
+    } else {
+      blockedIndicator = ` ${colors.red}[B: ${blockedByIds.length}]${colors.reset}`;
+    }
+  }
+
   const description = truncateDescription
     ? truncateText(task.description, truncateDescription)
     : task.description;
 
-  let output = `${treePrefix}${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}${priority}: ${description}${completionAge}`;
+  let output = `${treePrefix}${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}${priority}${blockedIndicator}: ${description}${completionAge}`;
 
   if (verbose) {
     const labelWidth = 12;

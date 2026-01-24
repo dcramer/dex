@@ -8,6 +8,7 @@ export const CreateTaskArgsSchema = z.object({
   context: z.string().min(1).describe("Comprehensive context like a GitHub Issue body. Explain what needs to be done and why, the specific requirements and constraints, the implementation approach with steps and technical choices, how you'll know it's done, and any relevant files or dependencies. Write naturally - agents and humans should understand the full picture without asking questions. See .dex/tasks/c2w75okn.json for a real example."),
   parent_id: z.string().min(1).optional().describe("Parent task ID to create as child. Supports 3-level hierarchy: epic (L0) → task (L1) → subtask (L2). Cannot create children of subtasks (max depth enforced)."),
   priority: z.number().int().min(0).optional().describe("Priority level - lower number = higher priority (default: 1)"),
+  blocked_by: z.array(z.string().min(1)).optional().describe("Array of task IDs that must be completed before this task can be started. Creates bidirectional blocking relationships."),
 });
 
 export async function handleCreateTask(args: CreateTaskInput, service: TaskService): Promise<McpToolResponse> {

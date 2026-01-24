@@ -135,6 +135,9 @@ function parseDetailsBlock(content: string): EmbeddedSubtask | null {
     created_at: metadata.created_at ?? new Date().toISOString(),
     updated_at: metadata.updated_at ?? new Date().toISOString(),
     completed_at: metadata.completed_at ?? null,
+    blockedBy: [],
+    blocks: [],
+    children: [],
   };
 }
 

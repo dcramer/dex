@@ -255,6 +255,9 @@ export class GitHubIssuesStorage implements StorageEngine {
       created_at: issue.created_at,
       updated_at: issue.updated_at,
       completed_at: issue.closed_at,
+      blockedBy: [],
+      blocks: [],
+      children: [],
     };
   }
 

@@ -228,6 +228,9 @@ describe("renderIssueBody", () => {
       created_at: "2024-01-22T10:00:00Z",
       updated_at: "2024-01-22T10:00:00Z",
       completed_at: null,
+      blockedBy: [],
+      blocks: [],
+      children: [],
     };
 
     const result = renderIssueBody("Parent context.", [subtask]);
@@ -256,6 +259,9 @@ describe("renderIssueBody", () => {
       created_at: "2024-01-22T10:00:00Z",
       updated_at: "2024-01-22T11:00:00Z",
       completed_at: "2024-01-22T11:00:00Z",
+      blockedBy: [],
+      blocks: [],
+      children: [],
     };
 
     const result = renderIssueBody("Parent context.", [subtask]);
@@ -279,6 +285,9 @@ describe("renderIssueBody", () => {
         created_at: "2024-01-22T10:00:00Z",
         updated_at: "2024-01-22T10:00:00Z",
         completed_at: null,
+        blockedBy: [],
+        blocks: [],
+        children: [],
       },
       {
         id: "9-2",
@@ -291,6 +300,9 @@ describe("renderIssueBody", () => {
         created_at: "2024-01-22T10:00:00Z",
         updated_at: "2024-01-22T11:00:00Z",
         completed_at: "2024-01-22T11:00:00Z",
+        blockedBy: [],
+        blocks: [],
+        children: [],
       },
     ];
 
@@ -316,6 +328,9 @@ describe("round-trip parsing/rendering", () => {
       created_at: "2024-01-22T10:00:00Z",
       updated_at: "2024-01-22T10:00:00Z",
       completed_at: null,
+      blockedBy: [],
+      blocks: [],
+      children: [],
     };
 
     const rendered = renderIssueBody("Parent context.", [subtask]);
@@ -344,6 +359,9 @@ describe("round-trip parsing/rendering", () => {
       created_at: "2024-01-22T10:00:00Z",
       updated_at: "2024-01-22T11:00:00Z",
       completed_at: "2024-01-22T11:00:00Z",
+      blockedBy: [],
+      blocks: [],
+      children: [],
     };
 
     const rendered = renderIssueBody("Parent.", [subtask]);
@@ -368,6 +386,9 @@ describe("embeddedSubtaskToTask", () => {
       created_at: "2024-01-22T10:00:00Z",
       updated_at: "2024-01-22T10:00:00Z",
       completed_at: null,
+      blockedBy: [],
+      blocks: [],
+      children: [],
     };
 
     const task = embeddedSubtaskToTask(subtask, "9");
@@ -384,6 +405,9 @@ describe("embeddedSubtaskToTask", () => {
       created_at: "2024-01-22T10:00:00Z",
       updated_at: "2024-01-22T10:00:00Z",
       completed_at: null,
+      blockedBy: [],
+      blocks: [],
+      children: [],
     });
   });
 });
@@ -402,6 +426,9 @@ describe("taskToEmbeddedSubtask", () => {
       created_at: "2024-01-22T10:00:00Z",
       updated_at: "2024-01-22T10:00:00Z",
       completed_at: null,
+      blockedBy: [],
+      blocks: [],
+      children: [],
     };
 
     const subtask = taskToEmbeddedSubtask(task);
@@ -417,6 +444,9 @@ describe("taskToEmbeddedSubtask", () => {
       created_at: "2024-01-22T10:00:00Z",
       updated_at: "2024-01-22T10:00:00Z",
       completed_at: null,
+      blockedBy: [],
+      blocks: [],
+      children: [],
     });
   });
 });
@@ -439,6 +469,9 @@ describe("getNextSubtaskIndex", () => {
         created_at: "",
         updated_at: "",
         completed_at: null,
+        blockedBy: [],
+        blocks: [],
+        children: [],
       },
       {
         id: "9-3",
@@ -451,6 +484,9 @@ describe("getNextSubtaskIndex", () => {
         created_at: "",
         updated_at: "",
         completed_at: null,
+        blockedBy: [],
+        blocks: [],
+        children: [],
       },
     ];
 
@@ -470,6 +506,9 @@ describe("getNextSubtaskIndex", () => {
         created_at: "",
         updated_at: "",
         completed_at: null,
+        blockedBy: [],
+        blocks: [],
+        children: [],
       },
     ];
 

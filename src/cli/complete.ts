@@ -56,6 +56,16 @@ ${colors.bold}EXAMPLE:${colors.reset}
 
   const service = createService(options);
   try {
+    // Check for incomplete blockers and warn
+    const incompleteBlockers = await service.getIncompleteBlockers(id);
+    if (incompleteBlockers.length > 0) {
+      console.log(`${colors.yellow}Warning:${colors.reset} This task is blocked by ${incompleteBlockers.length} incomplete task(s):`);
+      for (const blocker of incompleteBlockers) {
+        console.log(`  ${colors.dim}•${colors.reset} ${colors.bold}${blocker.id}${colors.reset}: ${blocker.description}`);
+      }
+      console.log("");
+    }
+
     const metadata = commitSha
       ? { commit: { ...getCommitInfo(commitSha), timestamp: new Date().toISOString() } }
       : undefined;

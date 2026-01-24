@@ -16,15 +16,21 @@ export const UpdateTaskArgsSchema = z.object({
   commit_branch: z.string().optional().describe("Branch name where commit was made"),
   commit_url: z.string().url().optional().describe("URL to the commit (e.g., GitHub commit URL)"),
   delete: z.boolean().optional().describe("Set to true to delete the task"),
+  add_blocked_by: z.array(z.string().min(1)).optional().describe("Array of task IDs to add as blockers. These tasks must be completed before this one can start."),
+  remove_blocked_by: z.array(z.string().min(1)).optional().describe("Array of task IDs to remove as blockers."),
 });
 
 type UpdateTaskArgs = z.infer<typeof UpdateTaskArgsSchema>;
 
 export async function handleUpdateTask(args: UpdateTaskArgs, service: TaskService): Promise<McpToolResponse> {
   // Convert flat commit params to nested metadata structure
-  const { commit_sha, commit_message, commit_branch, commit_url, ...rest } = args;
+  const { commit_sha, commit_message, commit_branch, commit_url, add_blocked_by, remove_blocked_by, ...rest } = args;
 
-  const updateInput: UpdateTaskInput = { ...rest };
+  const updateInput: UpdateTaskInput = {
+    ...rest,
+    add_blocked_by,
+    remove_blocked_by,
+  };
 
   if (commit_sha) {
     updateInput.metadata = {
