@@ -1,0 +1,224 @@
+---
+import Base from '../layouts/Base.astro';
+import Terminal from '../components/Terminal.astro';
+import { Code } from 'astro:components';
+---
+
+<Base title="CLI Reference" description="Complete dex command line interface reference">
+  <h1>CLI</h1>
+
+  <h2>Core Commands</h2>
+
+  <div class="command-card">
+    <h3>dex create</h3>
+    <div class="synopsis">dex create -d &lt;description&gt; --context &lt;context&gt; [options]</div>
+    <p>Create a new task with description and context.</p>
+    <ul>
+      <li><code>-d, --description</code> — One-line summary (required)</li>
+      <li><code>--context</code> — Full implementation details (required)</li>
+      <li><code>-p, --priority &lt;n&gt;</code> — Lower = higher priority (default: 1)</li>
+      <li><code>-b, --blocked-by &lt;ids&gt;</code> — Comma-separated task IDs that block this task</li>
+      <li><code>--parent &lt;id&gt;</code> — Parent task ID (creates subtask)</li>
+    </ul>
+    <Terminal title="Terminal">
+      <Code
+        code={`dex create -d "Add JWT authentication" \\
+  --context "Implement JWT middleware for route protection..."
+
+dex create -d "Deploy to production" --blocked-by abc123
+
+dex create -d "Add token refresh" --parent abc123`}
+        lang="bash"
+        theme="vitesse-black"
+      />
+    </Terminal>
+  </div>
+
+  <div class="command-card">
+    <h3>dex list</h3>
+    <div class="synopsis">dex list [options]</div>
+    <p>List tasks in tree view (default shows pending only).</p>
+    <ul>
+      <li><code>--all</code> — Include completed tasks</li>
+      <li><code>--completed</code> — Only completed tasks</li>
+      <li><code>--ready</code> — Only unblocked tasks</li>
+      <li><code>--blocked</code> — Only blocked tasks</li>
+      <li><code>--query &lt;text&gt;</code> — Search in description/context</li>
+      <li><code>--flat</code> — Plain list instead of tree</li>
+    </ul>
+    <Terminal title="Terminal">
+      <Code
+        code={`dex list
+dex list --all
+dex list --ready
+dex list --query "login"`}
+        lang="bash"
+        theme="vitesse-black"
+      />
+    </Terminal>
+  </div>
+
+  <div class="command-card">
+    <h3>dex show</h3>
+    <div class="synopsis">dex show &lt;id&gt;</div>
+    <p>View full task details including context, result, blocking relationships, and subtasks.</p>
+    <Terminal title="Terminal">
+      <Code code="dex show abc123" lang="bash" theme="vitesse-black" />
+    </Terminal>
+  </div>
+
+  <div class="command-card">
+    <h3>dex complete</h3>
+    <div class="synopsis">dex complete &lt;id&gt; --result &lt;result&gt; [options]</div>
+    <p>Mark a task as completed with a result summary.</p>
+    <ul>
+      <li><code>--result</code> — What was accomplished (required)</li>
+      <li><code>--commit &lt;sha&gt;</code> — Link to git commit</li>
+    </ul>
+    <Terminal title="Terminal">
+      <Code
+        code={`dex complete abc123 --result "Implemented JWT middleware with token refresh.
+All 42 tests passing."
+
+dex complete abc123 --result "..." --commit a1b2c3d`}
+        lang="bash"
+        theme="vitesse-black"
+      />
+    </Terminal>
+  </div>
+
+  <div class="command-card">
+    <h3>dex edit</h3>
+    <div class="synopsis">dex edit &lt;id&gt; [options]</div>
+    <p>Edit an existing task.</p>
+    <ul>
+      <li><code>-d, --description</code> — Updated description</li>
+      <li><code>--context</code> — Updated context</li>
+      <li><code>--add-blocker &lt;id&gt;</code> — Add blocking dependency</li>
+      <li><code>--remove-blocker &lt;id&gt;</code> — Remove blocking dependency</li>
+    </ul>
+    <Terminal title="Terminal">
+      <Code
+        code={`dex edit abc123 -d "Updated description"
+dex edit abc123 --add-blocker xyz789
+dex edit abc123 --remove-blocker xyz789`}
+        lang="bash"
+        theme="vitesse-black"
+      />
+    </Terminal>
+  </div>
+
+  <div class="command-card">
+    <h3>dex delete</h3>
+    <div class="synopsis">dex delete &lt;id&gt;</div>
+    <p>Delete a task. Also deletes all subtasks.</p>
+    <Terminal title="Terminal">
+      <Code code="dex delete abc123" lang="bash" theme="vitesse-black" />
+    </Terminal>
+  </div>
+
+  <div class="command-card">
+    <h3>dex plan</h3>
+    <div class="synopsis">dex plan &lt;markdown-file&gt; [options]</div>
+    <p>Create a task from a markdown planning document. Automatically creates subtasks when the document contains distinct implementation steps.</p>
+    <ul>
+      <li><code>--priority &lt;n&gt;</code> — Set priority</li>
+      <li><code>--parent &lt;id&gt;</code> — Create as subtask of existing task</li>
+    </ul>
+    <Terminal title="Terminal">
+      <Code
+        code={`dex plan ~/.claude/plans/auth-system.md
+dex plan docs/SPEC.md --priority 2
+dex plan feature.md --parent abc123`}
+        lang="bash"
+        theme="vitesse-black"
+      />
+    </Terminal>
+  </div>
+
+  <h2>GitHub</h2>
+
+  <div class="command-card">
+    <h3>dex sync</h3>
+    <div class="synopsis">dex sync [options]</div>
+    <p>Sync tasks to GitHub Issues. Requires <code>[sync.github]</code> configuration in <code>dex.toml</code>.</p>
+    <Terminal title="Terminal">
+      <Code code="dex sync" lang="bash" theme="vitesse-black" />
+    </Terminal>
+  </div>
+
+  <div class="command-card">
+    <h3>dex import</h3>
+    <div class="synopsis">dex import &lt;github-issue-url&gt;</div>
+    <p>Import a GitHub Issue as a dex task.</p>
+    <Terminal title="Terminal">
+      <Code code="dex import https://github.com/owner/repo/issues/123" lang="bash" theme="vitesse-black" />
+    </Terminal>
+  </div>
+
+  <h2>Other</h2>
+
+  <div class="command-card">
+    <h3>dex mcp</h3>
+    <div class="synopsis">dex mcp</div>
+    <p>Run dex as an MCP server for integration with other tools.</p>
+    <Terminal title="Terminal">
+      <Code code="dex mcp" lang="bash" theme="vitesse-black" />
+    </Terminal>
+  </div>
+
+  <div class="command-card">
+    <h3>dex completion</h3>
+    <div class="synopsis">dex completion &lt;shell&gt;</div>
+    <p>Generate shell completion script.</p>
+    <Terminal title="Terminal">
+      <Code
+        code={`eval "$(dex completion bash)"
+eval "$(dex completion zsh)"
+dex completion fish | source`}
+        lang="bash"
+        theme="vitesse-black"
+      />
+    </Terminal>
+  </div>
+
+  <div class="command-card">
+    <h3>dex help</h3>
+    <div class="synopsis">dex help [command]</div>
+    <p>Show help for dex or a specific command.</p>
+    <Terminal title="Terminal">
+      <Code
+        code={`dex help
+dex help create
+dex help complete`}
+        lang="bash"
+        theme="vitesse-black"
+      />
+    </Terminal>
+  </div>
+
+  <h2>Global Options</h2>
+  <ul>
+    <li><code>--storage-path &lt;path&gt;</code> — Override storage directory</li>
+  </ul>
+
+  <h2>Environment Variables</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Variable</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>DEX_STORAGE_PATH</code></td>
+        <td>Override storage directory</td>
+      </tr>
+      <tr>
+        <td><code>GITHUB_TOKEN</code></td>
+        <td>GitHub API token for sync/import</td>
+      </tr>
+    </tbody>
+  </table>
+</Base>

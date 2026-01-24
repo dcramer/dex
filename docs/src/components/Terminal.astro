@@ -1,0 +1,99 @@
+---
+interface Props {
+  title?: string;
+}
+
+const { title = 'Terminal' } = Astro.props;
+---
+
+<div class="terminal">
+  <div class="terminal-header">
+    <div class="terminal-dots">
+      <span class="dot red"></span>
+      <span class="dot yellow"></span>
+      <span class="dot green"></span>
+    </div>
+    <div class="terminal-title">{title}</div>
+    <div class="terminal-spacer"></div>
+  </div>
+  <div class="terminal-body">
+    <slot />
+  </div>
+</div>
+
+<style>
+  .terminal {
+    background: #000;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 1.5rem 0;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.05),
+      0 20px 50px -10px rgba(0, 0, 0, 0.7);
+  }
+
+  .terminal-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: #0a0a0a;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .terminal-dots {
+    display: flex;
+    gap: 8px;
+  }
+
+  .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+
+  .dot.red {
+    background: #ff5f57;
+  }
+
+  .dot.yellow {
+    background: #febc2e;
+  }
+
+  .dot.green {
+    background: #28c840;
+  }
+
+  .terminal-title {
+    flex: 1;
+    text-align: center;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: #666;
+    font-weight: 500;
+  }
+
+  .terminal-spacer {
+    width: 52px;
+  }
+
+  .terminal-body {
+    padding: 1rem 1.25rem;
+  }
+
+  .terminal-body :global(pre),
+  .terminal-body :global(pre.astro-code) {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  .terminal-body :global(code) {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+</style>

@@ -1,0 +1,41 @@
+---
+interface Props {
+  code: string;
+  lang?: string;
+  title?: string;
+}
+
+const { code, lang = 'bash', title } = Astro.props;
+---
+
+<div class="code-block">
+  {title && <div class="code-title">{title}</div>}
+  <pre><code class={`language-${lang}`} set:text={code} /></pre>
+</div>
+
+<style>
+  .code-block {
+    margin: 1rem 0;
+  }
+
+  .code-title {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    padding: 0.5rem 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .code-block pre {
+    margin: 0;
+  }
+
+  .code-title + pre {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+</style>

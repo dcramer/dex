@@ -1,0 +1,252 @@
+---
+import Base from '../layouts/Base.astro';
+import Terminal from '../components/Terminal.astro';
+import { Code } from 'astro:components';
+---
+
+<Base title="Guide" description="Comprehensive guide to using dex for task tracking">
+  <h1>Guide</h1>
+
+  <p>Dex helps agents act as <strong>master coordinators</strong> for complex work—breaking down large tasks, tracking progress, and recording comprehensive results that persist across sessions.</p>
+
+  <h2>Core Principle: Tickets, Not Todos</h2>
+
+  <p>Dex tasks are <strong>tickets</strong>—structured artifacts with comprehensive context:</p>
+
+  <ul>
+    <li><strong>Description</strong> — One-line summary (issue title)</li>
+    <li><strong>Context</strong> — Full background, requirements, approach (issue body)</li>
+    <li><strong>Result</strong> — Implementation details, decisions, outcomes (PR description)</li>
+  </ul>
+
+  <p>This rich context enables:</p>
+  <ul>
+    <li>Resuming work without losing context</li>
+    <li>Other agents picking up related work</li>
+    <li>Coordinated decomposition of complex tasks</li>
+    <li>Reconciliation of decisions across sessions</li>
+  </ul>
+
+  <p>Think: "Would someone understand the what, why, and how from this task alone?"</p>
+
+  <h2>When to Use dex</h2>
+
+  <p>Use dex when you need to:</p>
+  <ul>
+    <li><strong>Break down complexity</strong> — Large feature → subtasks with clear boundaries</li>
+    <li><strong>Track multi-step work</strong> — Implementation spanning 3+ distinct steps</li>
+    <li><strong>Persist context</strong> — Work continuing across sessions</li>
+    <li><strong>Coordinate with other agents</strong> — Shared understanding of goals/progress</li>
+    <li><strong>Record decisions</strong> — Capture rationale for future reference</li>
+  </ul>
+
+  <p>Skip task creation when:</p>
+  <ul>
+    <li>Work is a single atomic action</li>
+    <li>Everything fits in one session with no follow-up</li>
+    <li>Overhead of tracking exceeds value</li>
+  </ul>
+
+  <h2>Task Hierarchy</h2>
+
+  <p>Dex supports a 3-level hierarchy for organizing work:</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Level</th>
+        <th>Name</th>
+        <th>Purpose</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>L0</td>
+        <td><strong>Epic</strong></td>
+        <td>Large initiative (e.g., "Add user authentication system")</td>
+      </tr>
+      <tr>
+        <td>L1</td>
+        <td><strong>Task</strong></td>
+        <td>Significant work item (e.g., "Implement JWT middleware")</td>
+      </tr>
+      <tr>
+        <td>L2</td>
+        <td><strong>Subtask</strong></td>
+        <td>Atomic step (e.g., "Add token verification function")</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Choosing the Right Level</h3>
+  <ul>
+    <li><strong>Single task</strong> — Small feature, 1-2 files, one session</li>
+    <li><strong>Task with subtasks</strong> — Medium feature, 3-5 files, 3-7 steps</li>
+    <li><strong>Epic with tasks</strong> — Large initiative, multiple areas, many sessions</li>
+  </ul>
+
+  <p>Maximum depth is 3 levels. Attempting to create a child of a subtask will fail.</p>
+
+  <h2>Blocking Dependencies</h2>
+
+  <p>Use blockers to enforce task ordering when tasks must be completed in sequence:</p>
+
+  <Terminal title="Terminal">
+    <Code
+      code={`# Create a task that depends on another
+dex create -d "Deploy to production" --context "..." --blocked-by abc123
+
+# Add a blocker to existing task
+dex edit xyz789 --add-blocker abc123
+
+# Remove a blocker
+dex edit xyz789 --remove-blocker abc123`}
+      lang="bash"
+      theme="vitesse-black"
+    />
+  </Terminal>
+
+  <h3>When to Use Blockers</h3>
+  <ul>
+    <li>Task B cannot start until Task A completes (sequential work)</li>
+    <li>Multiple tasks depend on a shared prerequisite</li>
+    <li>You want to prevent out-of-order completion</li>
+  </ul>
+
+  <p>Don't use blockers when:</p>
+  <ul>
+    <li>Tasks can be worked on in parallel</li>
+    <li>The dependency is just logical grouping (use subtasks instead)</li>
+    <li>You'd be creating circular dependencies</li>
+  </ul>
+
+  <h3>Viewing Blocking Relationships</h3>
+  <Terminal title="Terminal">
+    <Code
+      code={`dex list              # Shows blocked indicator: [B: xyz123] or [B: 2]
+dex list --blocked    # Only blocked tasks
+dex list --ready      # Only tasks with no blockers
+dex show <id>         # Displays "Blocked by:" and "Blocks:" sections`}
+      lang="bash"
+      theme="vitesse-black"
+    />
+  </Terminal>
+
+  <h2>Writing Comprehensive Context</h2>
+
+  <p>Good context includes all essential information naturally:</p>
+
+  <Terminal title="Terminal">
+    <Code
+      code={`dex create -d "Migrate storage to one file per task" \\
+  --context "Change storage format for git-friendliness:
+
+Structure:
+.dex/
+└── tasks/
+    ├── abc123.json
+    └── def456.json
+
+NO INDEX - just scan task files. For typical task counts (<100), this is fast.
+
+Implementation:
+1. Update storage.ts:
+   - read(): Scan .dex/tasks/*.json, parse each, return TaskStore
+   - write(task): Write single task to .dex/tasks/{id}.json
+   - delete(id): Remove .dex/tasks/{id}.json
+
+2. Task file format: Same as current Task schema
+
+3. Migration: On read, if old tasks.json exists, migrate
+
+4. Update tests
+
+Benefits:
+- Create = new file (never conflicts)
+- Update = single file change
+- No index to maintain or conflict"`}
+      lang="bash"
+      theme="vitesse-black"
+    />
+  </Terminal>
+
+  <p>Notice: It states the goal, shows the structure, lists specific implementation steps, and explains the benefits.</p>
+
+  <h2>Writing Comprehensive Results</h2>
+
+  <p>Complete tasks with detailed results that capture what was done:</p>
+
+  <Terminal title="Terminal">
+    <Code
+      code={`dex complete abc123 --result "Migrated storage from single tasks.json to one file per task:
+
+Structure:
+- Each task stored as .dex/tasks/{id}.json
+- No index file (avoids merge conflicts)
+- Directory scanned on read to build task list
+
+Implementation:
+- Modified Storage.read() to scan .dex/tasks/ directory
+- Modified Storage.write() to write/delete individual task files
+- Auto-migration from old single-file format on first read
+- Atomic writes using temp file + rename pattern
+
+Trade-offs:
+- Slightly slower reads (must scan directory + parse each file)
+- Acceptable since task count is typically small (<100)
+- Better git history - each task change is isolated
+
+All 60 tests passing, build successful."`}
+      lang="bash"
+      theme="vitesse-black"
+    />
+  </Terminal>
+
+  <h2>Verification is Critical</h2>
+
+  <p>Before marking any task complete, you MUST verify your work. Include explicit verification evidence:</p>
+
+  <ul>
+    <li>"All 60 tests passing, build successful"</li>
+    <li>"Manually tested with valid token: Access granted"</li>
+    <li>"Pushed to test branch, workflow triggered, all jobs passed"</li>
+  </ul>
+
+  <p>Verification methods by task type:</p>
+  <ul>
+    <li><strong>Code changes</strong> — Run full test suite, document passing test count</li>
+    <li><strong>New features</strong> — Run tests + manual testing of feature functionality</li>
+    <li><strong>Configuration</strong> — Test the config works (run commands, check workflows)</li>
+    <li><strong>Documentation</strong> — Verify examples work, links resolve, formatting renders</li>
+    <li><strong>Refactoring</strong> — Confirm tests still pass, no behavior changes</li>
+  </ul>
+
+  <h2>Linking Commits</h2>
+
+  <p>When completing a task that involved creating a commit, link it:</p>
+
+  <Terminal title="Terminal">
+    <Code
+      code={`git commit -m "Add JWT middleware for route protection"
+# Note the commit SHA from output, e.g., a1b2c3d
+
+dex complete xyz789 --result "Implemented JWT middleware..." --commit a1b2c3d`}
+      lang="bash"
+      theme="vitesse-black"
+    />
+  </Terminal>
+
+  <p>This captures the commit SHA, message, and current branch for traceability.</p>
+
+  <h2>Important: Tasks are Ephemeral</h2>
+
+  <p><strong>Never reference Dex task IDs in external artifacts:</strong></p>
+  <ul>
+    <li>Commit messages</li>
+    <li>Pull request descriptions</li>
+    <li>GitHub issues</li>
+    <li>Documentation</li>
+  </ul>
+
+  <p>Dex tasks are temporary coordination tools, not permanent records. Task IDs will become meaningless once tasks are completed and cleaned up.</p>
+</Base>

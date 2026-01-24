@@ -1,0 +1,63 @@
+---
+import Base from '../layouts/Base.astro';
+import Terminal from '../components/Terminal.astro';
+import { Code } from 'astro:components';
+---
+
+<Base title="Install" description="Install dex for Claude Code and CLI">
+  <h1>Installation</h1>
+
+  <p>Install the dex skill from the Claude Code marketplace:</p>
+  <Terminal title="Terminal">
+    <Code
+      code={`claude plugin marketplace add dcramer/dex
+claude plugin install dex@dex`}
+      lang="bash"
+      theme="vitesse-black"
+    />
+  </Terminal>
+  <p>Restart Claude Code after installation.</p>
+
+  <h3>Updating</h3>
+  <Terminal title="Terminal">
+    <Code
+      code={`claude plugin marketplace update
+claude plugin update dex@dex`}
+      lang="bash"
+      theme="vitesse-black"
+    />
+  </Terminal>
+
+  <h2>CLI (Optional)</h2>
+  <p>The skill uses <code>npx</code> by default, but you can install the CLI globally for faster execution:</p>
+  <Terminal title="Terminal">
+    <Code code="npm install -g @zeeg/dex" lang="bash" theme="vitesse-black" />
+  </Terminal>
+
+  <h2>Shell Completions</h2>
+  <p>Enable tab completion for dex commands and task IDs.</p>
+
+  <h3>Bash</h3>
+  <p>Add to <code>~/.bashrc</code>:</p>
+  <Terminal title="~/.bashrc">
+    <Code code='eval "$(dex completion bash)"' lang="bash" theme="vitesse-black" />
+  </Terminal>
+
+  <h3>Zsh</h3>
+  <p>Add to <code>~/.zshrc</code> (after compinit):</p>
+  <Terminal title="~/.zshrc">
+    <Code code='eval "$(dex completion zsh)"' lang="bash" theme="vitesse-black" />
+  </Terminal>
+
+  <h3>Fish</h3>
+  <p>Add to <code>~/.config/fish/config.fish</code>:</p>
+  <Terminal title="config.fish">
+    <Code code="dex completion fish | source" lang="fish" theme="vitesse-black" />
+  </Terminal>
+
+  <h2>MCP Server</h2>
+  <p>Run dex as an MCP server for other integrations:</p>
+  <Terminal title="Terminal">
+    <Code code="dex mcp" lang="bash" theme="vitesse-black" />
+  </Terminal>
+</Base>

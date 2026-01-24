@@ -1,0 +1,164 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = 'Task tracking for LLM workflows' } = Astro.props;
+const currentPath = Astro.url.pathname;
+---
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <title>{title} | dex</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <nav class="nav">
+      <div class="nav-inner container">
+        <a href="/" class="nav-logo">dex</a>
+        <div class="nav-links">
+          <a href="/install" class:list={[{ active: currentPath === '/install' || currentPath === '/install/' }]}>Install</a>
+          <a href="/skills" class:list={[{ active: currentPath === '/skills' || currentPath === '/skills/' }]}>Skills</a>
+          <a href="/guide" class:list={[{ active: currentPath === '/guide' || currentPath === '/guide/' }]}>Guide</a>
+          <a href="/config" class:list={[{ active: currentPath === '/config' || currentPath === '/config/' }]}>Config</a>
+          <a href="/cli" class:list={[{ active: currentPath === '/cli' || currentPath === '/cli/' }]}>CLI</a>
+          <a href="https://github.com/dcramer/dex" class="nav-github" aria-label="GitHub">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </nav>
+    <main class="container">
+      <slot />
+    </main>
+    <footer class="footer">
+      <div class="container">
+        <p>MIT License &middot; <a href="https://github.com/dcramer/dex">GitHub</a></p>
+      </div>
+    </footer>
+  </body>
+</html>
+
+<style is:global>
+  @import '../styles/global.css';
+
+  .nav {
+    padding: 1rem 0;
+    position: sticky;
+    top: 0;
+    background: rgba(0, 0, 0, 0.9);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    z-index: 100;
+  }
+
+  .nav-inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .nav-logo,
+  .nav-logo:link,
+  .nav-logo:visited,
+  .nav-logo:active {
+    font-family: var(--font-mono);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #fff !important;
+    letter-spacing: -0.02em;
+  }
+
+  .nav-logo:hover {
+    color: #fff !important;
+    opacity: 0.8;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+  }
+
+  .nav-links a {
+    color: #fff;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: opacity 0.15s ease;
+    padding-bottom: 4px;
+    border-bottom: 4px solid transparent;
+    margin-bottom: -4px;
+  }
+
+  .nav-links a:hover {
+    color: #fff;
+    opacity: 0.7;
+  }
+
+  .nav-links a.active {
+    color: #fff;
+    border-bottom-color: #fff;
+    opacity: 1;
+  }
+
+  .nav-github {
+    margin-left: 1rem;
+    padding-left: 2rem;
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    padding-bottom: 0;
+    border-bottom: none;
+    margin-bottom: 0;
+  }
+
+  .nav-github:hover {
+    opacity: 0.7;
+  }
+
+  .nav-github svg {
+    display: block;
+  }
+
+  .footer {
+    border-top: 1px solid var(--border);
+    padding: 2.5rem 0;
+    margin-top: 4rem;
+    text-align: center;
+  }
+
+  .footer p {
+    color: var(--text-tertiary);
+    font-size: 0.8125rem;
+    margin: 0;
+  }
+
+  .footer a {
+    color: var(--text-secondary);
+  }
+
+  .footer a:hover {
+    color: var(--text);
+  }
+
+  @media (max-width: 600px) {
+    .nav-links {
+      gap: 1.25rem;
+    }
+
+    .nav-github {
+      margin-left: 0.75rem;
+      padding-left: 1.25rem;
+    }
+  }
+</style>

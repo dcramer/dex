@@ -1,0 +1,132 @@
+---
+import Base from '../layouts/Base.astro';
+import Terminal from '../components/Terminal.astro';
+import { Code } from 'astro:components';
+---
+
+<Base title="Skills" description="Claude Code skills for natural language task management">
+  <h1>Skills</h1>
+
+  <p>Dex provides two skills for Claude Code that enable natural language task management.</p>
+
+  <h2>/dex — Task Management</h2>
+
+  <p>Use <code>/dex</code> to manage tasks via natural language:</p>
+
+  <Terminal title="Claude Code">
+    <Code
+      code={`/dex create a task to add JWT authentication
+/dex list all pending tasks
+/dex show abc123
+/dex complete abc123 with result "Implemented JWT middleware..."`}
+      lang="txt"
+      theme="vitesse-black"
+    />
+  </Terminal>
+
+  <p>The <code>/dex</code> skill enables agents to:</p>
+  <ul>
+    <li><strong>Break down complexity</strong> — Large features into subtasks with clear boundaries</li>
+    <li><strong>Track multi-step work</strong> — Implementation spanning multiple distinct steps</li>
+    <li><strong>Persist context</strong> — Work continuing across sessions without losing context</li>
+    <li><strong>Coordinate with other agents</strong> — Shared understanding of goals and progress</li>
+    <li><strong>Record decisions</strong> — Capture rationale for future reference</li>
+  </ul>
+
+  <h3>Example Workflow</h3>
+
+  <ol>
+    <li>User: "Add user authentication system"</li>
+    <li>Agent creates parent task with full requirements</li>
+    <li>Agent breaks into subtasks: DB schema, API endpoints, frontend, tests</li>
+    <li>Agent works through each, completing with detailed results</li>
+    <li>Context preserved for future enhancements or debugging</li>
+  </ol>
+
+  <h2>/dex-plan — Convert Plans to Tasks</h2>
+
+  <p>Use <code>/dex-plan</code> to convert markdown planning documents into trackable tasks:</p>
+
+  <Terminal title="Claude Code">
+    <Code
+      code={`/dex-plan ~/.claude/plans/moonlit-brewing-lynx.md
+/dex-plan @SPEC.md
+/dex-plan docs/AUTHENTICATION_DESIGN.md`}
+      lang="txt"
+      theme="vitesse-black"
+    />
+  </Terminal>
+
+  <h3>Supported Documents</h3>
+  <ul>
+    <li>Plan files from Claude Code's plan mode</li>
+    <li>Specification documents (<code>SPEC.md</code>, <code>REQUIREMENTS.md</code>)</li>
+    <li>Design documents (<code>DESIGN.md</code>, <code>ARCHITECTURE.md</code>)</li>
+    <li>Roadmaps and feature proposals</li>
+  </ul>
+
+  <h3>What It Does</h3>
+  <ol>
+    <li>Reads the markdown file</li>
+    <li>Extracts title from first <code>#</code> heading</li>
+    <li>Creates dex task with full markdown content as context</li>
+    <li>Analyzes structure for potential subtask breakdown</li>
+    <li>Automatically creates subtasks when appropriate (3-7 distinct steps)</li>
+  </ol>
+
+  <h3>Example with Automatic Breakdown</h3>
+
+  <p>Input (<code>auth-plan.md</code>):</p>
+
+  <Terminal title="auth-plan.md">
+    <Code
+      code={`# Plan: Add Authentication System
+
+## Implementation
+1. Create database schema for users/tokens
+2. Implement auth controller with endpoints
+3. Add JWT middleware for route protection
+4. Build frontend login/register forms
+5. Add integration tests`}
+      lang="markdown"
+      theme="vitesse-black"
+    />
+  </Terminal>
+
+  <p>Output:</p>
+
+  <Terminal title="Claude Code">
+    <Code
+      code={`Created task abc123 from plan
+
+Analyzed plan structure: Found 5 distinct implementation steps
+Created 5 subtasks:
+- abc124: Create database schema for users/tokens
+- abc125: Implement auth controller with endpoints
+- abc126: Add JWT middleware for route protection
+- abc127: Build frontend login/register forms
+- abc128: Add integration tests
+
+View full structure: dex show abc123`}
+      lang="txt"
+      theme="vitesse-black"
+    />
+  </Terminal>
+
+  <h2>Natural Language Prompting</h2>
+
+  <p>You can also reference dex naturally in your prompts without using slash commands:</p>
+
+  <Terminal title="Claude Code">
+    <Code
+      code={`> Use Dex. Work on the next logical task. When done, run
+  code-simplifier and commit.
+
+> Track the work from our plan with /dex-plan and then begin implementation.
+
+> What tasks are currently blocked?`}
+      lang="txt"
+      theme="vitesse-black"
+    />
+  </Terminal>
+</Base>

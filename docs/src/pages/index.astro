@@ -1,0 +1,106 @@
+---
+import Base from '../layouts/Base.astro';
+import Terminal from '../components/Terminal.astro';
+import { Code } from 'astro:components';
+---
+
+<Base title="Home" description="Task tracking for LLM workflows. Persistent memory for complex, multi-session work.">
+  <div class="hero">
+    <p class="tagline">Task tracking for LLM workflows</p>
+    <p class="tagline">Persistent memory for complex, multi-session work</p>
+
+    <div class="hero-prompt">
+      <div class="prompt-box">
+        <span class="prompt-caret">&gt;</span>
+        <span class="prompt-text">Use Dex. Work on the next logical task. When done, run code-simplifier and commit.</span>
+      </div>
+    </div>
+
+    <div class="cta-buttons">
+      <a href="/install" class="btn btn-primary">Install</a>
+      <a href="/guide" class="btn">Read the Guide</a>
+    </div>
+  </div>
+
+  <section class="section">
+    <h2>Why dex?</h2>
+    <div class="feature-grid">
+      <div class="feature">
+        <h3>Tickets, Not Todos</h3>
+        <p>Tasks are structured artifacts with description, context, and result—like GitHub issues paired with PR descriptions.</p>
+      </div>
+      <div class="feature">
+        <h3>Agent Coordination</h3>
+        <p>Agents can act as master coordinators—breaking down work, tracking progress, recording comprehensive results across sessions.</p>
+      </div>
+      <div class="feature">
+        <h3>Git-Friendly</h3>
+        <p>One task per file enables collaboration, versioning, and conflict-free workflows with your existing git processes.</p>
+      </div>
+      <div class="feature">
+        <h3>3-Level Hierarchy</h3>
+        <p>Organize work as epics, tasks, and subtasks. Right-size your tracking from atomic steps to large initiatives.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>Quick Start</h2>
+    <p>Install the dex skill for Claude Code:</p>
+    <Terminal title="Terminal">
+      <Code
+        code={`claude plugin marketplace add dcramer/dex
+claude plugin install dex@dex`}
+        lang="bash"
+        theme="vitesse-black"
+      />
+    </Terminal>
+    <p>Restart Claude Code, then use <code>/dex</code> to manage tasks.</p>
+  </section>
+</Base>
+
+<style>
+  .hero-prompt {
+    max-width: 100%;
+    margin: 2rem 0;
+  }
+
+  .prompt-box {
+    font-family: var(--font-mono);
+    font-size: 1rem;
+    line-height: 1.6;
+    text-align: left;
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+  }
+
+  .prompt-caret {
+    color: var(--text);
+    margin-right: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .prompt-text {
+    color: var(--text);
+    overflow: hidden;
+    white-space: nowrap;
+    border-right: 2px solid var(--text);
+    width: 0;
+    animation:
+      typewriter 2.5s steps(80) 0.5s forwards,
+      blink 0.75s step-end infinite;
+  }
+
+  @keyframes typewriter {
+    to {
+      width: 100%;
+    }
+  }
+
+  @keyframes blink {
+    50% {
+      border-color: transparent;
+    }
+  }
+</style>
