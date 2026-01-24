@@ -22,6 +22,20 @@ import { Code } from 'astro:components';
   </div>
 
   <section class="section">
+    <h2>Quick Start</h2>
+    <p>Install the dex skill for Claude Code:</p>
+    <Terminal title="Terminal">
+      <Code
+        code={`claude plugin marketplace add dcramer/dex
+claude plugin install dex@dex`}
+        lang="bash"
+        theme="vitesse-black"
+      />
+    </Terminal>
+    <p>Restart Claude Code, then use <code>/dex</code> to manage tasks.</p>
+  </section>
+
+  <section class="section">
     <h2>Why dex?</h2>
     <div class="feature-grid">
       <div class="feature">
@@ -41,20 +55,6 @@ import { Code } from 'astro:components';
         <p>Organize work as epics, tasks, and subtasks. Right-size your tracking from atomic steps to large initiatives.</p>
       </div>
     </div>
-  </section>
-
-  <section class="section">
-    <h2>Quick Start</h2>
-    <p>Install the dex skill for Claude Code:</p>
-    <Terminal title="Terminal">
-      <Code
-        code={`claude plugin marketplace add dcramer/dex
-claude plugin install dex@dex`}
-        lang="bash"
-        theme="vitesse-black"
-      />
-    </Terminal>
-    <p>Restart Claude Code, then use <code>/dex</code> to manage tasks.</p>
   </section>
 </Base>
 
