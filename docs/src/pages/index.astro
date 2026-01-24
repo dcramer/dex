@@ -2,6 +2,8 @@
 import Base from '../layouts/Base.astro';
 import Terminal from '../components/Terminal.astro';
 import { Code } from 'astro:components';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 
 <Base title="Home" description="Task tracking for LLM workflows. Persistent memory for complex, multi-session work.">
@@ -17,7 +19,7 @@ import { Code } from 'astro:components';
     </div>
 
     <div class="cta-buttons">
-      <a href="/install" class="btn btn-primary">Get Started</a>
+      <a href={`${base}/install`} class="btn btn-primary">Get Started</a>
     </div>
   </div>
 
