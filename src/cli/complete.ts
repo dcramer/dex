@@ -8,6 +8,7 @@ import {
   parseArgs,
 } from "./utils.js";
 import { formatTaskShow } from "./show.js";
+import { getCommitInfo } from "./git.js";
 
 export async function completeCommand(args: string[], options: CliOptions): Promise<void> {
   const { positional, flags } = parseArgs(args, {
@@ -56,7 +57,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
   const service = createService(options);
   try {
     const metadata = commitSha
-      ? { commit: { sha: commitSha, timestamp: new Date().toISOString() } }
+      ? { commit: { ...getCommitInfo(commitSha), timestamp: new Date().toISOString() } }
       : undefined;
 
     const task = await service.complete(id, result, metadata);

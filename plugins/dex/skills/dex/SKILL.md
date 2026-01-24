@@ -163,6 +163,34 @@ dex show <id>
 dex complete <id> --result "What was accomplished"
 ```
 
+### Linking Commits to Tasks
+
+When completing a task that involved creating a commit, link it using `--commit`:
+
+```bash
+dex complete abc123 --result "Implemented feature X" --commit a1b2c3d
+```
+
+This automatically captures:
+- Commit SHA
+- Commit message (from git)
+- Current branch (from git)
+
+The commit info appears in `dex show` output and helps trace implementations back to tasks.
+
+**When to use `--commit`:**
+- Task resulted in a git commit
+- You want traceability between tasks and code changes
+- The commit represents the primary deliverable of the task
+
+**Example:**
+```bash
+git commit -m "Add JWT middleware for route protection"
+# Note the commit SHA from output, e.g., a1b2c3d
+
+dex complete xyz789 --result "Implemented JWT middleware..." --commit a1b2c3d
+```
+
 ### Writing Comprehensive Results
 
 Include all essential information naturally - explain what you did without requiring code review.
@@ -244,7 +272,7 @@ Systematic verification is what separates high-quality task completion from gues
 
 **Code implementation example**:
 ```bash
-dex complete xyz789 --result "Implemented JWT middleware for route protection:
+dex complete xyz789 --commit a1b2c3d --result "Implemented JWT middleware for route protection:
 
 Implementation:
 - Created src/middleware/verify-token.ts with verifyToken function
