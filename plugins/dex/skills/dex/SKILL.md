@@ -26,6 +26,18 @@ This rich context enables:
 
 Think: "Would someone understand the what, why, and how from this task alone?"
 
+## Important: Dex Tasks are Ephemeral
+
+**Never reference Dex task IDs in external artifacts:**
+- Commit messages
+- Pull request descriptions
+- GitHub issues
+- Documentation
+
+Dex tasks are temporary coordination tools, not permanent records. Task IDs like `abc123` will become meaningless once tasks are completed and cleaned up, and referencing them pollutes version history with dead links.
+
+When creating commits or PRs, describe the work itself - not the dex task that tracked it.
+
 ## When to Use dex as Coordinator
 
 Use dex when you need to:
