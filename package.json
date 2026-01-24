@@ -1,6 +1,6 @@
 {
   "name": "@zeeg/dex",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Task tracking tool with MCP server and CLI interfaces",
   "license": "MIT",
   "type": "module",
@@ -13,7 +13,7 @@
     }
   },
   "bin": {
-    "dex": "./dist/index.js"
+    "dex": "dist/index.js"
   },
   "files": [
     "dist"
@@ -29,7 +29,7 @@
   },
   "packageManager": "pnpm@10.28.0",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=24.0.0"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
