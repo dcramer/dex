@@ -85,30 +85,28 @@ dex list --storage-path /custom/path/.dex`}
 
   <h2>GitHub Sync</h2>
 
-  <p>Automatically sync tasks to GitHub Issues:</p>
+  <p>Sync tasks to GitHub Issues. Owner/repo are auto-detected from your git remote.</p>
 
-  <Terminal title="dex.toml">
+  <Terminal title=".dex/config.toml">
     <Code
       code={`[sync.github]
-enabled = true
-owner = "your-username"
-repo = "dex-tasks"
-token_env = "GITHUB_TOKEN"
-label_prefix = "dex"`}
+enabled = true`}
       lang="toml"
       theme="vitesse-black"
     />
   </Terminal>
 
-  <p>Behavior:</p>
+  <p><strong>Authentication:</strong> Uses <code>gh</code> CLI auth by default. Alternatively, set <code>GITHUB_TOKEN</code> environment variable.</p>
+
+  <p><strong>Behavior:</strong></p>
   <ul>
     <li>Top-level tasks → GitHub Issues</li>
-    <li>Subtasks → Embedded in parent issue body</li>
-    <li>Completed tasks → Issue closed</li>
+    <li>Subtasks → Embedded in parent issue body as checklist</li>
+    <li>Completed tasks → Issue closed (only after pushed to remote)</li>
     <li>Sync is one-way (local → GitHub)</li>
   </ul>
 
-  <p>Use <a href="/cli#github">dex sync</a> to push tasks, or <a href="/cli#github">dex import</a> to pull a GitHub Issue into dex.</p>
+  <p>Use <code>dex sync</code> to push tasks, or <code>dex import &lt;issue-url&gt;</code> to pull a GitHub Issue into dex.</p>
 
   <h2>Environment Variables</h2>
 
@@ -126,7 +124,7 @@ label_prefix = "dex"`}
       </tr>
       <tr>
         <td><code>GITHUB_TOKEN</code></td>
-        <td>GitHub API token for sync feature</td>
+        <td>GitHub API token (optional if <code>gh</code> CLI is authenticated)</td>
       </tr>
     </tbody>
   </table>

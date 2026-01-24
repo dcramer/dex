@@ -9,6 +9,34 @@ import {
   HierarchicalTask,
 } from "./subtask-markdown.js";
 
+/**
+ * Get GitHub token from environment variable or gh CLI.
+ * @param tokenEnv Environment variable name to check first (default: GITHUB_TOKEN)
+ * @returns Token string or null if not found
+ */
+export function getGitHubToken(tokenEnv: string = "GITHUB_TOKEN"): string | null {
+  // First try environment variable
+  const envToken = process.env[tokenEnv];
+  if (envToken) {
+    return envToken;
+  }
+
+  // Fall back to gh CLI
+  try {
+    const token = execSync("gh auth token", {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+    }).trim();
+    if (token) {
+      return token;
+    }
+  } catch {
+    // gh CLI not available or not authenticated
+  }
+
+  return null;
+}
+
 export interface GitHubSyncServiceOptions {
   /** GitHub repository (inferred from git remote) */
   repo: GitHubRepo;
@@ -279,10 +307,10 @@ export function createGitHubSyncService(
   }
 
   const tokenEnv = config.token_env || "GITHUB_TOKEN";
-  const token = process.env[tokenEnv];
+  const token = getGitHubToken(tokenEnv);
 
   if (!token) {
-    console.warn(`GitHub sync enabled but ${tokenEnv} not set. Sync disabled.`);
+    console.warn(`GitHub sync enabled but no token found (checked ${tokenEnv} and gh CLI). Sync disabled.`);
     return null;
   }
 
@@ -314,12 +342,12 @@ export function createGitHubSyncServiceOrThrow(
   }
 
   const tokenEnv = config?.token_env || "GITHUB_TOKEN";
-  const token = process.env[tokenEnv];
+  const token = getGitHubToken(tokenEnv);
 
   if (!token) {
     throw new Error(
       `GitHub token not found.\n` +
-      `Set the ${tokenEnv} environment variable: export ${tokenEnv}=ghp_...`
+      `Set ${tokenEnv} environment variable or authenticate with: gh auth login`
     );
   }
 
