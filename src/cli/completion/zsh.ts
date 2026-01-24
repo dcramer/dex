@@ -11,9 +11,12 @@ _dex() {
         'init:Create config file'
         'create:Create a new task'
         'list:List tasks'
+        'ls:List tasks (alias)'
         'show:View task details'
         'edit:Edit a task'
+        'update:Edit a task (alias)'
         'complete:Mark task as completed'
+        'done:Mark task as completed (alias)'
         'delete:Remove a task'
         'rm:Remove a task (alias)'
         'remove:Remove a task (alias)'
@@ -43,7 +46,7 @@ _dex() {
             ;;
         args)
             case \$words[1] in
-                show|edit|complete|delete|rm|remove)
+                show|edit|update|complete|done|delete|rm|remove)
                     _arguments \\
                         '1: :_dex_task_ids' \\
                         '*: :->flags'
@@ -54,7 +57,7 @@ _dex() {
                                 '--json[Output as JSON]' \\
                                 '(-h --help)'{-h,--help}'[Show help]'
                             ;;
-                        edit)
+                        edit|update)
                             _arguments \\
                                 '(-d --description)'{-d,--description}'[New description]:description:' \\
                                 '(-c --context)'{-c,--context}'[New context]:context:' \\
@@ -63,7 +66,7 @@ _dex() {
                                 '(-s --status)'{-s,--status}'[New status]:status:(pending completed)' \\
                                 '(-h --help)'{-h,--help}'[Show help]'
                             ;;
-                        complete)
+                        complete|done)
                             _arguments \\
                                 '(-r --result)'{-r,--result}'[Completion result]:result:' \\
                                 '(-h --help)'{-h,--help}'[Show help]'
@@ -83,7 +86,7 @@ _dex() {
                         '--parent[Parent task ID]:parent:_dex_task_ids' \\
                         '(-h --help)'{-h,--help}'[Show help]'
                     ;;
-                list)
+                list|ls)
                     _arguments \\
                         '(-a --all)'{-a,--all}'[Include completed tasks]' \\
                         '(-s --status)'{-s,--status}'[Filter by status]:status:(pending completed)' \\

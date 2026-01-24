@@ -7,7 +7,7 @@ _dex_completion() {
     local cur prev words cword
     _init_completion || return
 
-    local commands="init create list show edit complete delete rm remove plan help mcp completion"
+    local commands="init create list ls show edit update complete done delete rm remove plan help mcp completion"
 
     # Get task IDs for commands that need them
     _dex_task_ids() {
@@ -23,7 +23,7 @@ _dex_completion() {
         2)
             # Second argument: depends on command
             case "\${prev}" in
-                show|edit|complete|delete|rm|remove)
+                show|edit|update|complete|done|delete|rm|remove)
                     COMPREPLY=( \$(compgen -W "\$(_dex_task_ids)" -- "\${cur}") )
                     return 0
                     ;;
@@ -60,16 +60,16 @@ _dex_completion() {
             create)
                 flags="--description -d --context -c --priority -p --parent --help -h"
                 ;;
-            list)
+            list|ls)
                 flags="--all -a --status -s --query -q --flat -f --json --help -h"
                 ;;
             show)
                 flags="--full --json --help -h"
                 ;;
-            edit)
+            edit|update)
                 flags="--description -d --context -c --priority -p --parent --status -s --help -h"
                 ;;
-            complete)
+            complete|done)
                 flags="--result -r --help -h"
                 ;;
             delete|rm|remove)

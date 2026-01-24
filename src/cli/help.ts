@@ -10,7 +10,7 @@ ${colors.bold}COMMANDS:${colors.reset}
   init                             Create config file (~/.config/dex/dex.toml)
   mcp                              Start MCP server (stdio)
   create -d "..." --context "..."  Create task
-  list                             List pending tasks (tree view)
+  list, ls                         List pending tasks (tree view)
   list --flat                      List without tree hierarchy
   list --all                       Include completed tasks
   list --status completed          Filter by status
@@ -20,7 +20,9 @@ ${colors.bold}COMMANDS:${colors.reset}
   show <id> --full                 View full context and result
   show <id> --json                 Output as JSON (for scripts)
   edit <id> [-d "..."]             Edit task
+  update                           Alias for edit command
   complete <id> --result "..."     Mark completed with result
+  done                             Alias for complete command
   delete <id>                      Remove task (prompts if has subtasks)
   delete <id> -f                   Force delete without confirmation
   rm, remove                       Aliases for delete command

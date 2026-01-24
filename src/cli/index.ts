@@ -21,12 +21,15 @@ export async function runCli(args: string[], options: CliOptions): Promise<void>
     case "create":
       return await createCommand(args.slice(1), options);
     case "list":
+    case "ls":
       return await listCommand(args.slice(1), options);
     case "show":
       return await showCommand(args.slice(1), options);
     case "edit":
+    case "update":
       return await editCommand(args.slice(1), options);
     case "complete":
+    case "done":
       return await completeCommand(args.slice(1), options);
     case "delete":
     case "rm":

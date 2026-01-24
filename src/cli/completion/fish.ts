@@ -20,7 +20,7 @@ end
 function __dex_needs_task_id
     set -l cmd (commandline -opc)
     test (count $cmd) -eq 2
-    and contains -- $cmd[2] show edit complete delete rm remove
+    and contains -- $cmd[2] show edit update complete done delete rm remove
 end
 
 # Check if we're completing shell type for completion command
@@ -46,9 +46,12 @@ end
 complete -c dex -n __dex_needs_command -a "init" -d "Create config file"
 complete -c dex -n __dex_needs_command -a "create" -d "Create a new task"
 complete -c dex -n __dex_needs_command -a "list" -d "List tasks"
+complete -c dex -n __dex_needs_command -a "ls" -d "List tasks (alias)"
 complete -c dex -n __dex_needs_command -a "show" -d "View task details"
 complete -c dex -n __dex_needs_command -a "edit" -d "Edit a task"
+complete -c dex -n __dex_needs_command -a "update" -d "Edit a task (alias)"
 complete -c dex -n __dex_needs_command -a "complete" -d "Mark task as completed"
+complete -c dex -n __dex_needs_command -a "done" -d "Mark task as completed (alias)"
 complete -c dex -n __dex_needs_command -a "delete" -d "Remove a task"
 complete -c dex -n __dex_needs_command -a "rm" -d "Remove a task (alias)"
 complete -c dex -n __dex_needs_command -a "remove" -d "Remove a task (alias)"
@@ -75,30 +78,30 @@ complete -c dex -n "contains -- create (commandline -opc)" -s p -l priority -d "
 complete -c dex -n "contains -- create (commandline -opc)" -l parent -d "Parent task ID" -r -a "(__dex_task_ids)"
 complete -c dex -n "contains -- create (commandline -opc)" -s h -l help -d "Show help"
 
-# list flags
-complete -c dex -n "contains -- list (commandline -opc)" -s a -l all -d "Include completed tasks"
-complete -c dex -n "contains -- list (commandline -opc)" -s s -l status -d "Filter by status" -r -a "pending completed"
-complete -c dex -n "contains -- list (commandline -opc)" -s q -l query -d "Search query" -r
-complete -c dex -n "contains -- list (commandline -opc)" -s f -l flat -d "Show flat list"
-complete -c dex -n "contains -- list (commandline -opc)" -l json -d "Output as JSON"
-complete -c dex -n "contains -- list (commandline -opc)" -s h -l help -d "Show help"
+# list/ls flags
+complete -c dex -n "contains -- list (commandline -opc); or contains -- ls (commandline -opc)" -s a -l all -d "Include completed tasks"
+complete -c dex -n "contains -- list (commandline -opc); or contains -- ls (commandline -opc)" -s s -l status -d "Filter by status" -r -a "pending completed"
+complete -c dex -n "contains -- list (commandline -opc); or contains -- ls (commandline -opc)" -s q -l query -d "Search query" -r
+complete -c dex -n "contains -- list (commandline -opc); or contains -- ls (commandline -opc)" -s f -l flat -d "Show flat list"
+complete -c dex -n "contains -- list (commandline -opc); or contains -- ls (commandline -opc)" -l json -d "Output as JSON"
+complete -c dex -n "contains -- list (commandline -opc); or contains -- ls (commandline -opc)" -s h -l help -d "Show help"
 
 # show flags
 complete -c dex -n "contains -- show (commandline -opc)" -l full -d "Show full context and result"
 complete -c dex -n "contains -- show (commandline -opc)" -l json -d "Output as JSON"
 complete -c dex -n "contains -- show (commandline -opc)" -s h -l help -d "Show help"
 
-# edit flags
-complete -c dex -n "contains -- edit (commandline -opc)" -s d -l description -d "New description" -r
-complete -c dex -n "contains -- edit (commandline -opc)" -s c -l context -d "New context" -r
-complete -c dex -n "contains -- edit (commandline -opc)" -s p -l priority -d "New priority" -r
-complete -c dex -n "contains -- edit (commandline -opc)" -l parent -d "New parent task ID" -r -a "(__dex_task_ids)"
-complete -c dex -n "contains -- edit (commandline -opc)" -s s -l status -d "New status" -r -a "pending completed"
-complete -c dex -n "contains -- edit (commandline -opc)" -s h -l help -d "Show help"
+# edit/update flags
+complete -c dex -n "contains -- edit (commandline -opc); or contains -- update (commandline -opc)" -s d -l description -d "New description" -r
+complete -c dex -n "contains -- edit (commandline -opc); or contains -- update (commandline -opc)" -s c -l context -d "New context" -r
+complete -c dex -n "contains -- edit (commandline -opc); or contains -- update (commandline -opc)" -s p -l priority -d "New priority" -r
+complete -c dex -n "contains -- edit (commandline -opc); or contains -- update (commandline -opc)" -l parent -d "New parent task ID" -r -a "(__dex_task_ids)"
+complete -c dex -n "contains -- edit (commandline -opc); or contains -- update (commandline -opc)" -s s -l status -d "New status" -r -a "pending completed"
+complete -c dex -n "contains -- edit (commandline -opc); or contains -- update (commandline -opc)" -s h -l help -d "Show help"
 
-# complete flags
-complete -c dex -n "contains -- complete (commandline -opc)" -s r -l result -d "Completion result" -r
-complete -c dex -n "contains -- complete (commandline -opc)" -s h -l help -d "Show help"
+# complete/done flags
+complete -c dex -n "contains -- complete (commandline -opc); or contains -- done (commandline -opc)" -s r -l result -d "Completion result" -r
+complete -c dex -n "contains -- complete (commandline -opc); or contains -- done (commandline -opc)" -s h -l help -d "Show help"
 
 # delete/rm/remove flags
 complete -c dex -n "contains -- delete (commandline -opc); or contains -- rm (commandline -opc); or contains -- remove (commandline -opc)" -s f -l force -d "Force delete"
