@@ -5,6 +5,19 @@ description: Manage tasks via dex CLI. Use when breaking down complex work, trac
 
 # Agent Coordination with dex
 
+## Command Invocation
+
+Before running any dex commands, check if `dex` is available on PATH:
+
+```bash
+command -v dex &>/dev/null
+```
+
+- If `dex` is available: Use `dex <command>` directly
+- If `dex` is NOT available: Use `npx @zeeg/dex <command>` instead
+
+This ensures the skill works without requiring global installation. Check once at the start of your task execution and use the appropriate command consistently.
+
 Use dex to act as a **master coordinator** for complex work:
 - Break down large tasks into structured deliverables
 - Track tickets with full context (like GitHub Issues)

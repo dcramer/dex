@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Wrapper script that uses local dex if available, otherwise falls back to npx
+# This allows the skill to work without requiring global dex installation
+
+# Get the directory of this script to avoid recursion
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Check if dex is available on PATH (excluding this script)
+if command -v dex &>/dev/null; then
+  DEX_PATH="$(command -v dex)"
+  # Make sure we're not calling ourselves
+  if [ "$DEX_PATH" != "$SCRIPT_DIR/dex" ]; then
+    exec "$DEX_PATH" "$@"
+  fi
+fi
+
+# Fall back to npx
+exec npx @zeeg/dex "$@"

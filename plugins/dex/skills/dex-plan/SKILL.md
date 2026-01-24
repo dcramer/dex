@@ -5,6 +5,19 @@ description: Create dex task from markdown planning documents (plans, specs, des
 
 # Converting Markdown Documents to Tasks
 
+## Command Invocation
+
+Before running any dex commands, check if `dex` is available on PATH:
+
+```bash
+command -v dex &>/dev/null
+```
+
+- If `dex` is available: Use `dex <command>` directly
+- If `dex` is NOT available: Use `npx @zeeg/dex <command>` instead
+
+This ensures the skill works without requiring global installation.
+
 Use `/dex-plan` to convert any markdown planning document into a trackable dex task.
 
 ## When to Use
