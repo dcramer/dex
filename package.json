@@ -25,7 +25,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "link": "pnpm build && pnpm link --global",
-    "unlink": "pnpm unlink --global"
+    "unlink": "pnpm unlink --global",
+    "release": "pnpm test && pnpm build && npm version"
   },
   "packageManager": "pnpm@10.28.0",
   "engines": {

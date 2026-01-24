@@ -314,3 +314,45 @@ Run dex as an MCP server:
 ```bash
 dex mcp
 ```
+
+## Contributing
+
+### Development Setup
+
+```bash
+git clone git@github.com:dcramer/dex.git
+cd dex
+pnpm install
+pnpm run link  # Makes 'dex' command available globally
+```
+
+### Development Cycle
+
+```bash
+pnpm dev       # Watch mode - auto-rebuild on changes
+# In another terminal: test with dex commands
+```
+
+Or manually:
+
+```bash
+# Make changes...
+pnpm build
+pnpm test
+```
+
+### Releasing
+
+Releases are automated via GitHub Actions when a version tag is pushed.
+
+```bash
+# Run tests, build, and bump version (creates git tag)
+pnpm release patch   # 0.1.0 → 0.1.1
+pnpm release minor   # 0.1.0 → 0.2.0
+pnpm release major   # 0.1.0 → 1.0.0
+
+# Push commit and tag to trigger publish
+git push --follow-tags
+```
+
+The workflow runs tests, and if they pass, publishes to npm with provenance.
