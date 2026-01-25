@@ -104,6 +104,7 @@ export class GitHubSyncService {
   private repo: string;
   private labelPrefix: string;
   private storagePath: string;
+  private gitignoreCache: boolean | null = null;
 
   constructor(options: GitHubSyncServiceOptions) {
     this.octokit = new Octokit({ auth: options.token });
@@ -444,17 +445,22 @@ export class GitHubSyncService {
 
   /**
    * Check if storage path is gitignored.
+   * Result is cached on first call to avoid repeated subprocess calls.
    */
   private isStorageGitignored(): boolean {
+    if (this.gitignoreCache !== null) {
+      return this.gitignoreCache;
+    }
     try {
       // git check-ignore returns 0 if ignored, 1 if not ignored
       execSync(`git check-ignore -q ${this.storagePath}`, {
         stdio: ["pipe", "pipe", "pipe"],
       });
-      return true;
+      this.gitignoreCache = true;
     } catch {
-      return false;
+      this.gitignoreCache = false;
     }
+    return this.gitignoreCache;
   }
 
   /**
