@@ -265,6 +265,75 @@ All 24 tests passing."</pre>
 <span class="cli-yellow">[ ]</span> <span class="cli-bold">def456</span> <span class="cli-red">[B: abc123]</span>: Deploy to production</pre>
   </Terminal>
 
+  <h2>Syncing with GitHub</h2>
+
+  <p>Dex can sync tasks to GitHub Issues, giving your team visibility into AI-assisted work without requiring everyone to use Claude Code.</p>
+
+  <h3>Why Sync?</h3>
+
+  <ul>
+    <li>Share progress with team members who don't use Claude Code</li>
+    <li>Create a paper trail for completed work</li>
+    <li>Get GitHub's notification system for task updates</li>
+    <li>Back up task context outside your local machine</li>
+  </ul>
+
+  <h3>Enabling Sync</h3>
+
+  <p>Configure your repository in <a href="/config#github-sync">config</a>. Dex authenticates via the <code>gh</code> CLI or <code>GITHUB_TOKEN</code> environment variable.</p>
+
+  <h3>Manual Sync</h3>
+
+  <p>Push local tasks to GitHub Issues:</p>
+
+  <Terminal>
+    <pre class="cli-output"><span class="cli-dim">$</span> dex sync
+Syncing 3 task(s) to owner/repo...
+<span class="cli-dim">[1/3]</span> <span class="cli-green">+</span> abc123: Add JWT authentication
+<span class="cli-dim">[2/3]</span> <span class="cli-yellow">↻</span> def456: Fix login redirect
+<span class="cli-dim">[3/3]</span> <span class="cli-dim">∙</span> ghi789: Add rate limiting
+Synced 3 task(s) to owner/repo
+  <span class="cli-dim">(1 created, 1 updated, 1 unchanged)</span></pre>
+  </Terminal>
+
+  <p>Use <code>--dry-run</code> to preview what would sync without making changes.</p>
+
+  <h3>Importing from GitHub</h3>
+
+  <p>Pull GitHub Issues into local tasks:</p>
+
+  <Terminal>
+    <pre class="cli-output"><span class="cli-dim">$</span> dex import #42
+Imported issue #42 as task xyz789: "Add password reset flow"
+  <span class="cli-dim">Created 3 subtask(s)</span></pre>
+  </Terminal>
+
+  <p>Use <code>--all</code> to import all open issues at once.</p>
+
+  <h3>Sync-on-Push</h3>
+
+  <p>Completed tasks only close their GitHub Issues when the completion has been pushed to the remote. This prevents issues from closing before the actual code lands.</p>
+
+  <p class="example-label">Why this matters:</p>
+  <blockquote>
+    You complete a task locally, but your branch isn't merged yet. Without sync-on-push, the issue would close immediately—confusing teammates who see a "closed" issue with no merged PR. With sync-on-push, the issue stays open until your work is actually in the repository.
+  </blockquote>
+
+  <Terminal>
+    <pre class="cli-output"><span class="cli-dim">$</span> dex complete abc123 -r "Added JWT middleware. All tests passing."
+<span class="cli-green">[x]</span> abc123: Add JWT authentication
+
+<span class="cli-dim">$</span> dex sync
+<span class="cli-dim">[1/1]</span> <span class="cli-yellow">↻</span> abc123: Add JWT authentication
+Synced 1 task(s) <span class="cli-dim">(issue stays open until pushed)</span>
+
+<span class="cli-dim">$</span> git push && dex sync
+<span class="cli-dim">[1/1]</span> <span class="cli-yellow">↻</span> abc123: Add JWT authentication
+Synced 1 task(s) <span class="cli-dim">(issue now closed)</span></pre>
+  </Terminal>
+
+  <p><strong>Note:</strong> If <code>.dex/</code> is in your <code>.gitignore</code>, sync-on-push detection is disabled since dex can't determine push status.</p>
+
   <h2>Important: Tasks are Ephemeral</h2>
 
   <p>Dex tasks are coordination tools, not permanent records. <strong>Never put task IDs in:</strong></p>
