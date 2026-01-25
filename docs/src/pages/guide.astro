@@ -267,20 +267,49 @@ All 24 tests passing."</pre>
 
   <h2>Syncing with GitHub</h2>
 
-  <p>Dex can sync tasks to GitHub Issues, giving your team visibility into AI-assisted work without requiring everyone to use Claude Code.</p>
+  <p>Local dex tasks are ephemeral—working notes that evolve and get deleted as you go. When you sync to GitHub Issues, you create a <strong>permanent record</strong> of the work: what was planned, how it was broken down, and what was actually done.</p>
 
   <h3>Why Sync?</h3>
 
+  <p><strong>For permanent records:</strong></p>
   <ul>
-    <li>Share progress with team members who don't use Claude Code</li>
-    <li>Create a paper trail for completed work</li>
-    <li>Get GitHub's notification system for task updates</li>
-    <li>Back up task context outside your local machine</li>
+    <li>Local tasks get deleted as work evolves; GitHub Issues persist indefinitely</li>
+    <li>Context, decisions, and results are preserved in a searchable history</li>
+    <li>Commit metadata embeds in closed issues, tying work to actual code</li>
   </ul>
+
+  <p><strong>For large or long-running work:</strong></p>
+  <ul>
+    <li>GitHub Issues survive repo clones, machine changes, and team transitions</li>
+    <li>Use GitHub's project boards and milestones for higher-level organization</li>
+  </ul>
+
+  <p><strong>For team visibility:</strong></p>
+  <ul>
+    <li>Team members see progress without using Claude Code</li>
+    <li>GitHub notifications keep everyone informed</li>
+  </ul>
+
+  <h3>Task IDs vs Issue Numbers</h3>
+
+  <p>Dex task IDs (<code>abc123</code>) are ephemeral—they change, get deleted, and become meaningless. <strong>Never put task IDs in commits, PRs, or documentation.</strong></p>
+
+  <p>GitHub issue numbers (<code>#42</code>) are permanent. Once synced, reference the issue number in your commits and PRs, not the dex task ID.</p>
 
   <h3>Enabling Sync</h3>
 
   <p>Configure your repository in <a href="/config#github-sync">config</a>. Dex authenticates via the <code>gh</code> CLI or <code>GITHUB_TOKEN</code> environment variable.</p>
+
+  <h3>What Gets Synced</h3>
+
+  <p>When you sync a task:</p>
+  <ul>
+    <li>Task description → issue title</li>
+    <li>Task context → issue body</li>
+    <li>Subtasks → expandable checklists with context and results</li>
+    <li>Completion result → comment when the issue closes</li>
+    <li>Commit metadata (SHA, branch, URL) → embedded in closed tasks</li>
+  </ul>
 
   <h3>Manual Sync</h3>
 
@@ -312,11 +341,11 @@ Imported issue #42 as task xyz789: "Add password reset flow"
 
   <h3>Sync-on-Push</h3>
 
-  <p>Completed tasks only close their GitHub Issues when the completion has been pushed to the remote. This prevents issues from closing before the actual code lands.</p>
+  <p>Issues only close when their completion commits reach the remote. This creates a reliable record: a closed GitHub Issue means the work is <strong>actually shipped</strong>, not just marked done locally.</p>
 
   <p class="example-label">Why this matters:</p>
   <blockquote>
-    You complete a task locally, but your branch isn't merged yet. Without sync-on-push, the issue would close immediately—confusing teammates who see a "closed" issue with no merged PR. With sync-on-push, the issue stays open until your work is actually in the repository.
+    You complete a task locally, but your branch isn't merged yet. Without sync-on-push, the issue would close immediately—a "closed" issue with no shipped code. With sync-on-push, the GitHub record accurately reflects reality: the issue closes only when your work is actually in the repository.
   </blockquote>
 
   <Terminal>
@@ -333,18 +362,6 @@ Synced 1 task(s) <span class="cli-dim">(issue now closed)</span></pre>
   </Terminal>
 
   <p><strong>Note:</strong> If <code>.dex/</code> is in your <code>.gitignore</code>, sync-on-push detection is disabled since dex can't determine push status.</p>
-
-  <h2>Important: Tasks are Ephemeral</h2>
-
-  <p>Dex tasks are coordination tools, not permanent records. <strong>Never put task IDs in:</strong></p>
-
-  <ul>
-    <li>Commit messages</li>
-    <li>Pull request descriptions</li>
-    <li>Documentation</li>
-  </ul>
-
-  <p>Task IDs become meaningless once work is complete. Describe the work itself in commits and PRs.</p>
 
   <h2>Behavior Notes</h2>
 
