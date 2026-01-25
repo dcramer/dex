@@ -10,6 +10,9 @@ import {
   encodeMetadataValue,
   decodeMetadataValue,
   parseRootTaskMetadata,
+  parseHierarchicalIssueBody,
+  renderHierarchicalIssueBody,
+  collectDescendants,
   EmbeddedSubtask,
 } from "./subtask-markdown.js";
 import { Task } from "../types.js";
@@ -677,5 +680,325 @@ Content here.`;
 
     const metadata = parseRootTaskMetadata(body);
     expect(metadata?.commit).toBeUndefined();
+  });
+});
+
+describe("hierarchical issue body round-trip", () => {
+  it("round-trips nested subtasks with parent relationships", () => {
+    const tasks: Task[] = [
+      {
+        id: "root",
+        parent_id: null,
+        description: "Root task",
+        context: "Root context",
+        priority: 1,
+        completed: false,
+        result: null,
+        metadata: null,
+        created_at: "2024-01-22T10:00:00Z",
+        updated_at: "2024-01-22T10:00:00Z",
+        completed_at: null,
+        blockedBy: [],
+        blocks: [],
+        children: ["child1", "child2"],
+      },
+      {
+        id: "child1",
+        parent_id: "root",
+        description: "First child",
+        context: "Child 1 context",
+        priority: 1,
+        completed: false,
+        result: null,
+        metadata: null,
+        created_at: "2024-01-22T10:00:00Z",
+        updated_at: "2024-01-22T10:00:00Z",
+        completed_at: null,
+        blockedBy: [],
+        blocks: [],
+        children: ["grandchild1"],
+      },
+      {
+        id: "grandchild1",
+        parent_id: "child1",
+        description: "Grandchild",
+        context: "Grandchild context",
+        priority: 1,
+        completed: false,
+        result: null,
+        metadata: null,
+        created_at: "2024-01-22T10:00:00Z",
+        updated_at: "2024-01-22T10:00:00Z",
+        completed_at: null,
+        blockedBy: [],
+        blocks: [],
+        children: [],
+      },
+      {
+        id: "child2",
+        parent_id: "root",
+        description: "Second child",
+        context: "Child 2 context",
+        priority: 2,
+        completed: true,
+        result: "Done",
+        metadata: null,
+        created_at: "2024-01-22T10:00:00Z",
+        updated_at: "2024-01-22T11:00:00Z",
+        completed_at: "2024-01-22T11:00:00Z",
+        blockedBy: [],
+        blocks: [],
+        children: [],
+      },
+    ];
+
+    const descendants = collectDescendants(tasks, "root");
+    const rendered = renderHierarchicalIssueBody("Root context", descendants);
+    const parsed = parseHierarchicalIssueBody(rendered);
+
+    expect(parsed.context).toBe("Root context");
+    expect(parsed.subtasks).toHaveLength(3);
+
+    // Check parent relationships preserved
+    const child1 = parsed.subtasks.find((s) => s.id === "child1");
+    const grandchild1 = parsed.subtasks.find((s) => s.id === "grandchild1");
+    const child2 = parsed.subtasks.find((s) => s.id === "child2");
+
+    expect(child1?.parentId).toBe("root");
+    expect(grandchild1?.parentId).toBe("child1");
+    expect(child2?.parentId).toBe("root");
+  });
+
+  it("round-trips subtask with commit metadata", () => {
+    const tasks: Task[] = [
+      {
+        id: "root",
+        parent_id: null,
+        description: "Root",
+        context: "Root context",
+        priority: 1,
+        completed: false,
+        result: null,
+        metadata: null,
+        created_at: "2024-01-22T10:00:00Z",
+        updated_at: "2024-01-22T10:00:00Z",
+        completed_at: null,
+        blockedBy: [],
+        blocks: [],
+        children: ["withcommit"],
+      },
+      {
+        id: "withcommit",
+        parent_id: "root",
+        description: "Task with commit",
+        context: "Commit context",
+        priority: 1,
+        completed: true,
+        result: "Implemented",
+        metadata: {
+          commit: {
+            sha: "abc123def456",
+            message: "feat: Add feature",
+            branch: "main",
+            url: "https://github.com/owner/repo/commit/abc123def456",
+            timestamp: "2024-01-22T11:00:00Z",
+          },
+        },
+        created_at: "2024-01-22T10:00:00Z",
+        updated_at: "2024-01-22T11:00:00Z",
+        completed_at: "2024-01-22T11:00:00Z",
+        blockedBy: [],
+        blocks: [],
+        children: [],
+      },
+    ];
+
+    const descendants = collectDescendants(tasks, "root");
+    const rendered = renderHierarchicalIssueBody("Root context", descendants);
+    const parsed = parseHierarchicalIssueBody(rendered);
+
+    const subtask = parsed.subtasks.find((s) => s.id === "withcommit");
+    expect(subtask?.metadata?.commit).toEqual({
+      sha: "abc123def456",
+      message: "feat: Add feature",
+      branch: "main",
+      url: "https://github.com/owner/repo/commit/abc123def456",
+      timestamp: "2024-01-22T11:00:00Z",
+    });
+  });
+
+  it("round-trips subtask with multi-line result", () => {
+    const multiLineResult = "Step 1: Done\nStep 2: Done\nStep 3: Done";
+    const tasks: Task[] = [
+      {
+        id: "root",
+        parent_id: null,
+        description: "Root",
+        context: "Root",
+        priority: 1,
+        completed: false,
+        result: null,
+        metadata: null,
+        created_at: "2024-01-22T10:00:00Z",
+        updated_at: "2024-01-22T10:00:00Z",
+        completed_at: null,
+        blockedBy: [],
+        blocks: [],
+        children: ["multiline"],
+      },
+      {
+        id: "multiline",
+        parent_id: "root",
+        description: "Multi-line result task",
+        context: "Context",
+        priority: 1,
+        completed: true,
+        result: multiLineResult,
+        metadata: null,
+        created_at: "2024-01-22T10:00:00Z",
+        updated_at: "2024-01-22T11:00:00Z",
+        completed_at: "2024-01-22T11:00:00Z",
+        blockedBy: [],
+        blocks: [],
+        children: [],
+      },
+    ];
+
+    const descendants = collectDescendants(tasks, "root");
+    const rendered = renderHierarchicalIssueBody("Root", descendants);
+    const parsed = parseHierarchicalIssueBody(rendered);
+
+    const subtask = parsed.subtasks.find((s) => s.id === "multiline");
+    expect(subtask?.result).toBe(multiLineResult);
+  });
+
+  it("round-trips all timestamp fields", () => {
+    const tasks: Task[] = [
+      {
+        id: "root",
+        parent_id: null,
+        description: "Root",
+        context: "Root",
+        priority: 1,
+        completed: false,
+        result: null,
+        metadata: null,
+        created_at: "2024-01-22T10:00:00Z",
+        updated_at: "2024-01-22T10:00:00Z",
+        completed_at: null,
+        blockedBy: [],
+        blocks: [],
+        children: ["timestamps"],
+      },
+      {
+        id: "timestamps",
+        parent_id: "root",
+        description: "Timestamp task",
+        context: "Context",
+        priority: 3,
+        completed: true,
+        result: "Completed",
+        metadata: null,
+        created_at: "2024-01-22T08:00:00Z",
+        updated_at: "2024-01-22T12:30:00Z",
+        completed_at: "2024-01-22T12:30:00Z",
+        blockedBy: [],
+        blocks: [],
+        children: [],
+      },
+    ];
+
+    const descendants = collectDescendants(tasks, "root");
+    const rendered = renderHierarchicalIssueBody("Root", descendants);
+    const parsed = parseHierarchicalIssueBody(rendered);
+
+    const subtask = parsed.subtasks.find((s) => s.id === "timestamps");
+    expect(subtask?.created_at).toBe("2024-01-22T08:00:00Z");
+    expect(subtask?.updated_at).toBe("2024-01-22T12:30:00Z");
+    expect(subtask?.completed_at).toBe("2024-01-22T12:30:00Z");
+    expect(subtask?.priority).toBe(3);
+    expect(subtask?.completed).toBe(true);
+  });
+
+  it("preserves depth ordering in rendered output", () => {
+    const tasks: Task[] = [
+      {
+        id: "root",
+        parent_id: null,
+        description: "Root",
+        context: "Root",
+        priority: 1,
+        completed: false,
+        result: null,
+        metadata: null,
+        created_at: "2024-01-22T10:00:00Z",
+        updated_at: "2024-01-22T10:00:00Z",
+        completed_at: null,
+        blockedBy: [],
+        blocks: [],
+        children: ["a", "b"],
+      },
+      {
+        id: "a",
+        parent_id: "root",
+        description: "A",
+        context: "A context",
+        priority: 1,
+        completed: false,
+        result: null,
+        metadata: null,
+        created_at: "2024-01-22T10:00:00Z",
+        updated_at: "2024-01-22T10:00:00Z",
+        completed_at: null,
+        blockedBy: [],
+        blocks: [],
+        children: ["a1"],
+      },
+      {
+        id: "a1",
+        parent_id: "a",
+        description: "A1",
+        context: "A1 context",
+        priority: 1,
+        completed: false,
+        result: null,
+        metadata: null,
+        created_at: "2024-01-22T10:00:00Z",
+        updated_at: "2024-01-22T10:00:00Z",
+        completed_at: null,
+        blockedBy: [],
+        blocks: [],
+        children: [],
+      },
+      {
+        id: "b",
+        parent_id: "root",
+        description: "B",
+        context: "B context",
+        priority: 2,
+        completed: false,
+        result: null,
+        metadata: null,
+        created_at: "2024-01-22T10:00:00Z",
+        updated_at: "2024-01-22T10:00:00Z",
+        completed_at: null,
+        blockedBy: [],
+        blocks: [],
+        children: [],
+      },
+    ];
+
+    const descendants = collectDescendants(tasks, "root");
+    const rendered = renderHierarchicalIssueBody("Root", descendants);
+
+    // Verify Task Tree section has proper indentation
+    expect(rendered).toContain("- [ ] **A**");
+    expect(rendered).toContain("  - [ ] **A1**");
+    expect(rendered).toContain("- [ ] **B**");
+
+    // Verify depth-first order is preserved
+    const parsed = parseHierarchicalIssueBody(rendered);
+    const ids = parsed.subtasks.map((s) => s.id);
+    expect(ids).toEqual(["a", "a1", "b"]);
   });
 });

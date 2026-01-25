@@ -350,8 +350,9 @@ function parseIssueData(issue: GitHubIssue, repo: GitHubRepo): ParsedIssueData {
   const body = issue.body || "";
   const { context } = parseHierarchicalIssueBody(body);
 
+  // Remove dex:task: comments (both new format dex:task:key:value and legacy dex:task:id)
   const cleanContext = context
-    .replace(/<!-- dex:task:\w+:.*? -->\n?/g, "")
+    .replace(/<!-- dex:task:[^\s]+ -->\n?/g, "")
     .trim();
 
   const rootMetadata = parseRootTaskMetadata(body);
