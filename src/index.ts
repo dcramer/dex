@@ -148,15 +148,21 @@ function createStorageEngine(cliStoragePath?: string, cliConfigPath?: string): S
   }
 }
 
+interface SyncServiceResult {
+  syncService: GitHubSyncService | null;
+  syncConfig: import("./core/config.js").GitHubSyncConfig | null;
+}
+
 /**
  * Create GitHub sync service if configured.
  * Returns both the service and the config for auto-sync settings.
  */
-function createSyncService(cliConfigPath?: string) {
-  const config = loadConfig({ configPath: cliConfigPath });
+function createSyncService(storagePath: string, cliConfigPath?: string): SyncServiceResult {
+  const config = loadConfig({ storagePath, configPath: cliConfigPath });
+  const githubConfig = config.sync?.github ?? null;
   return {
-    syncService: createGitHubSyncService(config.sync?.github),
-    syncConfig: config.sync?.github ?? null,
+    syncService: createGitHubSyncService(githubConfig ?? undefined),
+    syncConfig: githubConfig,
   };
 }
 
@@ -193,14 +199,14 @@ ${bold}EXAMPLE:${reset}
   }
 
   const storage = createStorageEngine(storagePath, configPath);
-  const { syncService, syncConfig } = createSyncService(configPath);
+  const { syncService, syncConfig } = createSyncService(storage.getIdentifier(), configPath);
   startMcpServer(storage, syncService, syncConfig).catch((err) => {
     console.error("MCP server error:", err);
     process.exit(1);
   });
 } else {
   const storage = createStorageEngine(storagePath, configPath);
-  const { syncService, syncConfig } = createSyncService(configPath);
+  const { syncService, syncConfig } = createSyncService(storage.getIdentifier(), configPath);
   runCli(filteredArgs, { storage, syncService, syncConfig }).catch((err) => {
     console.error("Error:", err);
     process.exit(1);
