@@ -12,8 +12,8 @@ interface ShellConfig {
   detectCommand?: string;
 }
 
-function getShellConfigs(homeDir?: string): ShellConfig[] {
-  const home = homeDir || os.homedir();
+function getShellConfigs(): ShellConfig[] {
+  const home = os.homedir();
   return [
     {
       name: "bash",
@@ -33,8 +33,8 @@ function getShellConfigs(homeDir?: string): ShellConfig[] {
   ];
 }
 
-function detectShells(homeDir?: string): ShellConfig[] {
-  return getShellConfigs(homeDir).filter((shell) => fs.existsSync(shell.configFile));
+function detectShells(): ShellConfig[] {
+  return getShellConfigs().filter((shell) => fs.existsSync(shell.configFile));
 }
 
 function isCompletionConfigured(shell: ShellConfig): boolean {
@@ -70,17 +70,11 @@ async function promptYesNo(question: string): Promise<boolean> {
   });
 }
 
-export interface InitOptions {
-  configDir?: string;
-  homeDir?: string;
-}
-
-export async function initCommand(args: string[], options: InitOptions = {}): Promise<void> {
+export async function initCommand(args: string[]): Promise<void> {
   const { flags } = parseArgs(args, {
     yes: { short: "y", hasValue: false },
     help: { short: "h", hasValue: false },
     "config-dir": { hasValue: true },
-    "home-dir": { hasValue: true },
   }, "init");
 
   if (getBooleanFlag(flags, "help")) {
@@ -92,7 +86,6 @@ ${colors.bold}USAGE:${colors.reset}
 ${colors.bold}OPTIONS:${colors.reset}
   -y, --yes           Accept all defaults (skip prompts)
   --config-dir PATH   Override config directory (default: ~/.config/dex)
-  --home-dir PATH     Override home directory for shell detection
   -h, --help          Show this help message
 
 ${colors.bold}DESCRIPTION:${colors.reset}
@@ -103,12 +96,8 @@ ${colors.bold}DESCRIPTION:${colors.reset}
   }
 
   const autoYes = getBooleanFlag(flags, "yes");
-  const configDirOverride = (flags["config-dir"] as string) || options.configDir;
-  const homeDirOverride = (flags["home-dir"] as string) || options.homeDir;
-
-  const configPath = configDirOverride
-    ? path.join(configDirOverride, "dex.toml")
-    : getConfigPath();
+  const configDir = flags["config-dir"] as string | undefined;
+  const configPath = configDir ? path.join(configDir, "dex.toml") : getConfigPath();
   const dexConfigDir = path.dirname(configPath);
 
   // Check if config already exists
@@ -132,7 +121,7 @@ engine = "file"
 
 # File storage settings (default)
 [storage.file]
-# path = "~/.dex"  # Uncomment to set custom path
+# path = "/custom/path"  # Uncomment to set custom storage path
 
 # GitHub Issues storage (alternative)
 # [storage]
@@ -169,7 +158,7 @@ engine = "file"
   console.log(`${colors.green}✓${colors.reset} Created config file at ${colors.cyan}${configPath}${colors.reset}`);
 
   // Detect and configure shell completions
-  const detectedShells = detectShells(homeDirOverride);
+  const detectedShells = detectShells();
   const unconfiguredShells = detectedShells.filter((s) => !isCompletionConfigured(s));
 
   if (unconfiguredShells.length > 0) {

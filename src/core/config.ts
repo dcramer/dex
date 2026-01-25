@@ -112,12 +112,24 @@ const DEFAULT_CONFIG: Config = {
 };
 
 /**
+ * Get the dex home directory.
+ * Priority: DEX_HOME env var > XDG_CONFIG_HOME/dex > ~/.config/dex
+ * @returns Path to dex home directory
+ */
+export function getDexHome(): string {
+  if (process.env.DEX_HOME) {
+    return process.env.DEX_HOME;
+  }
+  const configDir = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
+  return path.join(configDir, "dex");
+}
+
+/**
  * Get the global config file path
  * @returns Path to config file (~/.config/dex/dex.toml)
  */
 export function getConfigPath(): string {
-  const configDir = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
-  return path.join(configDir, "dex", "dex.toml");
+  return path.join(getDexHome(), "dex.toml");
 }
 
 /**

@@ -1,11 +1,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import * as os from "node:os";
 import { Task, TaskStore, TaskStoreSchema, TaskSchema } from "../types.js";
 import { DataCorruptionError, StorageError } from "../errors.js";
 import { StorageEngine } from "./storage-engine.js";
 import { getProjectKey } from "./project-key.js";
-import type { StorageMode } from "./config.js";
+import { getDexHome, type StorageMode } from "./config.js";
 
 function findGitRoot(startDir: string): string | null {
   let currentDir: string;
@@ -33,15 +32,15 @@ function findGitRoot(startDir: string): string | null {
 function getDefaultStoragePath(mode: StorageMode = "in-repo"): string {
   if (mode === "centralized") {
     const projectKey = getProjectKey();
-    return path.join(os.homedir(), ".dex", "projects", projectKey);
+    return path.join(getDexHome(), "projects", projectKey);
   }
 
-  // in-repo mode: use git root or home directory
+  // in-repo mode: use git root or dex home directory
   const gitRoot = findGitRoot(process.cwd());
   if (gitRoot) {
     return path.join(gitRoot, ".dex");
   }
-  return path.join(os.homedir(), ".dex");
+  return path.join(getDexHome(), "local");
 }
 
 function getStoragePath(mode?: StorageMode): string {

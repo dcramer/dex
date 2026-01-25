@@ -5,6 +5,18 @@ import * as os from "node:os";
 import { runCli } from "./index.js";
 import { captureOutput, createTempStorage, CapturedOutput } from "./test-helpers.js";
 
+// Store the real tmpdir before mocking
+const realTmpdir = os.tmpdir();
+
+// Mock os module to allow overriding homedir
+vi.mock("node:os", async () => {
+  const actual = await vi.importActual<typeof import("node:os")>("node:os");
+  return {
+    ...actual,
+    homedir: vi.fn(() => actual.homedir()),
+  };
+});
+
 describe("init command", () => {
   let output: CapturedOutput;
   let mockExit: ReturnType<typeof vi.spyOn>;
@@ -13,9 +25,9 @@ describe("init command", () => {
   let tempStorage: ReturnType<typeof createTempStorage>;
 
   beforeEach(() => {
-    // Create temp directories for config and home
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "dex-init-test-"));
-    tempHomeDir = fs.mkdtempSync(path.join(os.tmpdir(), "dex-init-home-"));
+    // Create temp directories for config and home using the real tmpdir
+    tempDir = fs.mkdtempSync(path.join(realTmpdir, "dex-init-test-"));
+    tempHomeDir = fs.mkdtempSync(path.join(realTmpdir, "dex-init-home-"));
 
     // runCli requires CliOptions with storage, even though init doesn't use it
     tempStorage = createTempStorage();
@@ -23,12 +35,15 @@ describe("init command", () => {
     mockExit = vi.spyOn(process, "exit").mockImplementation((() => {
       throw new Error("process.exit called");
     }) as () => never);
+    // Mock os.homedir() to return temp home directory for shell detection tests
+    vi.mocked(os.homedir).mockReturnValue(tempHomeDir);
   });
 
   afterEach(() => {
     output.restore();
     tempStorage.cleanup();
     mockExit.mockRestore();
+    vi.mocked(os.homedir).mockRestore();
 
     // Clean up temp directories
     fs.rmSync(tempDir, { recursive: true, force: true });
@@ -42,7 +57,6 @@ describe("init command", () => {
     expect(out).toContain("dex init");
     expect(out).toContain("--yes");
     expect(out).toContain("--config-dir");
-    expect(out).toContain("--home-dir");
     expect(out).toContain("--help");
   });
 
@@ -91,7 +105,7 @@ describe("init command", () => {
     const bashrcPath = path.join(tempHomeDir, ".bashrc");
     fs.writeFileSync(bashrcPath, "# existing bashrc content\n");
 
-    await runCli(["init", "-y", "--config-dir", tempDir, "--home-dir", tempHomeDir], { storage: tempStorage.storage });
+    await runCli(["init", "-y", "--config-dir", tempDir], { storage: tempStorage.storage });
 
     const out = output.stdout.join("\n");
     expect(out).toContain("Created config file");
@@ -108,7 +122,7 @@ describe("init command", () => {
     const zshrcPath = path.join(tempHomeDir, ".zshrc");
     fs.writeFileSync(zshrcPath, "# existing zshrc content\n");
 
-    await runCli(["init", "-y", "--config-dir", tempDir, "--home-dir", tempHomeDir], { storage: tempStorage.storage });
+    await runCli(["init", "-y", "--config-dir", tempDir], { storage: tempStorage.storage });
 
     const out = output.stdout.join("\n");
     expect(out).toContain("Added completions");
@@ -125,7 +139,7 @@ describe("init command", () => {
     const fishConfigPath = path.join(fishConfigDir, "config.fish");
     fs.writeFileSync(fishConfigPath, "# existing fish config\n");
 
-    await runCli(["init", "-y", "--config-dir", tempDir, "--home-dir", tempHomeDir], { storage: tempStorage.storage });
+    await runCli(["init", "-y", "--config-dir", tempDir], { storage: tempStorage.storage });
 
     const out = output.stdout.join("\n");
     expect(out).toContain("Added completions");
@@ -140,7 +154,7 @@ describe("init command", () => {
     const bashrcPath = path.join(tempHomeDir, ".bashrc");
     fs.writeFileSync(bashrcPath, '# existing\neval "$(dex completion bash)"\n');
 
-    await runCli(["init", "-y", "--config-dir", tempDir, "--home-dir", tempHomeDir], { storage: tempStorage.storage });
+    await runCli(["init", "-y", "--config-dir", tempDir], { storage: tempStorage.storage });
 
     const out = output.stdout.join("\n");
     expect(out).toContain("Created config file");
@@ -158,7 +172,7 @@ describe("init command", () => {
     fs.writeFileSync(bashrcPath, "# bash config\n");
     fs.writeFileSync(zshrcPath, "# zsh config\n");
 
-    await runCli(["init", "-y", "--config-dir", tempDir, "--home-dir", tempHomeDir], { storage: tempStorage.storage });
+    await runCli(["init", "-y", "--config-dir", tempDir], { storage: tempStorage.storage });
 
     const out = output.stdout.join("\n");
     expect(out).toContain("Detected shells: bash, zsh");
@@ -170,7 +184,7 @@ describe("init command", () => {
 
   it("works with no shells detected", async () => {
     // No shell config files in temp home
-    await runCli(["init", "-y", "--config-dir", tempDir, "--home-dir", tempHomeDir], { storage: tempStorage.storage });
+    await runCli(["init", "-y", "--config-dir", tempDir], { storage: tempStorage.storage });
 
     const out = output.stdout.join("\n");
     expect(out).toContain("Created config file");
