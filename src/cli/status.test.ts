@@ -39,11 +39,10 @@ describe("status command", () => {
     await runCli(["status"], { storage });
 
     const out = output.stdout.join("\n");
-    expect(out).toContain("Stats");
-    expect(out).toContain("Total: 2 tasks");
-    expect(out).toContain("Pending: 2");
-    expect(out).toContain("Completed: 0");
-    expect(out).toContain("Ready: 2");
+    expect(out).toContain("|___/|___|_/\\_\\"); // ASCII art header
+    expect(out).toContain("complete   ready   blocked"); // metric labels
+    expect(out).toContain("0%"); // 0 completed of 2
+    expect(out).toMatch(/ready.*blocked/); // metrics row
   });
 
   it("shows ready tasks section", async () => {
@@ -138,7 +137,7 @@ describe("status command", () => {
 
     const out = output.stdout.join("\n");
     // Should show status output, not list output
-    expect(out).toContain("Stats");
+    expect(out).toContain("|___/|___|_/\\_\\"); // ASCII art header
     expect(out).toContain("Ready to Work");
   });
 
@@ -172,7 +171,9 @@ describe("status command", () => {
     await runCli(["status"], { storage });
 
     const out = output.stdout.join("\n");
-    expect(out).toContain("Ready: 2");
-    expect(out).toContain("Blocked: 1");
+    // Check the metric cards show correct counts (2 ready, 1 blocked)
+    expect(out).toContain("complete   ready   blocked");
+    expect(out).toContain("Ready to Work (2)");
+    expect(out).toContain("Blocked (1)");
   });
 });

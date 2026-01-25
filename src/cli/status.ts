@@ -122,12 +122,30 @@ ${colors.bold}EXAMPLES:${colors.reset}
 
   const { stats, readyTasks, blockedTasks, recentlyCompleted } = statusData;
 
-  // Stats section
-  console.log(`${colors.bold}Stats${colors.reset}`);
-  console.log(`${colors.dim}────────────────────${colors.reset}`);
-  console.log(`Total: ${stats.total} ${pluralize(stats.total, "task")}`);
-  console.log(`Pending: ${stats.pending} ${colors.dim}│${colors.reset} Completed: ${stats.completed}`);
-  console.log(`Blocked: ${stats.blocked} ${colors.dim}│${colors.reset} Ready: ${stats.ready}`);
+  // ASCII art header
+  console.log(`${colors.bold} ___  ___ _  _`);
+  console.log(`|   \\| __\\ \\/ /`);
+  console.log(`| |) | _| >  < `);
+  console.log(`|___/|___|_/\\_\\${colors.reset}`);
+  console.log("");
+
+  // Metric cards - big numbers with labels below, centered over each label
+  const pct = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+
+  // Helper to center a string within a width
+  const center = (s: string, w: number) => {
+    const pad = w - s.length;
+    const left = Math.floor(pad / 2);
+    return " ".repeat(left) + s + " ".repeat(pad - left);
+  };
+
+  // Column widths match label lengths: "complete"=8, "ready"=5, "blocked"=7
+  const col1 = center(`${pct}%`, 8);
+  const col2 = center(String(stats.ready), 5);
+  const col3 = center(String(stats.blocked), 7);
+
+  console.log(`${colors.green}${colors.bold}${col1}${colors.reset}   ${colors.green}${colors.bold}${col2}${colors.reset}   ${colors.yellow}${col3}${colors.reset}`);
+  console.log(`${colors.dim}complete   ready   blocked${colors.reset}`);
 
   // Ready to Work section
   if (readyTasks.length > 0) {
