@@ -50,6 +50,47 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
         toggle.setAttribute('aria-expanded', String(!expanded));
         nav?.classList.toggle('nav-open');
       });
+
+      // Add anchor links to headings
+      function slugify(text: string): string {
+        return text
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '');
+      }
+
+      const headings = document.querySelectorAll('main h2, main h3, main h4');
+      const usedIds = new Set<string>();
+
+      headings.forEach((heading) => {
+        const text = heading.textContent || '';
+        let id = slugify(text);
+
+        // Handle duplicates
+        let counter = 1;
+        let uniqueId = id;
+        while (usedIds.has(uniqueId)) {
+          uniqueId = `${id}-${counter++}`;
+        }
+        usedIds.add(uniqueId);
+
+        heading.id = uniqueId;
+
+        const anchor = document.createElement('a');
+        anchor.href = `#${uniqueId}`;
+        anchor.className = 'heading-anchor';
+        anchor.textContent = '#';
+        anchor.setAttribute('aria-label', `Link to ${text}`);
+        heading.prepend(anchor);
+      });
+
+      // Scroll to anchor on load if hash present
+      if (window.location.hash) {
+        const target = document.querySelector(window.location.hash);
+        if (target) {
+          setTimeout(() => target.scrollIntoView(), 0);
+        }
+      }
     </script>
     <main class="container">
       <slot />

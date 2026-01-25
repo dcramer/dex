@@ -65,10 +65,33 @@ a:visited:hover {
 
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
+  position: relative;
   font-weight: 600;
   line-height: 1.25;
   color: var(--text);
   letter-spacing: -0.02em;
+}
+
+/* Heading anchors */
+.heading-anchor {
+  position: absolute;
+  left: -1.5em;
+  opacity: 0;
+  font-weight: 400;
+  text-decoration: none;
+  color: var(--text-tertiary);
+  transition: opacity 0.15s ease;
+}
+
+h1:hover .heading-anchor,
+h2:hover .heading-anchor,
+h3:hover .heading-anchor,
+h4:hover .heading-anchor {
+  opacity: 1;
+}
+
+.heading-anchor:hover {
+  color: var(--link);
 }
 
 h1 {

@@ -1,5 +1,7 @@
 import { defineConfig } from 'astro/config';
 import mdx from '@astrojs/mdx';
+import rehypeAutolinkHeadings from 'rehype-autolink-headings';
+import rehypeSlug from 'rehype-slug';
 import { visit } from 'unist-util-visit';
 
 const base = '/dex';
@@ -23,6 +25,14 @@ export default defineConfig({
     shikiConfig: {
       theme: 'vitesse-black',
     },
-    rehypePlugins: [rehypeBaseLinks],
+    rehypePlugins: [
+      rehypeSlug,
+      [rehypeAutolinkHeadings, {
+        behavior: 'prepend',
+        properties: { className: ['heading-anchor'] },
+        content: { type: 'text', value: '#' }
+      }],
+      rehypeBaseLinks,
+    ],
   },
 });
