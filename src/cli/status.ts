@@ -7,6 +7,7 @@ import {
   formatTask,
   getBooleanFlag,
   getIncompleteBlockerIds,
+  hasIncompleteChildren,
   parseArgs,
   truncateText,
 } from "./utils.js";
@@ -181,10 +182,13 @@ function calculateStatus(tasks: Task[]): StatusData {
   const completed = tasks.filter((t) => t.completed);
 
   // Partition pending tasks into blocked and ready (single pass)
+  // A task is ready only if it has no incomplete blockers AND no incomplete children
   const blockedTasks: Task[] = [];
   const readyTasks: Task[] = [];
   for (const task of pending) {
-    if (getIncompleteBlockerIds(tasks, task).length > 0) {
+    const hasBlockers = getIncompleteBlockerIds(tasks, task).length > 0;
+    const hasChildren = hasIncompleteChildren(tasks, task);
+    if (hasBlockers || hasChildren) {
       blockedTasks.push(task);
     } else {
       readyTasks.push(task);

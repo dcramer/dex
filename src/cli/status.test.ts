@@ -176,4 +176,59 @@ describe("status command", () => {
     expect(out).toContain("Ready to Work (2)");
     expect(out).toContain("Blocked (1)");
   });
+
+  it("does not count parent tasks with incomplete children as ready", async () => {
+    // Create a parent task
+    await runCli(["create", "-d", "Parent task", "--context", "ctx"], { storage });
+    const parentId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    expect(parentId).toBeDefined();
+
+    // Create incomplete child tasks under the parent
+    await runCli(["create", "-d", "Child task 1", "--context", "ctx", "--parent", parentId!], { storage });
+    await runCli(["create", "-d", "Child task 2", "--context", "ctx", "--parent", parentId!], { storage });
+    output.stdout.length = 0;
+
+    await runCli(["status"], { storage });
+
+    const out = output.stdout.join("\n");
+    // Parent task should NOT be in ready list, only children (2 ready)
+    expect(out).toContain("Ready to Work (2)");
+    expect(out).toContain("Child task 1");
+    expect(out).toContain("Child task 2");
+    // Parent should be in blocked section because it has incomplete children
+    expect(out).toContain("Blocked (1)");
+    expect(out).toContain("Parent task");
+  });
+
+  it("counts parent task as ready when all children are completed", async () => {
+    // Create a parent task
+    await runCli(["create", "-d", "Parent task", "--context", "ctx"], { storage });
+    const parentId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    expect(parentId).toBeDefined();
+    output.stdout.length = 0;
+
+    // Create child tasks under the parent
+    await runCli(["create", "-d", "Child task 1", "--context", "ctx", "--parent", parentId!], { storage });
+    const child1Id = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    expect(child1Id).toBeDefined();
+    output.stdout.length = 0;
+
+    await runCli(["create", "-d", "Child task 2", "--context", "ctx", "--parent", parentId!], { storage });
+    const child2Id = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    expect(child2Id).toBeDefined();
+    output.stdout.length = 0;
+
+    // Complete both children
+    await runCli(["complete", child1Id!, "--result", "done"], { storage });
+    await runCli(["complete", child2Id!, "--result", "done"], { storage });
+    output.stdout.length = 0;
+
+    await runCli(["status"], { storage });
+
+    const out = output.stdout.join("\n");
+    // Parent should now be ready (0 blocked, 1 ready)
+    expect(out).toContain("Ready to Work (1)");
+    expect(out).toContain("Parent task");
+    expect(out).not.toContain("Blocked (");
+  });
 });

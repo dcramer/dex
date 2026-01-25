@@ -213,11 +213,23 @@ export class TaskService {
   }
 
   /**
-   * Check if a task is ready (pending with all blockers completed or empty blockedBy).
+   * Check if a task has any incomplete children.
+   */
+  private hasIncompleteChildren(tasks: Task[], task: Task): boolean {
+    return task.children.some((childId) => {
+      const child = tasks.find((t) => t.id === childId);
+      return child && !child.completed;
+    });
+  }
+
+  /**
+   * Check if a task is ready (pending with all blockers completed and no incomplete children).
    */
   isReady(tasks: Task[], task: Task): boolean {
     if (task.completed) return false;
-    return !this.isBlocked(tasks, task);
+    if (this.isBlocked(tasks, task)) return false;
+    if (this.hasIncompleteChildren(tasks, task)) return false;
+    return true;
   }
 
   // ============ CRUD Methods ============
