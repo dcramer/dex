@@ -12,6 +12,7 @@ import { completionCommand } from "./completion.js";
 import { syncCommand } from "./sync.js";
 import { importCommand } from "./import.js";
 import { doctorCommand } from "./doctor.js";
+import { statusCommand } from "./status.js";
 
 export type { CliOptions } from "./utils.js";
 
@@ -47,6 +48,8 @@ export async function runCli(args: string[], options: CliOptions): Promise<void>
       return await importCommand(args.slice(1), options);
     case "doctor":
       return await doctorCommand(args.slice(1), options);
+    case "status":
+      return await statusCommand(args.slice(1), options);
     case "completion":
       return completionCommand(args.slice(1));
     case "help":
@@ -55,7 +58,7 @@ export async function runCli(args: string[], options: CliOptions): Promise<void>
       return helpCommand();
     default:
       if (!command) {
-        return await listCommand([], options);
+        return await statusCommand([], options);
       }
       console.error(`${colors.red}Error:${colors.reset} Unknown command: ${command}`);
       const suggestion = getSuggestion(command);

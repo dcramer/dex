@@ -9,9 +9,10 @@ ${colors.bold}USAGE:${colors.reset}
 ${colors.bold}COMMANDS:${colors.reset}
   init                             Create config file (~/.config/dex/dex.toml)
   mcp                              Start MCP server (stdio)
+  status                           Show dashboard overview (default)
   create -d "..." --context "..."  Create task
   add                              Alias for create command
-  list, ls                         List pending tasks (tree view)
+  list, ls                         List all pending tasks (tree view)
   list --flat                      List without tree hierarchy
   list --all                       Include completed tasks
   list --status completed          Filter by status

@@ -25,9 +25,10 @@ describe("runCli", () => {
     mockExit.mockRestore();
   });
 
-  it("runs list by default when no command provided", async () => {
+  it("runs status by default when no command provided", async () => {
     await runCli([], { storage });
-    expect(output.stdout.join("\n")).toContain("No tasks found");
+    // Status command shows empty state message
+    expect(output.stdout.join("\n")).toContain("No tasks yet");
   });
 
   it("shows error and suggests similar command for typos", async () => {
