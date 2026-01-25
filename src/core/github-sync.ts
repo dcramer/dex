@@ -37,6 +37,18 @@ export interface SyncProgress {
 }
 
 /**
+ * Cached issue data for efficient sync operations.
+ * Contains all data needed for change detection without re-fetching.
+ */
+export interface CachedIssue {
+  number: number;
+  title: string;
+  body: string;
+  state: "open" | "closed";
+  labels: string[];
+}
+
+/**
  * Get GitHub token from environment variable or gh CLI.
  * @param tokenEnv Environment variable name to check first (default: GITHUB_TOKEN)
  * @returns Token string or null if not found
@@ -514,9 +526,7 @@ export class GitHubSyncService {
 
       for (const issue of issues) {
         if (issue.pull_request) continue;
-        const body = issue.body || "";
-        // Check for new format (<!-- dex:task:id:{taskId} -->) or legacy format (<!-- dex:task:{taskId} -->)
-        if (body.includes(`<!-- dex:task:id:${taskId} -->`) || body.includes(`<!-- dex:task:${taskId} -->`)) {
+        if (this.extractTaskIdFromBody(issue.body || "") === taskId) {
           return issue.number;
         }
       }
@@ -524,6 +534,65 @@ export class GitHubSyncService {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Fetch all dex-labeled issues with pagination support.
+   * Returns a Map keyed by task ID containing all data needed for change detection.
+   */
+  async fetchAllDexIssues(): Promise<Map<string, CachedIssue>> {
+    const issues = new Map<string, CachedIssue>();
+    let page = 1;
+
+    while (true) {
+      const { data } = await this.octokit.issues.listForRepo({
+        owner: this.owner,
+        repo: this.repo,
+        labels: this.labelPrefix,
+        state: "all",
+        per_page: 100,
+        page,
+      });
+
+      if (data.length === 0) break;
+
+      for (const issue of data) {
+        if (issue.pull_request) continue;
+
+        const taskId = this.extractTaskIdFromBody(issue.body || "");
+        if (taskId) {
+          issues.set(taskId, {
+            number: issue.number,
+            title: issue.title,
+            body: issue.body || "",
+            state: issue.state as "open" | "closed",
+            labels: (issue.labels || [])
+              .map((l) => (typeof l === "string" ? l : l.name || ""))
+              .filter((l) => l.startsWith(this.labelPrefix)),
+          });
+        }
+      }
+
+      page++;
+    }
+
+    return issues;
+  }
+
+  /**
+   * Extract task ID from issue body.
+   * Supports both new format (<!-- dex:task:id:{taskId} -->) and legacy format (<!-- dex:task:{taskId} -->).
+   */
+  private extractTaskIdFromBody(body: string): string | null {
+    // Check new format: <!-- dex:task:id:{taskId} -->
+    const newMatch = body.match(/<!-- dex:task:id:([a-z0-9]+) -->/);
+    if (newMatch) return newMatch[1];
+
+    // Check legacy format: <!-- dex:task:{taskId} -->
+    const legacyMatch = body.match(/<!-- dex:task:([a-z0-9]+) -->/);
+    if (legacyMatch) return legacyMatch[1];
+
+    return null;
   }
 }
 

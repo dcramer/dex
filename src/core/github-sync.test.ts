@@ -608,6 +608,187 @@ describe("createGitHubSyncServiceOrThrow", () => {
   });
 });
 
+describe("fetchAllDexIssues", () => {
+  let service: GitHubSyncService;
+  let githubMock: GitHubMock;
+
+  beforeEach(() => {
+    process.env.GITHUB_TOKEN = "test-token";
+    githubMock = setupGitHubMock();
+
+    service = new GitHubSyncService({
+      repo: { owner: "test-owner", repo: "test-repo" },
+      token: "test-token",
+    });
+  });
+
+  afterEach(() => {
+    cleanupGitHubMock();
+    delete process.env.GITHUB_TOKEN;
+  });
+
+  it("returns empty map when no issues exist", async () => {
+    githubMock.listIssues("test-owner", "test-repo", []);
+
+    const result = await service.fetchAllDexIssues();
+
+    expect(result.size).toBe(0);
+  });
+
+  it("extracts task IDs using new format", async () => {
+    // Page 1: issue with task ID
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 1,
+        title: "Task 1",
+        body: "<!-- dex:task:id:abc123 -->\nSome context",
+        labels: [{ name: "dex" }, { name: "dex:priority-medium" }],
+      }),
+    ]);
+    // Page 2: empty (end of pagination)
+    githubMock.listIssues("test-owner", "test-repo", []);
+
+    const result = await service.fetchAllDexIssues();
+
+    expect(result.size).toBe(1);
+    expect(result.has("abc123")).toBe(true);
+    const issue = result.get("abc123");
+    expect(issue?.number).toBe(1);
+    expect(issue?.title).toBe("Task 1");
+    expect(issue?.labels).toContain("dex");
+    expect(issue?.labels).toContain("dex:priority-medium");
+  });
+
+  it("extracts task IDs using legacy format", async () => {
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 2,
+        title: "Legacy Task",
+        body: "<!-- dex:task:legacy789 -->\nOld context",
+        labels: [{ name: "dex" }],
+      }),
+    ]);
+    githubMock.listIssues("test-owner", "test-repo", []);
+
+    const result = await service.fetchAllDexIssues();
+
+    expect(result.size).toBe(1);
+    expect(result.has("legacy789")).toBe(true);
+  });
+
+  it("filters out pull requests", async () => {
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 1,
+        title: "Issue",
+        body: "<!-- dex:task:id:issue123 -->",
+      }),
+      {
+        number: 2,
+        title: "PR",
+        body: "<!-- dex:task:id:pr456 -->",
+        state: "open",
+        labels: [],
+        pull_request: { url: "https://github.com/test/test/pulls/2" },
+      },
+    ]);
+    githubMock.listIssues("test-owner", "test-repo", []);
+
+    const result = await service.fetchAllDexIssues();
+
+    expect(result.size).toBe(1);
+    expect(result.has("issue123")).toBe(true);
+    expect(result.has("pr456")).toBe(false);
+  });
+
+  it("skips issues without task IDs", async () => {
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 1,
+        title: "Has ID",
+        body: "<!-- dex:task:id:valid123 -->",
+      }),
+      createIssueFixture({
+        number: 2,
+        title: "No ID",
+        body: "Just a regular issue body without task marker",
+      }),
+    ]);
+    githubMock.listIssues("test-owner", "test-repo", []);
+
+    const result = await service.fetchAllDexIssues();
+
+    expect(result.size).toBe(1);
+    expect(result.has("valid123")).toBe(true);
+  });
+
+  it("handles pagination across multiple pages", async () => {
+    // First page with issues
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 1,
+        title: "Task 1",
+        body: "<!-- dex:task:id:task1 -->",
+      }),
+    ]);
+    // Second page (empty, signals end of pagination)
+    githubMock.listIssues("test-owner", "test-repo", []);
+
+    const result = await service.fetchAllDexIssues();
+
+    expect(result.size).toBe(1);
+    expect(result.has("task1")).toBe(true);
+  });
+
+  it("captures issue state correctly", async () => {
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 1,
+        title: "Open Task",
+        body: "<!-- dex:task:id:open1 -->",
+        state: "open",
+      }),
+      createIssueFixture({
+        number: 2,
+        title: "Closed Task",
+        body: "<!-- dex:task:id:closed2 -->",
+        state: "closed",
+      }),
+    ]);
+    githubMock.listIssues("test-owner", "test-repo", []);
+
+    const result = await service.fetchAllDexIssues();
+
+    expect(result.get("open1")?.state).toBe("open");
+    expect(result.get("closed2")?.state).toBe("closed");
+  });
+
+  it("filters labels to only include dex-prefixed ones", async () => {
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 1,
+        title: "Task",
+        body: "<!-- dex:task:id:abc -->",
+        labels: [
+          { name: "dex" },
+          { name: "dex:priority-high" },
+          { name: "bug" },
+          { name: "enhancement" },
+        ],
+      }),
+    ]);
+    githubMock.listIssues("test-owner", "test-repo", []);
+
+    const result = await service.fetchAllDexIssues();
+
+    const labels = result.get("abc")?.labels || [];
+    expect(labels).toContain("dex");
+    expect(labels).toContain("dex:priority-high");
+    expect(labels).not.toContain("bug");
+    expect(labels).not.toContain("enhancement");
+  });
+});
+
 describe("GitHubSyncService error message quality", () => {
   let service: GitHubSyncService;
   let githubMock: GitHubMock;
