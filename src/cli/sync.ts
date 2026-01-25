@@ -5,11 +5,13 @@ import {
   formatCliError,
   getBooleanFlag,
   parseArgs,
+  truncateText,
 } from "./utils.js";
 import {
   createGitHubSyncServiceOrThrow,
   getGitHubIssueNumber,
   GitHubSyncService,
+  SyncProgress,
   SyncResult,
 } from "../core/github-sync.js";
 import { loadConfig } from "../core/config.js";
@@ -132,24 +134,89 @@ ${colors.bold}EXAMPLE:${colors.reset}
         return;
       }
 
-      const store = await options.storage.readAsync();
-      const results = await syncService.syncAll(store);
+      console.log(
+        `Syncing ${rootTasks.length} task(s) to ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}...`
+      );
 
-      // Save github metadata for all synced tasks
+      const store = await options.storage.readAsync();
+      const isTTY = process.stdout.isTTY;
+
+      // Progress callback for real-time output
+      const onProgress = (progress: SyncProgress): void => {
+        const { current, total, task, phase } = progress;
+        const desc = truncateText(task.description, 50);
+        const counter = `[${current}/${total}]`;
+
+        // Clear line for TTY (in-place updates)
+        if (isTTY) {
+          process.stdout.write("\r\x1b[K");
+        }
+
+        switch (phase) {
+          case "checking":
+            if (isTTY) {
+              process.stdout.write(
+                `${colors.dim}${counter}${colors.reset} Checking ${colors.bold}${task.id}${colors.reset}: ${desc}`
+              );
+            }
+            break;
+          case "skipped":
+            // Show skipped in dim for TTY, but skip entirely for non-TTY to reduce noise
+            if (isTTY) {
+              console.log(
+                `${colors.dim}${counter} ∙ ${task.id}: ${desc}${colors.reset}`
+              );
+            }
+            break;
+          case "creating":
+            // Always show creates
+            if (isTTY) {
+              process.stdout.write(
+                `${colors.dim}${counter}${colors.reset} ${colors.green}+${colors.reset} ${colors.bold}${task.id}${colors.reset}: ${desc}`
+              );
+            } else {
+              console.log(`${counter} + ${task.id}: ${desc}`);
+            }
+            break;
+          case "updating":
+            // Always show updates
+            if (isTTY) {
+              process.stdout.write(
+                `${colors.dim}${counter}${colors.reset} ${colors.yellow}↻${colors.reset} ${colors.bold}${task.id}${colors.reset}: ${desc}`
+              );
+            } else {
+              console.log(`${counter} ~ ${task.id}: ${desc}`);
+            }
+            break;
+        }
+      };
+
+      const results = await syncService.syncAll(store, { onProgress });
+
+      // Clear any remaining progress line
+      if (isTTY) {
+        process.stdout.write("\r\x1b[K");
+      }
+
+      // Save github metadata for all synced tasks (skip already-synced ones)
       for (const result of results) {
-        await saveGithubMetadata(service, result);
+        if (!result.skipped) {
+          await saveGithubMetadata(service, result);
+        }
       }
 
       const created = results.filter((r) => r.created).length;
-      const updated = results.length - created;
+      const updated = results.filter((r) => !r.created && !r.skipped).length;
+      const skipped = results.filter((r) => r.skipped).length;
 
       console.log(
         `${colors.green}Synced${colors.reset} ${rootTasks.length} task(s) to ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}`
       );
-      if (created > 0 || updated > 0) {
-        const parts = [];
-        if (created > 0) parts.push(`${created} created`);
-        if (updated > 0) parts.push(`${updated} updated`);
+      const parts = [];
+      if (created > 0) parts.push(`${created} created`);
+      if (updated > 0) parts.push(`${updated} updated`);
+      if (skipped > 0) parts.push(`${skipped} unchanged`);
+      if (parts.length > 0) {
         console.log(`  (${parts.join(", ")})`);
       }
     }

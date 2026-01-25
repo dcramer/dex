@@ -17,6 +17,22 @@ export interface SyncResult {
   taskId: string;
   github: GithubMetadata;
   created: boolean;
+  /** True if task was skipped because nothing changed */
+  skipped?: boolean;
+}
+
+/**
+ * Progress callback for sync operations.
+ */
+export interface SyncProgress {
+  /** Current task index (1-based) */
+  current: number;
+  /** Total number of tasks */
+  total: number;
+  /** Task being processed */
+  task: Task;
+  /** Current phase of the sync */
+  phase: "checking" | "creating" | "updating" | "skipped";
 }
 
 /**
@@ -56,6 +72,13 @@ export interface GitHubSyncServiceOptions {
   labelPrefix?: string;
   /** Storage path for task files (default: ".dex") */
   storagePath?: string;
+}
+
+export interface SyncAllOptions {
+  /** Callback for progress updates */
+  onProgress?: (progress: SyncProgress) => void;
+  /** Whether to skip unchanged tasks (default: true) */
+  skipUnchanged?: boolean;
 }
 
 /**
@@ -125,11 +148,24 @@ export class GitHubSyncService {
    * Sync all tasks to GitHub.
    * Returns array of sync results.
    */
-  async syncAll(store: TaskStore): Promise<SyncResult[]> {
+  async syncAll(store: TaskStore, options: SyncAllOptions = {}): Promise<SyncResult[]> {
+    const { onProgress, skipUnchanged = true } = options;
     const results: SyncResult[] = [];
     const parentTasks = store.tasks.filter((t) => !t.parent_id);
-    for (const parent of parentTasks) {
-      const result = await this.syncParentTask(parent, store);
+    const total = parentTasks.length;
+
+    for (let i = 0; i < parentTasks.length; i++) {
+      const parent = parentTasks[i];
+
+      // Report checking phase
+      onProgress?.({
+        current: i + 1,
+        total,
+        task: parent,
+        phase: "checking",
+      });
+
+      const result = await this.syncParentTask(parent, store, { skipUnchanged, onProgress, currentIndex: i + 1, total });
       if (result) {
         results.push(result);
       }
@@ -141,7 +177,13 @@ export class GitHubSyncService {
    * Sync a parent task (with all descendants) to GitHub.
    * Returns sync result with github metadata.
    */
-  private async syncParentTask(parent: Task, store: TaskStore): Promise<SyncResult | null> {
+  private async syncParentTask(
+    parent: Task,
+    store: TaskStore,
+    options: { skipUnchanged?: boolean; onProgress?: (progress: SyncProgress) => void; currentIndex?: number; total?: number } = {}
+  ): Promise<SyncResult | null> {
+    const { skipUnchanged = true, onProgress, currentIndex = 1, total = 1 } = options;
+
     // Collect ALL descendants, not just immediate children
     const descendants = collectDescendants(store.tasks, parent.id);
 
@@ -155,6 +197,67 @@ export class GitHubSyncService {
     const shouldClose = this.shouldMarkCompleted(parent);
 
     if (issueNumber) {
+      // Fast path: if task is completed and already synced, skip without API call
+      // This assumes completed tasks don't change after completion
+      if (skipUnchanged && shouldClose && parent.metadata?.github?.issueNumber === issueNumber) {
+        onProgress?.({
+          current: currentIndex,
+          total,
+          task: parent,
+          phase: "skipped",
+        });
+        return {
+          taskId: parent.id,
+          github: {
+            issueNumber,
+            issueUrl: `https://github.com/${this.owner}/${this.repo}/issues/${issueNumber}`,
+            repo: this.getRepoString(),
+          },
+          created: false,
+          skipped: true,
+        };
+      }
+
+      // Check if we can skip this update by comparing with GitHub
+      if (skipUnchanged) {
+        const expectedBody = this.renderBody(parent.context, descendants, parent.id);
+        const expectedLabels = this.buildLabels(parent, shouldClose);
+
+        const hasChanges = await this.hasIssueChanged(
+          issueNumber,
+          parent.description,
+          expectedBody,
+          expectedLabels,
+          shouldClose
+        );
+
+        if (!hasChanges) {
+          onProgress?.({
+            current: currentIndex,
+            total,
+            task: parent,
+            phase: "skipped",
+          });
+          return {
+            taskId: parent.id,
+            github: {
+              issueNumber,
+              issueUrl: `https://github.com/${this.owner}/${this.repo}/issues/${issueNumber}`,
+              repo: this.getRepoString(),
+            },
+            created: false,
+            skipped: true,
+          };
+        }
+      }
+
+      onProgress?.({
+        current: currentIndex,
+        total,
+        task: parent,
+        phase: "updating",
+      });
+
       await this.updateIssue(parent, descendants, issueNumber, shouldClose);
       return {
         taskId: parent.id,
@@ -166,12 +269,72 @@ export class GitHubSyncService {
         created: false,
       };
     } else {
+      onProgress?.({
+        current: currentIndex,
+        total,
+        task: parent,
+        phase: "creating",
+      });
+
       const github = await this.createIssue(parent, descendants, shouldClose);
       return {
         taskId: parent.id,
         github,
         created: true,
       };
+    }
+  }
+
+  /**
+   * Check if an issue has changed compared to what we would push.
+   * Returns true if the issue needs updating.
+   */
+  private async hasIssueChanged(
+    issueNumber: number,
+    expectedTitle: string,
+    expectedBody: string,
+    expectedLabels: string[],
+    shouldClose: boolean
+  ): Promise<boolean> {
+    try {
+      const { data: issue } = await this.octokit.issues.get({
+        owner: this.owner,
+        repo: this.repo,
+        issue_number: issueNumber,
+      });
+
+      // Check title
+      if (issue.title !== expectedTitle) {
+        return true;
+      }
+
+      // Check body (normalize whitespace)
+      const normalizedBody = (issue.body || "").trim();
+      const normalizedExpected = expectedBody.trim();
+      if (normalizedBody !== normalizedExpected) {
+        return true;
+      }
+
+      // Check state
+      const expectedState = shouldClose ? "closed" : "open";
+      if (issue.state !== expectedState) {
+        return true;
+      }
+
+      // Check labels (just the dex-prefixed ones)
+      const issueLabels = (issue.labels || [])
+        .map((l) => (typeof l === "string" ? l : l.name || ""))
+        .filter((l) => l.startsWith(this.labelPrefix))
+        .sort();
+      const sortedExpected = [...expectedLabels].sort();
+      if (JSON.stringify(issueLabels) !== JSON.stringify(sortedExpected)) {
+        return true;
+      }
+
+      return false;
+    } catch {
+      // If we can't fetch the issue, assume it needs updating
+      return true;
     }
   }
 
@@ -349,10 +512,17 @@ export class GitHubSyncService {
 /**
  * Extract GitHub issue number from task metadata.
  * Returns null if not synced yet.
+ * Supports both new format (metadata.github.issueNumber) and legacy format (metadata.github_issue_number).
  */
 export function getGitHubIssueNumber(task: Task): number | null {
+  // New format
   if (task.metadata?.github?.issueNumber) {
     return task.metadata.github.issueNumber;
+  }
+  // Legacy format (from older imports)
+  const legacyNumber = (task.metadata as Record<string, unknown> | undefined)?.github_issue_number;
+  if (typeof legacyNumber === "number") {
+    return legacyNumber;
   }
   return null;
 }

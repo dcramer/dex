@@ -281,13 +281,16 @@ async function importIssueAsTask(
     context: cleanContext || `Imported from GitHub issue #${issue.number}`,
   });
 
-  // Update with github metadata and completion status
-  // Note: github_issue_number and github_synced_at are stored as extra metadata properties
+  // Update with proper github metadata (matching sync format) and completion status
+  const repoString = `${repo.owner}/${repo.repo}`;
   const githubMetadata = {
     ...task.metadata,
-    github_issue_number: issue.number,
-    github_synced_at: new Date().toISOString(),
-  } as typeof task.metadata;
+    github: {
+      issueNumber: issue.number,
+      issueUrl: `https://github.com/${repoString}/issues/${issue.number}`,
+      repo: repoString,
+    },
+  };
 
   return await service.update({
     id: task.id,

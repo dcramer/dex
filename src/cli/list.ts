@@ -9,7 +9,9 @@ import {
   getIncompleteBlockerIds,
   getStringFlag,
   parseArgs,
+  parseIntFlag,
 } from "./utils.js";
+import { getGitHubIssueNumber } from "../core/github-sync.js";
 
 // Max description length for list view (to keep tree readable)
 const LIST_DESCRIPTION_MAX_LENGTH = 60;
@@ -46,6 +48,8 @@ export async function listCommand(args: string[], options: CliOptions): Promise<
     flat: { short: "f", hasValue: false },
     blocked: { short: "b", hasValue: false },
     ready: { short: "r", hasValue: false },
+    issue: { hasValue: true },
+    commit: { hasValue: true },
     json: { hasValue: false },
     help: { short: "h", hasValue: false },
   }, "list");
@@ -66,6 +70,8 @@ ${colors.bold}OPTIONS:${colors.reset}
   -r, --ready                Show only ready tasks (pending with no blockers)
   -q, --query <text>         Search in description and context (deprecated: use positional)
   -f, --flat                 Show flat list instead of tree view
+  --issue <number>           Find task by GitHub issue number
+  --commit <sha>             Find task by commit SHA (prefix match)
   --json                     Output as JSON
   -h, --help                 Show this help message
 
@@ -81,6 +87,8 @@ ${colors.bold}EXAMPLES:${colors.reset}
   dex list --completed       # Show only completed tasks
   dex list --ready           # Show tasks ready to work on
   dex list --blocked         # Show tasks waiting on dependencies
+  dex list --issue 42        # Find task linked to GitHub issue #42
+  dex list --commit abc123   # Find task linked to commit abc123
   dex list --json | jq '.'   # Output JSON for scripting
 `);
     return;
@@ -118,13 +126,34 @@ ${colors.bold}EXAMPLES:${colors.reset}
   // Merge query from positional arg or --query flag
   const query = queryFilter ?? getStringFlag(flags, "query");
 
-  const tasks = await service.list({
-    all: getBooleanFlag(flags, "all") || undefined,
-    completed: completedFilter,
+  // Metadata filters
+  const issueFilter = parseIntFlag(flags, "issue");
+  const commitFilter = getStringFlag(flags, "commit");
+
+  // When using metadata filters, always search all tasks
+  const needsAllTasks = issueFilter !== undefined || commitFilter !== undefined;
+
+  let tasks = await service.list({
+    all: getBooleanFlag(flags, "all") || needsAllTasks || undefined,
+    completed: needsAllTasks ? undefined : completedFilter,
     query,
     blocked: getBooleanFlag(flags, "blocked") || undefined,
     ready: getBooleanFlag(flags, "ready") || undefined,
   });
+
+  // Filter by GitHub issue number
+  if (issueFilter !== undefined) {
+    tasks = tasks.filter((t) => getGitHubIssueNumber(t) === issueFilter);
+  }
+
+  // Filter by commit SHA (prefix match)
+  if (commitFilter !== undefined) {
+    const commitLower = commitFilter.toLowerCase();
+    tasks = tasks.filter((t) => {
+      const sha = t.metadata?.commit?.sha;
+      return sha && sha.toLowerCase().startsWith(commitLower);
+    });
+  }
 
   // Get all tasks for blocker resolution (needed for display)
   const allTasks = await service.list({ all: true });
@@ -163,7 +192,8 @@ ${colors.bold}EXAMPLES:${colors.reset}
 
   // Use flat mode when explicitly requested or when filtering (tree display doesn't work well with filtered results)
   const useFlat = getBooleanFlag(flags, "flat") || Boolean(query) ||
-    getBooleanFlag(flags, "blocked") || getBooleanFlag(flags, "ready");
+    getBooleanFlag(flags, "blocked") || getBooleanFlag(flags, "ready") ||
+    issueFilter !== undefined || commitFilter !== undefined;
 
   if (useFlat) {
     for (const task of filteredTasks) {
