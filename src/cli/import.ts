@@ -370,23 +370,25 @@ async function importIssueAsTask(
     repo
   );
 
-  const task = await service.create({
+  // Determine completion status: prefer metadata, fall back to issue state
+  const completed = rootMetadata?.completed ?? (issue.state === "closed");
+
+  const metadata = {
+    github: githubMetadata,
+    commit: rootMetadata?.commit,
+  };
+
+  return await service.create({
+    id: rootMetadata?.id, // Use original ID if available (will fail if conflict)
     description: issue.title,
     context: cleanContext || `Imported from GitHub issue #${issue.number}`,
     priority: rootMetadata?.priority,
-  });
-
-  return await service.update({
-    id: task.id,
-    metadata: {
-      ...task.metadata,
-      github: githubMetadata,
-      ...(rootMetadata?.commit && { commit: rootMetadata.commit }),
-    },
-    ...(issue.state === "closed" && {
-      completed: true,
-      result: rootMetadata?.result || "Imported as completed from GitHub",
-    }),
+    completed,
+    result: rootMetadata?.result ?? (completed ? "Imported as completed from GitHub" : null),
+    metadata,
+    created_at: rootMetadata?.created_at,
+    updated_at: rootMetadata?.updated_at,
+    completed_at: rootMetadata?.completed_at,
   });
 }
 
@@ -401,6 +403,8 @@ async function updateTaskFromIssue(
     repo
   );
 
+  const isClosed = issue.state === "closed";
+
   return await service.update({
     id: existingTask.id,
     description: issue.title,
@@ -409,17 +413,12 @@ async function updateTaskFromIssue(
     metadata: {
       ...existingTask.metadata,
       github: githubMetadata,
-      ...(rootMetadata?.commit && { commit: rootMetadata.commit }),
+      commit: rootMetadata?.commit,
     },
-    ...(issue.state === "closed"
-      ? {
-          completed: true,
-          result:
-            rootMetadata?.result ||
-            existingTask.result ||
-            "Updated from closed GitHub issue",
-        }
-      : { completed: false }),
+    completed: isClosed,
+    result: isClosed
+      ? (rootMetadata?.result || existingTask.result || "Updated from closed GitHub issue")
+      : undefined,
   });
 }
 

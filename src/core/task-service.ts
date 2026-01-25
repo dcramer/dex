@@ -226,6 +226,21 @@ export class TaskService {
     const store = await this.storage.readAsync();
     const now = new Date().toISOString();
 
+    // Handle optional ID (for import/restore scenarios)
+    let taskId: string;
+    if (input.id) {
+      const existing = store.tasks.find((t) => t.id === input.id);
+      if (existing) {
+        throw new ValidationError(
+          `Task with ID '${input.id}' already exists`,
+          "Use a different ID or omit to auto-generate"
+        );
+      }
+      taskId = input.id;
+    } else {
+      taskId = generateId();
+    }
+
     let parentId: string | null = null;
 
     if (input.parent_id) {
@@ -259,17 +274,17 @@ export class TaskService {
     }
 
     const task: Task = {
-      id: generateId(),
+      id: taskId,
       parent_id: parentId,
       description: input.description,
       context: input.context,
       priority: input.priority ?? 1,
-      completed: false,
-      result: null,
-      metadata: null,
-      created_at: now,
-      updated_at: now,
-      completed_at: null,
+      completed: input.completed ?? false,
+      result: input.result ?? null,
+      metadata: input.metadata ?? null,
+      created_at: input.created_at ?? now,
+      updated_at: input.updated_at ?? now,
+      completed_at: input.completed_at ?? null,
       blockedBy: [],
       blocks: [],
       children: [],

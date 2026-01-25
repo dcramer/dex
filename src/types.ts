@@ -81,6 +81,14 @@ export const CreateTaskInputSchema = z.object({
   parent_id: z.string().min(1).optional(),
   priority: z.number().int().min(0).optional(),
   blocked_by: z.array(z.string().min(1)).optional(),
+  // Optional fields for import/restore scenarios
+  id: z.string().min(1).optional(), // Use specific ID (fails if conflict)
+  completed: z.boolean().optional(),
+  result: z.string().nullable().optional(),
+  metadata: TaskMetadataSchema.optional(),
+  created_at: z.string().datetime().optional(),
+  updated_at: z.string().datetime().optional(),
+  completed_at: z.string().datetime().nullable().optional(),
 });
 
 export type CreateTaskInput = z.infer<typeof CreateTaskInputSchema>;
