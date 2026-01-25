@@ -31,8 +31,11 @@ ${colors.bold}COMMANDS:${colors.reset}
   plan <file>                      Create task from plan markdown file
   completion <shell>               Generate shell completion script
 
-${colors.bold}OPTIONS:${colors.reset}
+${colors.bold}GLOBAL OPTIONS:${colors.reset}
+  --config <path>                  Use custom config file
   --storage-path <path>            Override storage file location
+
+${colors.bold}COMMAND OPTIONS:${colors.reset}
   -p, --priority <n>               Task priority (lower = higher priority)
   --parent <id>                    Parent task (creates subtask)
   --json                           Output as JSON (list, show)

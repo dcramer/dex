@@ -81,7 +81,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
     process.exit(1);
   }
 
-  const config = loadConfig(options.storage.getIdentifier());
+  const config = loadConfig({ storagePath: options.storage.getIdentifier() });
   const tokenEnv = config.sync?.github?.token_env || "GITHUB_TOKEN";
   const token = process.env[tokenEnv];
 

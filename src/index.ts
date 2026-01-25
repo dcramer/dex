@@ -10,32 +10,73 @@ import { createGitHubSyncService, GitHubSyncService } from "./core/github-sync.j
 
 const args = process.argv.slice(2);
 
-// Parse global options
-let storagePath: string | undefined;
-const filteredArgs: string[] = [];
-
-for (let i = 0; i < args.length; i++) {
-  const arg = args[i];
-
-  if (arg === "--storage-path") {
-    const nextArg = args[i + 1];
-    if (!nextArg || nextArg.startsWith("-")) {
-      console.error("Error: --storage-path requires a value");
-      process.exit(1);
-    }
-    storagePath = nextArg;
-    i++; // Skip the value in next iteration
-  } else if (arg.startsWith("--storage-path=")) {
-    const value = arg.slice("--storage-path=".length);
-    if (!value) {
-      console.error("Error: --storage-path requires a value");
-      process.exit(1);
-    }
-    storagePath = value;
-  } else {
-    filteredArgs.push(arg);
-  }
+interface ParsedGlobalOptions {
+  storagePath?: string;
+  configPath?: string;
+  filteredArgs: string[];
 }
+
+/**
+ * Parse a global option flag (e.g., --config, --storage-path).
+ * Handles both "--flag value" and "--flag=value" formats.
+ * Returns the value and the number of args consumed, or null if not matched.
+ */
+function parseGlobalOption(
+  args: string[],
+  index: number,
+  flagName: string
+): { value: string; skip: number } | null {
+  const arg = args[index];
+  const flagWithEquals = `--${flagName}=`;
+
+  if (arg === `--${flagName}`) {
+    const nextArg = args[index + 1];
+    if (!nextArg || nextArg.startsWith("-")) {
+      console.error(`Error: --${flagName} requires a value`);
+      process.exit(1);
+    }
+    return { value: nextArg, skip: 1 };
+  }
+
+  if (arg.startsWith(flagWithEquals)) {
+    const value = arg.slice(flagWithEquals.length);
+    if (!value) {
+      console.error(`Error: --${flagName} requires a value`);
+      process.exit(1);
+    }
+    return { value, skip: 0 };
+  }
+
+  return null;
+}
+
+function parseGlobalOptions(args: string[]): ParsedGlobalOptions {
+  let storagePath: string | undefined;
+  let configPath: string | undefined;
+  const filteredArgs: string[] = [];
+
+  for (let i = 0; i < args.length; i++) {
+    const storageResult = parseGlobalOption(args, i, "storage-path");
+    if (storageResult) {
+      storagePath = storageResult.value;
+      i += storageResult.skip;
+      continue;
+    }
+
+    const configResult = parseGlobalOption(args, i, "config");
+    if (configResult) {
+      configPath = configResult.value;
+      i += configResult.skip;
+      continue;
+    }
+
+    filteredArgs.push(args[i]);
+  }
+
+  return { storagePath, configPath, filteredArgs };
+}
+
+const { storagePath, configPath, filteredArgs } = parseGlobalOptions(args);
 
 /**
  * Create storage engine based on configuration priority:
@@ -46,9 +87,9 @@ for (let i = 0; i < args.length; i++) {
  *    c. DEX_STORAGE_PATH environment variable
  *    d. Auto-detect (git root or home)
  */
-function createStorageEngine(cliStoragePath?: string): StorageEngine {
+function createStorageEngine(cliStoragePath?: string, cliConfigPath?: string): StorageEngine {
   // Load config to determine engine type
-  const config = loadConfig();
+  const config = loadConfig({ configPath: cliConfigPath });
 
   // If CLI --storage-path is provided, force file storage
   if (cliStoragePath) {
@@ -111,8 +152,8 @@ function createStorageEngine(cliStoragePath?: string): StorageEngine {
  * Create GitHub sync service if configured.
  * Returns both the service and the config for auto-sync settings.
  */
-function createSyncService() {
-  const config = loadConfig();
+function createSyncService(cliConfigPath?: string) {
+  const config = loadConfig({ configPath: cliConfigPath });
   return {
     syncService: createGitHubSyncService(config.sync?.github),
     syncConfig: config.sync?.github ?? null,
@@ -135,6 +176,7 @@ ${bold}USAGE:${reset}
   dex mcp [options]
 
 ${bold}OPTIONS:${reset}
+  --config <path>            Use custom config file
   --storage-path <path>      Override storage file location
   -h, --help                 Show this help message
 
@@ -144,20 +186,21 @@ ${bold}DESCRIPTION:${reset}
 
 ${bold}EXAMPLE:${reset}
   dex mcp                    # Start MCP server with default storage
+  dex mcp --config ./test.toml
   dex mcp --storage-path ~/.dex/tasks
 `);
     process.exit(0);
   }
 
-  const storage = createStorageEngine(storagePath);
-  const { syncService, syncConfig } = createSyncService();
+  const storage = createStorageEngine(storagePath, configPath);
+  const { syncService, syncConfig } = createSyncService(configPath);
   startMcpServer(storage, syncService, syncConfig).catch((err) => {
     console.error("MCP server error:", err);
     process.exit(1);
   });
 } else {
-  const storage = createStorageEngine(storagePath);
-  const { syncService, syncConfig } = createSyncService();
+  const storage = createStorageEngine(storagePath, configPath);
+  const { syncService, syncConfig } = createSyncService(configPath);
   runCli(filteredArgs, { storage, syncService, syncConfig }).catch((err) => {
     console.error("Error:", err);
     process.exit(1);

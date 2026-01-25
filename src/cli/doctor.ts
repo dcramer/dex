@@ -185,7 +185,7 @@ async function checkConfig(options: CliOptions): Promise<DoctorIssue[]> {
   }
 
   // Load merged config to check for deprecated settings
-  const config = loadConfig(storagePath);
+  const config = loadConfig({ storagePath });
 
   // Check for deprecated storage engines
   if (config.storage.engine === "github-issues") {

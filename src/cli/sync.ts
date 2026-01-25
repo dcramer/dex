@@ -60,7 +60,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
 
   const taskId = positional[0];
   const dryRun = getBooleanFlag(flags, "dry-run");
-  const config = loadConfig(options.storage.getIdentifier());
+  const config = loadConfig({ storagePath: options.storage.getIdentifier() });
 
   let syncService: GitHubSyncService;
   try {

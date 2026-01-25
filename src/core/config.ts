@@ -190,17 +190,31 @@ function mergeConfig(a: Config, b: Partial<Config> | null): Config {
 }
 
 /**
- * Load configuration with precedence: per-project > global > defaults
- * @param storagePath Optional storage path to load per-project config from
+ * Options for loading configuration
+ */
+export interface LoadConfigOptions {
+  /** Storage path for per-project config */
+  storagePath?: string;
+  /** Custom config file path (overrides global config) */
+  configPath?: string;
+}
+
+/**
+ * Load configuration with precedence: per-project > global/custom > defaults
+ * @param options Optional configuration loading options
  * @returns Merged configuration object
  */
-export function loadConfig(storagePath?: string): Config {
+export function loadConfig(options?: LoadConfigOptions): Config {
+  const { storagePath, configPath } = options ?? {};
+
   // Start with defaults
   let config = { ...DEFAULT_CONFIG };
 
-  // Layer global config
-  const globalConfig = parseConfigFile(getConfigPath());
-  config = mergeConfig(config, globalConfig);
+  // Layer global or custom config
+  // If configPath is provided, use it instead of the global config
+  const baseConfigPath = configPath ?? getConfigPath();
+  const baseConfig = parseConfigFile(baseConfigPath);
+  config = mergeConfig(config, baseConfig);
 
   // Layer per-project config if storage path provided
   if (storagePath) {
