@@ -11,6 +11,7 @@ import { planCommand } from "./plan.js";
 import { completionCommand } from "./completion.js";
 import { syncCommand } from "./sync.js";
 import { importCommand } from "./import.js";
+import { doctorCommand } from "./doctor.js";
 
 export type { CliOptions } from "./utils.js";
 
@@ -44,6 +45,8 @@ export async function runCli(args: string[], options: CliOptions): Promise<void>
       return await syncCommand(args.slice(1), options);
     case "import":
       return await importCommand(args.slice(1), options);
+    case "doctor":
+      return await doctorCommand(args.slice(1), options);
     case "completion":
       return completionCommand(args.slice(1));
     case "help":

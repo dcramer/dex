@@ -47,7 +47,7 @@ export const colors = {
 };
 
 // Available commands for suggestions
-export const COMMANDS = ["create", "list", "ls", "show", "edit", "update", "complete", "done", "delete", "rm", "remove", "plan", "sync", "import", "help", "mcp", "completion"];
+export const COMMANDS = ["create", "list", "ls", "show", "edit", "update", "complete", "done", "delete", "rm", "remove", "plan", "sync", "import", "doctor", "help", "mcp", "completion"];
 
 export function createService(options: CliOptions): TaskService {
   return new TaskService({
