@@ -18,6 +18,29 @@ describe("MCP Server", () => {
     await ctx.cleanup();
   });
 
+  async function createTask(args: {
+    description: string;
+    context?: string;
+    blocked_by?: string[];
+    parent_id?: string;
+    priority?: number;
+  }): Promise<Task> {
+    const result = await ctx.client.callTool({
+      name: "create_task",
+      arguments: { context: "Context", ...args },
+    });
+    return parseToolResponse<Task>(result);
+  }
+
+  async function createBlockerAndBlockedTask(): Promise<{ blocker: Task; blocked: Task }> {
+    const blocker = await createTask({ description: "Blocker" });
+    const blocked = await createTask({
+      description: "Blocked task",
+      blocked_by: [blocker.id],
+    });
+    return { blocker, blocked };
+  }
+
   describe("listTools", () => {
     it("exposes all 3 tools", async () => {
       const result = await ctx.client.listTools();
@@ -127,6 +150,26 @@ describe("MCP Server", () => {
           description: "Orphan subtask",
           context: "Context",
           parent_id: "nonexistent123",
+        },
+      });
+
+      expect(isErrorResult(result)).toBe(true);
+      const response = parseToolResponse<{ error: string }>(result);
+      expect(response.error).toContain("not found");
+    });
+
+    it("creates a task with blocked_by dependencies", async () => {
+      const { blocker, blocked } = await createBlockerAndBlockedTask();
+      expect(blocked.blockedBy).toContain(blocker.id);
+    });
+
+    it("returns error for non-existent blocked_by id", async () => {
+      const result = await ctx.client.callTool({
+        name: "create_task",
+        arguments: {
+          description: "Task with bad blocker",
+          context: "Context",
+          blocked_by: ["nonexistent123"],
         },
       });
 
@@ -247,6 +290,38 @@ describe("MCP Server", () => {
       const tasks = parseToolResponse<Task[]>(result);
       expect(tasks).toHaveLength(1);
       expect(tasks[0].description).toContain("authentication");
+    });
+
+    it("filters blocked tasks", async () => {
+      await createBlockerAndBlockedTask();
+      await createTask({ description: "Unblocked task" });
+
+      const result = await ctx.client.callTool({
+        name: "list_tasks",
+        arguments: { blocked: true },
+      });
+
+      const tasks = parseToolResponse<Task[]>(result);
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].description).toBe("Blocked task");
+    });
+
+    it("filters ready tasks (unblocked pending)", async () => {
+      await createBlockerAndBlockedTask();
+      await createTask({ description: "Ready task" });
+
+      const result = await ctx.client.callTool({
+        name: "list_tasks",
+        arguments: { ready: true },
+      });
+
+      const tasks = parseToolResponse<Task[]>(result);
+      // Blocker and Ready task are both ready (no incomplete blockers)
+      expect(tasks).toHaveLength(2);
+      const descriptions = tasks.map((t) => t.description);
+      expect(descriptions).toContain("Blocker");
+      expect(descriptions).toContain("Ready task");
+      expect(descriptions).not.toContain("Blocked task");
     });
   });
 
@@ -408,6 +483,71 @@ describe("MCP Server", () => {
 
       const updated = parseToolResponse<Task>(updateResult);
       expect(updated.parent_id).toBeNull();
+    });
+
+    it("adds commit metadata when completing task", async () => {
+      const task = await createTask({ description: "Task with commit" });
+
+      const updateResult = await ctx.client.callTool({
+        name: "update_task",
+        arguments: {
+          id: task.id,
+          completed: true,
+          result: "Implemented the feature",
+          commit_sha: "abc123def",
+          commit_message: "feat: add new feature",
+          commit_branch: "feature-branch",
+          commit_url: "https://github.com/org/repo/commit/abc123def",
+        },
+      });
+
+      const updated = parseToolResponse<Task>(updateResult);
+      expect(updated.completed).toBe(true);
+      expect(updated.metadata?.commit).toBeDefined();
+      expect(updated.metadata?.commit?.sha).toBe("abc123def");
+      expect(updated.metadata?.commit?.message).toBe("feat: add new feature");
+      expect(updated.metadata?.commit?.branch).toBe("feature-branch");
+      expect(updated.metadata?.commit?.url).toBe("https://github.com/org/repo/commit/abc123def");
+      expect(updated.metadata?.commit?.timestamp).toBeDefined();
+    });
+
+    it("adds blocked_by dependencies", async () => {
+      const blocker = await createTask({ description: "Blocker" });
+      const task = await createTask({ description: "Task" });
+
+      const updateResult = await ctx.client.callTool({
+        name: "update_task",
+        arguments: { id: task.id, add_blocked_by: [blocker.id] },
+      });
+
+      const updated = parseToolResponse<Task>(updateResult);
+      expect(updated.blockedBy).toContain(blocker.id);
+    });
+
+    it("removes blocked_by dependencies", async () => {
+      const { blocker, blocked } = await createBlockerAndBlockedTask();
+      expect(blocked.blockedBy).toContain(blocker.id);
+
+      const updateResult = await ctx.client.callTool({
+        name: "update_task",
+        arguments: { id: blocked.id, remove_blocked_by: [blocker.id] },
+      });
+
+      const updated = parseToolResponse<Task>(updateResult);
+      expect(updated.blockedBy).not.toContain(blocker.id);
+    });
+
+    it("returns error when adding non-existent blocked_by", async () => {
+      const task = await createTask({ description: "Task" });
+
+      const result = await ctx.client.callTool({
+        name: "update_task",
+        arguments: { id: task.id, add_blocked_by: ["nonexistent123"] },
+      });
+
+      expect(isErrorResult(result)).toBe(true);
+      const response = parseToolResponse<{ error: string }>(result);
+      expect(response.error).toContain("not found");
     });
   });
 });
