@@ -95,6 +95,30 @@ Analyzed plan structure: Found 4 implementation steps
   <span class="cli-dim">•</span> <span class="cli-bold">m9n7o5p3</span>: Create JWT middleware</pre>
       </Terminal>
     </div>
+
+    <div class="scenario">
+      <div class="scenario-prompt">
+        <span class="prompt-label">Debugging:</span>
+        <p>"Investigate why auto-sync with GitHub isn't working. Use Dex to track the fix."</p>
+      </div>
+      <Terminal title="Terminal">
+        <pre class="cli-output"><span class="cli-dim">$</span> dex create -d "Fix auto-sync not loading project config" --context "In
+src/index.ts, createSyncService() calls loadConfig() without the
+storage path. Project config (.dex/config.toml) is never loaded.
+
+Fix: Pass storage.getIdentifier() to loadConfig() after creating
+the storage engine.
+
+Evidence: sync.ts correctly uses loadConfig(storage.getIdentifier())
+but index.ts uses loadConfig() with no argument."
+<span class="cli-green">Created</span> task <span class="cli-bold">c3ffne86</span>
+<span class="cli-yellow">[ ]</span> <span class="cli-bold">c3ffne86</span>: Fix auto-sync not loading project config
+
+<span class="cli-bold">Context:</span>
+  In src/index.ts, createSyncService() calls loadConfig() without
+  the storage path. Project config (.dex/config.toml) is never...</pre>
+      </Terminal>
+    </div>
   </section>
 </Base>
 
