@@ -12,6 +12,7 @@ export const colors = {
   red: useColors ? "\x1b[31m" : "",
   green: useColors ? "\x1b[32m" : "",
   yellow: useColors ? "\x1b[33m" : "",
+  blue: useColors ? "\x1b[34m" : "",
   cyan: useColors ? "\x1b[36m" : "",
 };
 

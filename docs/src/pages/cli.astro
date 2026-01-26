@@ -71,14 +71,21 @@ dex create "Add token refresh" --parent abc123`}
       <li><code>--ready</code> — Only unblocked tasks</li>
       <li><code>--blocked</code> — Only blocked tasks</li>
       <li><code>--query &lt;text&gt;</code> — Search in name/description</li>
+      <li><code>--issue &lt;number&gt;</code> — Find task by GitHub issue number</li>
       <li><code>--flat</code> — Plain list instead of tree</li>
+    </ul>
+    <p><strong>Indicators:</strong></p>
+    <ul>
+      <li><code>[B: xyz]</code> — Task is blocked by task xyz</li>
+      <li><code>[GH-42]</code> — Task is linked to GitHub issue #42</li>
     </ul>
     <Terminal title="Terminal">
       <Code
         code={`dex list
 dex list --all
 dex list --ready
-dex list --query "login"`}
+dex list --query "login"
+dex list --issue 42`}
         lang="bash"
         theme="vitesse-black"
       />
@@ -88,7 +95,12 @@ dex list --query "login"`}
   <div class="command-card">
     <h3>dex show</h3>
     <div class="synopsis">dex show &lt;id&gt;</div>
-    <p>View full task details including context, result, blocking relationships, and subtasks.</p>
+    <p>View full task details including context, result, blocking relationships, GitHub issue links, and subtasks.</p>
+    <ul>
+      <li><code>--full</code> — Show full description and result (no truncation)</li>
+      <li><code>--json</code> — Output as JSON for scripting</li>
+    </ul>
+    <p>If the task is linked to a GitHub issue (directly or via parent), the issue number, repo, and URL are displayed. Subtasks show "(via parent)" to indicate the link is inherited.</p>
     <Terminal title="Terminal">
       <Code code="dex show abc123" lang="bash" theme="vitesse-black" />
     </Terminal>

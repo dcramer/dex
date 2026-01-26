@@ -14,6 +14,28 @@ import { getIncompleteBlockerIds } from "../core/task-relationships.js";
 // Max name length for list view (to keep tree readable)
 const LIST_NAME_MAX_LENGTH = 60;
 
+/**
+ * Get GitHub issue number for a task, walking up the parent chain if needed.
+ */
+function getGithubIssueFromAncestors(
+  task: Task,
+  allTasks: Task[],
+): number | undefined {
+  // Check direct GitHub metadata first
+  const directIssue = getGitHubIssueNumber(task);
+  if (directIssue) return directIssue;
+
+  // Walk up parent chain
+  if (task.parent_id) {
+    const parent = allTasks.find((t) => t.id === task.parent_id);
+    if (parent) {
+      return getGithubIssueFromAncestors(parent, allTasks);
+    }
+  }
+
+  return undefined;
+}
+
 function printTaskTree(
   tasks: Task[],
   allTasks: Task[],
@@ -29,11 +51,16 @@ function printTaskTree(
     const task = children[i];
     const isLast = i === children.length - 1;
     const blockedByIds = getIncompleteBlockerIds(allTasks, task);
+    const githubIssue = getGithubIssueFromAncestors(task, allTasks);
 
     if (isRoot) {
       // Root level tasks: no tree connectors
       console.log(
-        formatTask(task, { truncateName: LIST_NAME_MAX_LENGTH, blockedByIds }),
+        formatTask(task, {
+          truncateName: LIST_NAME_MAX_LENGTH,
+          blockedByIds,
+          githubIssue,
+        }),
       );
       printTaskTree(tasks, allTasks, task.id, "", false);
     } else {
@@ -45,6 +72,7 @@ function printTaskTree(
           treePrefix: prefix + connector,
           truncateName: LIST_NAME_MAX_LENGTH,
           blockedByIds,
+          githubIssue,
         }),
       );
       printTaskTree(tasks, allTasks, task.id, childPrefix, false);
@@ -97,6 +125,7 @@ ${colors.bold}OPTIONS:${colors.reset}
 ${colors.bold}INDICATORS:${colors.reset}
   [B: xyz]                   Task is blocked by task xyz
   [B: 2]                     Task is blocked by 2 tasks
+  [GH-42]                    Task is linked to GitHub issue #42
 
 ${colors.bold}EXAMPLES:${colors.reset}
   dex list                   # Show pending tasks as tree
@@ -226,17 +255,24 @@ ${colors.bold}EXAMPLES:${colors.reset}
   if (useFlat) {
     for (const task of filteredTasks) {
       const blockedByIds = getIncompleteBlockerIds(allTasks, task);
+      const githubIssue = getGithubIssueFromAncestors(task, allTasks);
       console.log(
-        formatTask(task, { truncateName: LIST_NAME_MAX_LENGTH, blockedByIds }),
+        formatTask(task, {
+          truncateName: LIST_NAME_MAX_LENGTH,
+          blockedByIds,
+          githubIssue,
+        }),
       );
     }
   } else if (subtreeRoot) {
     // Subtree view: show the root task, then its children as a tree
     const blockedByIds = getIncompleteBlockerIds(allTasks, subtreeRoot);
+    const githubIssue = getGithubIssueFromAncestors(subtreeRoot, allTasks);
     console.log(
       formatTask(subtreeRoot, {
         truncateName: LIST_NAME_MAX_LENGTH,
         blockedByIds,
+        githubIssue,
       }),
     );
     printTaskTree(filteredTasks, allTasks, subtreeRoot.id, "", false);

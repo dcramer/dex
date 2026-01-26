@@ -152,6 +152,17 @@ Complete tasks **immediately after implementing AND verifying**:
 
 Your result must include explicit verification evidence. Don't just describe what you did—prove it works. See [verification.md](verification.md).
 
+## Commit Messages with GitHub Issues
+
+When a task is linked to a GitHub issue (shown in `dex show` output), include issue references in commit messages:
+
+- **Root tasks** (the task itself has GitHub metadata): Use `Fixes #N`
+  - This closes the issue when merged
+- **Subtasks** (parent/ancestor has GitHub metadata): Use `Refs #N`
+  - This links to the issue without closing it
+
+Check `dex show <id>` for GitHub issue info before committing. The "(via parent)" indicator means use `Refs`, direct metadata means use `Fixes`.
+
 ## Best Practices
 
 1. **Right-size tasks**: Completable in one focused session

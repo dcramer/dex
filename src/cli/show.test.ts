@@ -224,4 +224,82 @@ describe("show command", () => {
     expect(out).toContain("Blocks:");
     expect(out).toContain("Task B");
   });
+
+  it("shows GitHub issue metadata for task with direct GitHub link", async () => {
+    // Create task with metadata
+    await runCli(["create", "-n", "GitHub task", "--description", "ctx"], {
+      storage,
+    });
+    const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    expect(taskId).toBeDefined();
+
+    // Directly add GitHub metadata to the task via store read/write
+    const store = storage.read();
+    const task = store.tasks.find((t) => t.id === taskId);
+    expect(task).toBeDefined();
+    task!.metadata = {
+      github: {
+        issueNumber: 42,
+        issueUrl: "https://github.com/owner/repo/issues/42",
+        repo: "owner/repo",
+      },
+    };
+    storage.write(store);
+
+    output.stdout.length = 0;
+    await runCli(["show", taskId!], { storage });
+
+    const out = output.stdout.join("\n");
+    expect(out).toContain("GitHub Issue:");
+    expect(out).toContain("#42 (owner/repo)");
+    expect(out).toContain("https://github.com/owner/repo/issues/42");
+    expect(out).not.toContain("(via parent)");
+  });
+
+  it("shows parent GitHub metadata for subtask with (via parent) indicator", async () => {
+    // Create parent task
+    await runCli(["create", "-n", "Parent task", "--description", "ctx"], {
+      storage,
+    });
+    const parentId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    expect(parentId).toBeDefined();
+
+    // Add GitHub metadata to parent via store read/write
+    const store = storage.read();
+    const parentTask = store.tasks.find((t) => t.id === parentId);
+    expect(parentTask).toBeDefined();
+    parentTask!.metadata = {
+      github: {
+        issueNumber: 99,
+        issueUrl: "https://github.com/owner/repo/issues/99",
+        repo: "owner/repo",
+      },
+    };
+    storage.write(store);
+
+    // Create subtask
+    output.stdout.length = 0;
+    await runCli(
+      [
+        "create",
+        "-n",
+        "Subtask",
+        "--description",
+        "ctx",
+        "--parent",
+        parentId!,
+      ],
+      { storage },
+    );
+    const subtaskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    expect(subtaskId).toBeDefined();
+
+    output.stdout.length = 0;
+    await runCli(["show", subtaskId!], { storage });
+
+    const out = output.stdout.join("\n");
+    expect(out).toContain("GitHub Issue:");
+    expect(out).toContain("#99 (owner/repo)");
+    expect(out).toContain("(via parent)");
+  });
 });

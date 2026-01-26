@@ -261,4 +261,76 @@ describe("list command", () => {
     expect(out).toContain("Task A");
     expect(out).not.toContain("Task B");
   });
+
+  it("shows GitHub indicator for task linked to GitHub issue", async () => {
+    // Create task
+    await runCli(["create", "-n", "GitHub task", "--description", "ctx"], {
+      storage,
+    });
+    const taskId = output.stdout.join("\n").match(/\b([a-z0-9]{8})\b/)?.[1];
+    expect(taskId).toBeDefined();
+
+    // Add GitHub metadata via store read/write
+    const store = storage.read();
+    const task = store.tasks.find((t) => t.id === taskId);
+    expect(task).toBeDefined();
+    task!.metadata = {
+      github: {
+        issueNumber: 123,
+        issueUrl: "https://github.com/owner/repo/issues/123",
+        repo: "owner/repo",
+      },
+    };
+    storage.write(store);
+
+    output.stdout.length = 0;
+    await runCli(["list"], { storage });
+
+    const out = output.stdout.join("\n");
+    expect(out).toContain("[GH-123]");
+  });
+
+  it("shows GitHub indicator for subtask via parent", async () => {
+    // Create parent task
+    await runCli(["create", "-n", "Parent task", "--description", "ctx"], {
+      storage,
+    });
+    const parentId = output.stdout.join("\n").match(/\b([a-z0-9]{8})\b/)?.[1];
+    expect(parentId).toBeDefined();
+
+    // Add GitHub metadata to parent via store read/write
+    const store = storage.read();
+    const parentTask = store.tasks.find((t) => t.id === parentId);
+    expect(parentTask).toBeDefined();
+    parentTask!.metadata = {
+      github: {
+        issueNumber: 456,
+        issueUrl: "https://github.com/owner/repo/issues/456",
+        repo: "owner/repo",
+      },
+    };
+    storage.write(store);
+
+    // Create subtask
+    output.stdout.length = 0;
+    await runCli(
+      [
+        "create",
+        "-n",
+        "Subtask",
+        "--description",
+        "ctx",
+        "--parent",
+        parentId!,
+      ],
+      { storage },
+    );
+
+    output.stdout.length = 0;
+    await runCli(["list"], { storage });
+
+    const out = output.stdout.join("\n");
+    // Both parent and subtask should show the GitHub indicator
+    expect(out).toContain("[GH-456]");
+  });
 });

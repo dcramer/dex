@@ -6,6 +6,7 @@ export interface FormatTaskOptions {
   treePrefix?: string;
   truncateName?: number;
   blockedByIds?: string[]; // IDs of incomplete tasks blocking this one
+  githubIssue?: number; // GitHub issue number if linked (directly or via ancestor)
 }
 
 export function formatAge(isoDate: string): string {
@@ -120,6 +121,7 @@ export function formatTask(
     treePrefix = "",
     truncateName,
     blockedByIds,
+    githubIssue,
   } = options;
 
   const statusIcon = task.completed ? "[x]" : "[ ]";
@@ -141,9 +143,15 @@ export function formatTask(
     blockedIndicator = ` ${colors.red}[B: ${blockedInfo}]${colors.reset}`;
   }
 
+  // Show GitHub issue indicator if linked
+  let githubIndicator = "";
+  if (githubIssue) {
+    githubIndicator = ` ${colors.blue}[GH-${githubIssue}]${colors.reset}`;
+  }
+
   const name = truncateName ? truncateText(task.name, truncateName) : task.name;
 
-  let output = `${treePrefix}${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}${priority}${blockedIndicator}: ${name}${completionAge}`;
+  let output = `${treePrefix}${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}${priority}${blockedIndicator}${githubIndicator}: ${name}${completionAge}`;
 
   if (verbose) {
     const labelWidth = 12;

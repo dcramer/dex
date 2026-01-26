@@ -9,6 +9,7 @@ dex create -d "Short description" --context "Full implementation context"
 ```
 
 Options:
+
 - `-d, --description` (required): One-line summary
 - `--context` (required): Full implementation details
 - `-p, --priority <n>`: Lower = higher priority (default: 1)
@@ -50,6 +51,8 @@ dex complete abc123 --result "Implemented feature X" --commit a1b2c3d
 
 This captures commit SHA, message, and branch automatically.
 
+**GitHub Issue References**: If the task is linked to a GitHub issue (visible in `dex show` output), include issue references in your commit message. Use `Fixes #N` for root tasks (closes the issue) or `Refs #N` for subtasks (links without closing).
+
 ## Edit a Task
 
 ```bash
@@ -84,11 +87,13 @@ dex edit xyz789 --remove-blocker abc123
 ### When to Use Blockers
 
 Use blockers when:
+
 - Task B cannot start until Task A completes
 - Multiple tasks depend on a shared prerequisite
 - You want to prevent out-of-order completion
 
 Don't use blockers when:
+
 - Tasks can be worked on in parallel
 - The dependency is just a logical grouping (use subtasks instead)
 
@@ -104,6 +109,7 @@ Blocked tasks can still be completed (soft enforcement), but you'll see a warnin
 ## Storage
 
 Tasks are stored as individual files:
+
 - `<git-root>/.dex/tasks/{id}.json` (if in a git repo)
 - `~/.dex/tasks/{id}.json` (fallback)
 

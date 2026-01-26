@@ -1,4 +1,4 @@
-import { Task } from "../types.js";
+import { GithubMetadata, Task } from "../types.js";
 import { CliOptions, createService, exitIfTaskNotFound } from "./utils.js";
 import { colors, stripAnsi, terminalWidth } from "./colors.js";
 import { getBooleanFlag, parseArgs } from "./args.js";
@@ -16,6 +16,7 @@ interface FormatTaskShowOptions {
   full?: boolean;
   blockedByTasks?: Task[]; // Tasks that block this one
   blocksTasks?: Task[]; // Tasks this one blocks
+  ancestorGithub?: GithubMetadata; // GitHub metadata from first ancestor that has it
 }
 
 /**
@@ -82,11 +83,6 @@ function formatHierarchyTree(
 
   for (let i = 0; i < ancestors.length; i++) {
     const ancestor = ancestors[i];
-    const isLast = i === ancestors.length - 1;
-
-    // Count children for this ancestor (next ancestor or current task if last)
-    const nextId = isLast ? task.id : ancestors[i + 1].id;
-    // We don't have sibling info, so just show the line
     const connector = i === 0 ? "" : "└── ";
     lines.push(formatTreeTask(ancestor, { prefix: currentIndent + connector }));
 
@@ -153,6 +149,7 @@ export function formatTaskShow(
     full = false,
     blockedByTasks = [],
     blocksTasks = [],
+    ancestorGithub,
   } = options;
   let wasTruncated = false;
   const priority =
@@ -243,6 +240,17 @@ export function formatTaskShow(
     if (commit.url) {
       lines.push(`  URL:     ${colors.dim}${commit.url}${colors.reset}`);
     }
+  }
+
+  // GitHub Issue section (if present)
+  const github = task.metadata?.github ?? ancestorGithub;
+  if (github) {
+    const isFromAncestor = !task.metadata?.github && ancestorGithub;
+    lines.push(""); // Blank line before GitHub section
+    lines.push(`${colors.bold}GitHub Issue:${colors.reset}`);
+    const issueInfo = `#${github.issueNumber} (${github.repo})${isFromAncestor ? " (via parent)" : ""}`;
+    lines.push(`  ${colors.cyan}${issueInfo}${colors.reset}`);
+    lines.push(`  ${colors.dim}${github.issueUrl}${colors.reset}`);
   }
 
   // Metadata section
@@ -384,6 +392,16 @@ ${colors.bold}EXAMPLE:${colors.reset}
     return;
   }
 
+  // Extract GitHub metadata from ancestors (first one found walking up from closest parent)
+  let ancestorGithub: GithubMetadata | undefined;
+  for (let i = ancestors.length - 1; i >= 0; i--) {
+    const github = ancestors[i].metadata?.github;
+    if (github) {
+      ancestorGithub = github;
+      break;
+    }
+  }
+
   const full = getBooleanFlag(flags, "full");
   console.log(
     formatTaskShow(task, {
@@ -393,6 +411,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
       full,
       blockedByTasks,
       blocksTasks,
+      ancestorGithub,
     }),
   );
 }
