@@ -1,7 +1,6 @@
 import { customAlphabet } from "nanoid";
-import { StorageEngine } from "./storage-engine.js";
-import { FileStorage } from "./storage.js";
-import { GitHubSyncService } from "./github-sync.js";
+import { StorageEngine, FileStorage } from "./storage/index.js";
+import { GitHubSyncService } from "./github/index.js";
 import { GitHubSyncConfig } from "./config.js";
 import { isSyncStale, updateSyncState } from "./sync-state.js";
 import {

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { FileStorage } from "../core/storage.js";
+import { FileStorage } from "../core/storage/index.js";
 import { runCli } from "./index.js";
 import { captureOutput, createTempStorage, CapturedOutput, TASK_ID_REGEX } from "./test-helpers.js";
 

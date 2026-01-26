@@ -10,7 +10,7 @@ import {
   parseArgs,
   parseIntFlag,
 } from "./utils.js";
-import { getGitHubIssueNumber } from "../core/github-sync.js";
+import { getGitHubIssueNumber } from "../core/github/index.js";
 import { getIncompleteBlockerIds } from "../core/task-relationships.js";
 
 // Max description length for list view (to keep tree readable)

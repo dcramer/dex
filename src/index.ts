@@ -3,10 +3,8 @@
 import { startMcpServer } from "./mcp/server.js";
 import { runCli } from "./cli/index.js";
 import { loadConfig } from "./core/config.js";
-import { StorageEngine } from "./core/storage-engine.js";
-import { FileStorage } from "./core/storage.js";
-import { GitHubIssuesStorage } from "./core/github-issues-storage.js";
-import { createGitHubSyncService, GitHubSyncService } from "./core/github-sync.js";
+import { StorageEngine, FileStorage, GitHubIssuesStorage } from "./core/storage/index.js";
+import { createGitHubSyncService, GitHubSyncService } from "./core/github/index.js";
 
 const args = process.argv.slice(2);
 

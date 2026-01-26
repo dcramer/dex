@@ -5,7 +5,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { FileStorage } from "../core/storage.js";
+import { FileStorage } from "../core/storage/index.js";
 
 // Re-export shared test utilities from test-utils
 export {

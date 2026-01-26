@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as os from "os";
-import { FileStorage } from "../core/storage.js";
+import { FileStorage } from "../core/storage/index.js";
 import { runCli } from "./index.js";
 import { captureOutput, CapturedOutput } from "./test-helpers.js";
 

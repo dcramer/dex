@@ -13,7 +13,7 @@ import {
   GitHubSyncService,
   SyncProgress,
   SyncResult,
-} from "../core/github-sync.js";
+} from "../core/github/index.js";
 import { loadConfig } from "../core/config.js";
 import { updateSyncState } from "../core/sync-state.js";
 import { Task } from "../types.js";

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getProjectKey } from "./project-key.js";
-import * as gitRemote from "./git-remote.js";
+import * as gitRemote from "./github/remote.js";
 
-vi.mock("./git-remote.js", () => ({
+vi.mock("./github/remote.js", () => ({
   getGitRemoteUrl: vi.fn(),
 }));
 

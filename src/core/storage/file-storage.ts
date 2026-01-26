@@ -1,10 +1,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Task, TaskStore, TaskSchema } from "../types.js";
-import { DataCorruptionError, StorageError } from "../errors.js";
-import { StorageEngine } from "./storage-engine.js";
-import { getProjectKey } from "./project-key.js";
-import { getDexHome, type StorageMode } from "./config.js";
+import { Task, TaskStore, TaskSchema } from "../../types.js";
+import { DataCorruptionError, StorageError } from "../../errors.js";
+import { StorageEngine } from "./engine.js";
+import { getProjectKey } from "../project-key.js";
+import { getDexHome, type StorageMode } from "../config.js";
 import { migrateFromSingleFile } from "./migrations.js";
 
 function findGitRoot(startDir: string): string | null {

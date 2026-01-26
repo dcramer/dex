@@ -1,4 +1,4 @@
-import { Task, CommitMetadata, GithubMetadata } from "../types.js";
+import { Task, CommitMetadata, GithubMetadata } from "../../types.js";
 
 /**
  * Encode a potentially multi-line value for storage in HTML comments.

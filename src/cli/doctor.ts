@@ -13,7 +13,7 @@ import {
   getProjectConfigPath,
   loadConfig,
 } from "../core/config.js";
-import { getGitHubToken } from "../core/github-sync.js";
+import { getGitHubToken } from "../core/github/index.js";
 
 /**
  * Default auto-sync configuration to add when missing.

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { getGitRemoteUrl } from "./git-remote.js";
+import { getGitRemoteUrl } from "./github/index.js";
 
 function shortHash(input: string): string {
   return createHash("sha256").update(input).digest("hex").slice(0, 12);

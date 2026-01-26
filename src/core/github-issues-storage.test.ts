@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { GitHubIssuesStorage } from "./github-issues-storage.js";
+import { GitHubIssuesStorage } from "./storage/index.js";
 import { TaskStore } from "../types.js";
 import { StorageError } from "../errors.js";
 import {

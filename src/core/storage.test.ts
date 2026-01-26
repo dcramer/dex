@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { TaskStorage } from "./storage.js";
+import { TaskStorage } from "./storage/index.js";
 import { createTask, createStore } from "../test-utils/github-mock.js";
 
 describe("TaskStorage", () => {

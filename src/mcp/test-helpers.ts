@@ -7,7 +7,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { FileStorage } from "../core/storage.js";
+import { FileStorage } from "../core/storage/index.js";
 import { createMcpServer } from "./server.js";
 
 export interface McpTestContext {

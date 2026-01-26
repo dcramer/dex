@@ -3,8 +3,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { ZodError, ZodType } from "zod";
 import { TaskService } from "../core/task-service.js";
-import { StorageEngine } from "../core/storage-engine.js";
-import { GitHubSyncService } from "../core/github-sync.js";
+import { StorageEngine } from "../core/storage/index.js";
+import { GitHubSyncService } from "../core/github/index.js";
 import { GitHubSyncConfig } from "../core/config.js";
 import { CreateTaskArgsSchema, handleCreateTask } from "./tools/create-task.js";
 import { UpdateTaskArgsSchema, handleUpdateTask } from "./tools/update-task.js";

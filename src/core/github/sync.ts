@@ -1,17 +1,13 @@
 import { execSync } from "node:child_process";
 import { Octokit } from "@octokit/rest";
-import { GithubMetadata, Task, TaskStore } from "../types.js";
-import { GitHubRepo } from "./git-remote.js";
+import { GithubMetadata, Task, TaskStore } from "../../types.js";
+import { GitHubRepo } from "./remote.js";
 import {
   collectDescendants,
   renderHierarchicalIssueBody,
   HierarchicalTask,
   encodeMetadataValue,
-} from "./subtask-markdown.js";
-
-// Re-export for backwards compatibility
-export { getGitHubToken } from "./github-token.js";
-export { createGitHubSyncService, createGitHubSyncServiceOrThrow } from "./github-sync-factory.js";
+} from "./issue-markdown.js";
 
 /**
  * Result of syncing a task to GitHub.
@@ -625,4 +621,3 @@ export function getGitHubIssueNumber(task: Task): number | null {
   }
   return null;
 }
-

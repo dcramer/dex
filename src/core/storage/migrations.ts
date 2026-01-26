@@ -7,7 +7,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { TaskStore, TaskStoreSchema } from "../types.js";
+import { TaskStore, TaskStoreSchema } from "../../types.js";
 
 /**
  * Migrate from old single-file format (tasks.json) to per-task files.

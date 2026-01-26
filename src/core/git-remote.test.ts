@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseGitHubUrl, parseGitHubIssueRef } from "./git-remote.js";
+import { parseGitHubUrl, parseGitHubIssueRef } from "./github/index.js";
 
 describe("parseGitHubUrl", () => {
   it.each([

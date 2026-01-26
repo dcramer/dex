@@ -14,7 +14,7 @@ import {
   renderHierarchicalIssueBody,
   collectDescendants,
   EmbeddedSubtask,
-} from "./subtask-markdown.js";
+} from "./github/index.js";
 import { Task } from "../types.js";
 
 describe("parseSubtaskId", () => {

@@ -1,7 +1,7 @@
-import { GitHubSyncService } from "./github-sync.js";
-import { GitHubSyncConfig } from "./config.js";
-import { getGitHubRepo } from "./git-remote.js";
-import { getGitHubToken } from "./github-token.js";
+import { GitHubSyncService } from "./sync.js";
+import { GitHubSyncConfig } from "../config.js";
+import { getGitHubRepo } from "./remote.js";
+import { getGitHubToken } from "./token.js";
 
 /**
  * Create a GitHubSyncService for auto-sync if enabled in config.

@@ -1,7 +1,7 @@
 import { Octokit } from "@octokit/rest";
-import { StorageEngine } from "./storage-engine.js";
-import { Task, TaskStore } from "../types.js";
-import { StorageError } from "../errors.js";
+import { StorageEngine } from "./engine.js";
+import { Task, TaskStore } from "../../types.js";
+import { StorageError } from "../../errors.js";
 import {
   parseIssueBody,
   renderIssueBody,
@@ -11,7 +11,7 @@ import {
   taskToEmbeddedSubtask,
   getNextSubtaskIndex,
   EmbeddedSubtask,
-} from "./subtask-markdown.js";
+} from "../github/issue-markdown.js";
 
 export interface GitHubIssuesConfig {
   /** Repository owner */

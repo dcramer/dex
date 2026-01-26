@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { FileStorage } from "../core/storage.js";
+import { FileStorage } from "../core/storage/index.js";
 import { runCli } from "./index.js";
 import {
   captureOutput,
@@ -13,8 +13,8 @@ import {
 } from "./test-helpers.js";
 
 // Mock git remote detection
-vi.mock("../core/git-remote.js", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../core/git-remote.js")>();
+vi.mock("../core/github/remote.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../core/github/remote.js")>();
   return {
     ...original,
     getGitHubRepo: vi.fn(() => ({ owner: "test-owner", repo: "test-repo" })),

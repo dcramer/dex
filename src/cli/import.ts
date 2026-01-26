@@ -6,17 +6,15 @@ import {
   getBooleanFlag,
   parseArgs,
 } from "./utils.js";
-import { getGitHubIssueNumber } from "../core/github-sync.js";
 import {
+  getGitHubIssueNumber,
   getGitHubRepo,
   parseGitHubIssueRef,
   GitHubRepo,
-} from "../core/git-remote.js";
-import { loadConfig } from "../core/config.js";
-import {
   parseHierarchicalIssueBody,
   parseRootTaskMetadata,
-} from "../core/subtask-markdown.js";
+} from "../core/github/index.js";
+import { loadConfig } from "../core/config.js";
 import { Task } from "../types.js";
 import { Octokit } from "@octokit/rest";
 

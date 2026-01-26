@@ -1,4 +1,4 @@
-import { TaskStore } from "../types.js";
+import { TaskStore } from "../../types.js";
 
 /**
  * Storage engine interface for persisting tasks.

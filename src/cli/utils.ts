@@ -1,6 +1,6 @@
 import { TaskService } from "../core/task-service.js";
-import { StorageEngine } from "../core/storage-engine.js";
-import { GitHubSyncService } from "../core/github-sync.js";
+import { StorageEngine } from "../core/storage/index.js";
+import { GitHubSyncService } from "../core/github/index.js";
 import { GitHubSyncConfig } from "../core/config.js";
 import { Task } from "../types.js";
 import { extractErrorInfo } from "../errors.js";

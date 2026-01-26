@@ -4,7 +4,7 @@ import {
   getGitHubToken,
   createGitHubSyncService,
   createGitHubSyncServiceOrThrow,
-} from "./github-sync.js";
+} from "./github/index.js";
 import { TaskStore } from "../types.js";
 import {
   setupGitHubMock,
@@ -16,8 +16,8 @@ import {
 } from "../test-utils/github-mock.js";
 
 // Mock git remote detection
-vi.mock("./git-remote.js", async (importOriginal) => {
-  const original = await importOriginal<typeof import("./git-remote.js")>();
+vi.mock("./github/remote.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("./github/remote.js")>();
   return {
     ...original,
     getGitHubRepo: vi.fn(() => ({ owner: "test-owner", repo: "test-repo" })),
