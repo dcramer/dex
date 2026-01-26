@@ -107,8 +107,8 @@ export function createTempGitStorage(): {
 
 export interface TestSubtask {
   id: string;
-  description: string;
-  context?: string;
+  name: string;
+  description?: string;
   completed?: boolean;
   result?: string | null;
   priority?: number;
@@ -219,7 +219,7 @@ export function createFullDexIssueBody(options: {
       const depth = st.parentId ? 1 : 0; // Simple depth for testing
       const indent = "  ".repeat(depth);
       lines.push(
-        `${indent}- [${formatCheckbox(st.completed)}] **${st.description}** \`${st.id}\``,
+        `${indent}- [${formatCheckbox(st.completed)}] **${st.name}** \`${st.id}\``,
       );
     }
     lines.push("");
@@ -230,7 +230,7 @@ export function createFullDexIssueBody(options: {
       const depthArrow = st.parentId ? "↳ " : "";
       lines.push("<details>");
       lines.push(
-        `<summary>[${checkbox}] ${depthArrow}<b>${st.description}</b> <code>${st.id}</code></summary>`,
+        `<summary>[${checkbox}] ${depthArrow}<b>${st.name}</b> <code>${st.id}</code></summary>`,
       );
       lines.push(`<!-- dex:subtask:id:${st.id} -->`);
       if (st.parentId) lines.push(`<!-- dex:subtask:parent:${st.parentId} -->`);
@@ -261,9 +261,9 @@ export function createFullDexIssueBody(options: {
           );
       }
       lines.push("");
-      if (st.context) {
-        lines.push("### Context");
-        lines.push(st.context);
+      if (st.description) {
+        lines.push("### Description");
+        lines.push(st.description);
         lines.push("");
       }
       if (st.result) {
@@ -336,12 +336,12 @@ export function createCliTestFixture(): CliTestFixture {
  */
 export async function createTaskAndGetId(
   fixture: CliTestFixture,
-  description: string,
-  options: { parent?: string; blockedBy?: string; context?: string } = {},
+  name: string,
+  options: { parent?: string; blockedBy?: string; description?: string } = {},
 ): Promise<string> {
-  const args = ["create", description];
-  if (options.context) {
-    args.push("--context", options.context);
+  const args = ["create", name];
+  if (options.description) {
+    args.push("--description", options.description);
   }
   if (options.parent) {
     args.push("--parent", options.parent);

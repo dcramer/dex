@@ -46,7 +46,7 @@ _dex_completion() {
             COMPREPLY=( \$(compgen -W "pending completed" -- "\${cur}") )
             return 0
             ;;
-        --parent|--priority|-p|--context|-c|--description|-d|--result|-r|--query|-q)
+        --parent|--priority|-p|--description|-d|--result|-r|--query|-q)
             # These flags expect a value, no completion
             return 0
             ;;
@@ -58,7 +58,7 @@ _dex_completion() {
         local flags=""
         case "\${cmd}" in
             create)
-                flags="--description -d --context -c --priority -p --parent --help -h"
+                flags="--name -n --description -d --priority -p --parent --help -h"
                 ;;
             list|ls)
                 flags="--all -a --status -s --query -q --flat -f --json --help -h"
@@ -67,7 +67,7 @@ _dex_completion() {
                 flags="--full --json --help -h"
                 ;;
             edit|update)
-                flags="--description -d --context -c --priority -p --parent --status -s --help -h"
+                flags="--name -n --description -d --priority -p --parent --status -s --help -h"
                 ;;
             complete|done)
                 flags="--result -r --help -h"

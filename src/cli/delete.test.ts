@@ -87,10 +87,8 @@ describe("delete command", () => {
 
       const tasks = await fixture.storage.readAsync();
       expect(tasks.tasks).toHaveLength(2);
-      expect(tasks.tasks.find((t) => t.description === "Parent")).toBeDefined();
-      expect(
-        tasks.tasks.find((t) => t.description === "Child 2"),
-      ).toBeDefined();
+      expect(tasks.tasks.find((t) => t.name === "Parent")).toBeDefined();
+      expect(tasks.tasks.find((t) => t.name === "Child 2")).toBeDefined();
     });
   });
 

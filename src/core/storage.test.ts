@@ -50,8 +50,8 @@ describe("TaskStorage", () => {
       const taskData = {
         id: "test123",
         parent_id: null,
-        description: "Test task",
-        context: "Test context",
+        name: "Test task",
+        description: "Test context",
         priority: 1,
         completed: false,
         result: null,
@@ -62,7 +62,7 @@ describe("TaskStorage", () => {
       };
       fs.writeFileSync(
         path.join(tasksDir, "test123.json"),
-        JSON.stringify(taskData)
+        JSON.stringify(taskData),
       );
       const storage = new TaskStorage(storagePath);
 
@@ -80,8 +80,8 @@ describe("TaskStorage", () => {
       const task1 = {
         id: "task1",
         parent_id: null,
-        description: "Task 1",
-        context: "Context 1",
+        name: "Task 1",
+        description: "Context 1",
         priority: 1,
         completed: false,
         result: null,
@@ -92,8 +92,8 @@ describe("TaskStorage", () => {
       const task2 = {
         id: "task2",
         parent_id: null,
-        description: "Task 2",
-        context: "Context 2",
+        name: "Task 2",
+        description: "Context 2",
         priority: 2,
         completed: false,
         result: null,
@@ -101,8 +101,14 @@ describe("TaskStorage", () => {
         updated_at: "2024-01-01T00:00:00.000Z",
         completed_at: null,
       };
-      fs.writeFileSync(path.join(tasksDir, "task1.json"), JSON.stringify(task1));
-      fs.writeFileSync(path.join(tasksDir, "task2.json"), JSON.stringify(task2));
+      fs.writeFileSync(
+        path.join(tasksDir, "task1.json"),
+        JSON.stringify(task1),
+      );
+      fs.writeFileSync(
+        path.join(tasksDir, "task2.json"),
+        JSON.stringify(task2),
+      );
 
       const storage = new TaskStorage(storagePath);
       const store = storage.read();
@@ -127,7 +133,7 @@ describe("TaskStorage", () => {
       fs.mkdirSync(tasksDir, { recursive: true });
       fs.writeFileSync(
         path.join(tasksDir, "invalid.json"),
-        JSON.stringify({ id: "test", description: "Missing fields" })
+        JSON.stringify({ id: "test", description: "Missing fields" }),
       );
 
       const storage = new TaskStorage(storagePath);
@@ -142,8 +148,8 @@ describe("TaskStorage", () => {
       const taskData = {
         id: "valid",
         parent_id: null,
-        description: "Valid task",
-        context: "Context",
+        name: "Valid task",
+        description: "Context",
         priority: 1,
         completed: false,
         result: null,
@@ -151,7 +157,10 @@ describe("TaskStorage", () => {
         updated_at: "2024-01-01T00:00:00.000Z",
         completed_at: null,
       };
-      fs.writeFileSync(path.join(tasksDir, "valid.json"), JSON.stringify(taskData));
+      fs.writeFileSync(
+        path.join(tasksDir, "valid.json"),
+        JSON.stringify(taskData),
+      );
       fs.writeFileSync(path.join(tasksDir, "readme.txt"), "ignore this");
 
       const storage = new TaskStorage(storagePath);
@@ -187,8 +196,8 @@ describe("TaskStorage", () => {
       const storage = new TaskStorage(storagePath);
       const task = createTask({
         id: "abc12345",
-        description: "Test",
-        context: "Context",
+        name: "Test",
+        description: "Context",
         created_at: "2024-01-01T00:00:00.000Z",
         updated_at: "2024-01-01T00:00:00.000Z",
       });
@@ -226,7 +235,7 @@ describe("TaskStorage", () => {
       const oldTask = createTask({ id: "oldtask", description: "Old task" });
       fs.writeFileSync(
         path.join(tasksDir, "oldtask.json"),
-        JSON.stringify(oldTask)
+        JSON.stringify(oldTask),
       );
 
       const storage = new TaskStorage(storagePath);
@@ -251,7 +260,7 @@ describe("TaskStorage", () => {
 
       const content = fs.readFileSync(
         path.join(storagePath, "tasks", "pretty.json"),
-        "utf-8"
+        "utf-8",
       );
       expect(content).toContain("\n"); // Pretty printed
       expect(content).toContain('  "id"'); // Indented
@@ -282,6 +291,7 @@ describe("TaskStorage", () => {
       const storagePath = path.join(tempDir, ".dex");
       fs.mkdirSync(storagePath, { recursive: true });
 
+      // Old format with 'description' (title) and 'context' (details) fields
       const oldData = {
         tasks: [
           {
@@ -312,7 +322,7 @@ describe("TaskStorage", () => {
       };
       fs.writeFileSync(
         path.join(storagePath, "tasks.json"),
-        JSON.stringify(oldData)
+        JSON.stringify(oldData),
       );
 
       const storage = new TaskStorage(storagePath);
@@ -330,10 +340,10 @@ describe("TaskStorage", () => {
 
       // Verify new files exist
       expect(
-        fs.existsSync(path.join(storagePath, "tasks", "migrated1.json"))
+        fs.existsSync(path.join(storagePath, "tasks", "migrated1.json")),
       ).toBe(true);
       expect(
-        fs.existsSync(path.join(storagePath, "tasks", "migrated2.json"))
+        fs.existsSync(path.join(storagePath, "tasks", "migrated2.json")),
       ).toBe(true);
     });
 
@@ -369,8 +379,8 @@ describe("TaskStorage", () => {
       const originalData = createStore([
         createTask({
           id: "task0001",
-          description: "First task",
-          context: "Some context here",
+          name: "First task",
+          description: "Some context here",
           priority: 5,
           created_at: "2024-06-15T10:30:00.000Z",
           updated_at: "2024-06-15T10:30:00.000Z",
@@ -378,8 +388,8 @@ describe("TaskStorage", () => {
         createTask({
           id: "task0002",
           parent_id: "task0001",
-          description: "Child task",
-          context: "Child context",
+          name: "Child task",
+          description: "Child context",
           completed: true,
           result: "Done!",
           created_at: "2024-06-15T11:00:00.000Z",
@@ -393,10 +403,10 @@ describe("TaskStorage", () => {
 
       // Sort for comparison since file order isn't guaranteed
       const sortedOriginal = [...originalData.tasks].sort((a, b) =>
-        a.id.localeCompare(b.id)
+        a.id.localeCompare(b.id),
       );
       const sortedRead = [...readData.tasks].sort((a, b) =>
-        a.id.localeCompare(b.id)
+        a.id.localeCompare(b.id),
       );
       expect(sortedRead).toEqual(sortedOriginal);
     });
@@ -406,8 +416,8 @@ describe("TaskStorage", () => {
       const storage = new TaskStorage(storagePath);
       const task = createTask({
         id: "special1",
-        description: 'Task with "quotes" and \\backslashes\\',
-        context: "Context with\nnewlines\tand\ttabs",
+        name: 'Task with "quotes" and \\backslashes\\',
+        description: "Context with\nnewlines\tand\ttabs",
       });
       const dataWithSpecialChars = createStore([task]);
 
@@ -422,8 +432,8 @@ describe("TaskStorage", () => {
       const storage = new TaskStorage(storagePath);
       const task = createTask({
         id: "unicode1",
-        description: "Task with emoji and unicode",
-        context: "Context with Chinese and Japanese characters",
+        name: "Task with emoji and unicode",
+        description: "Context with Chinese and Japanese characters",
       });
       const dataWithUnicode = createStore([task]);
 
@@ -471,10 +481,10 @@ describe("TaskStorage", () => {
       const tasks = Array.from({ length: 100 }, (_, i) =>
         createTask({
           id: `task${i.toString().padStart(4, "0")}`,
-          description: `Task number ${i}`,
-          context: `Context for task ${i}`,
+          name: `Task number ${i}`,
+          description: `Context for task ${i}`,
           priority: i % 10,
-        })
+        }),
       );
 
       storage.write(createStore(tasks));
@@ -483,23 +493,23 @@ describe("TaskStorage", () => {
       expect(data.tasks).toHaveLength(100);
     });
 
-    it("handles task with long description and context", () => {
+    it("handles task with long name and description", () => {
       const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
       const longText = "a".repeat(10000);
       const data = createStore([
         createTask({
           id: "longtext",
+          name: longText,
           description: longText,
-          context: longText,
         }),
       ]);
 
       storage.write(data);
       const readData = storage.read();
 
+      expect(readData.tasks[0].name.length).toBe(10000);
       expect(readData.tasks[0].description.length).toBe(10000);
-      expect(readData.tasks[0].context.length).toBe(10000);
     });
   });
 });

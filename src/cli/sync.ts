@@ -15,7 +15,7 @@ import { Task } from "../types.js";
 
 export async function syncCommand(
   args: string[],
-  options: CliOptions
+  options: CliOptions,
 ): Promise<void> {
   const { positional, flags } = parseArgs(
     args,
@@ -23,7 +23,7 @@ export async function syncCommand(
       "dry-run": { hasValue: false },
       help: { short: "h", hasValue: false },
     },
-    "sync"
+    "sync",
   );
 
   if (getBooleanFlag(flags, "help")) {
@@ -74,7 +74,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
       const task = await service.get(taskId);
       if (!task) {
         console.error(
-          `${colors.red}Error:${colors.reset} Task ${taskId} not found`
+          `${colors.red}Error:${colors.reset} Task ${taskId} not found`,
         );
         process.exit(1);
       }
@@ -85,10 +85,10 @@ ${colors.bold}EXAMPLE:${colors.reset}
       if (dryRun) {
         const action = getGitHubIssueNumber(rootTask) ? "update" : "create";
         console.log(
-          `Would sync to ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}:`
+          `Would sync to ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}:`,
         );
         console.log(
-          `  [${action}] ${colors.bold}${rootTask.id}${colors.reset}: ${rootTask.description}`
+          `  [${action}] ${colors.bold}${rootTask.id}${colors.reset}: ${rootTask.name}`,
         );
         return;
       }
@@ -102,10 +102,12 @@ ${colors.bold}EXAMPLE:${colors.reset}
       }
 
       // Update sync state timestamp
-      updateSyncState(options.storage.getIdentifier(), { lastSync: new Date().toISOString() });
+      updateSyncState(options.storage.getIdentifier(), {
+        lastSync: new Date().toISOString(),
+      });
 
       console.log(
-        `${colors.green}Synced${colors.reset} task ${colors.bold}${rootTask.id}${colors.reset} to ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}`
+        `${colors.green}Synced${colors.reset} task ${colors.bold}${rootTask.id}${colors.reset} to ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}`,
       );
       if (result) {
         console.log(`  ${colors.dim}${result.github.issueUrl}${colors.reset}`);
@@ -122,19 +124,19 @@ ${colors.bold}EXAMPLE:${colors.reset}
 
       if (dryRun) {
         console.log(
-          `Would sync ${rootTasks.length} task(s) to ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}:`
+          `Would sync ${rootTasks.length} task(s) to ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}:`,
         );
         for (const task of rootTasks) {
           const action = getGitHubIssueNumber(task) ? "update" : "create";
           console.log(
-            `  [${action}] ${colors.bold}${task.id}${colors.reset}: ${task.description}`
+            `  [${action}] ${colors.bold}${task.id}${colors.reset}: ${task.name}`,
           );
         }
         return;
       }
 
       console.log(
-        `Syncing ${rootTasks.length} task(s) to ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}...`
+        `Syncing ${rootTasks.length} task(s) to ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}...`,
       );
 
       const store = await options.storage.readAsync();
@@ -143,7 +145,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
       // Progress callback for real-time output
       const onProgress = (progress: SyncProgress): void => {
         const { current, total, task, phase } = progress;
-        const desc = truncateText(task.description, 50);
+        const desc = truncateText(task.name, 50);
         const counter = `[${current}/${total}]`;
 
         // Clear line for TTY (in-place updates)
@@ -155,7 +157,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
           case "checking":
             if (isTTY) {
               process.stdout.write(
-                `${colors.dim}${counter}${colors.reset} Checking ${colors.bold}${task.id}${colors.reset}: ${desc}`
+                `${colors.dim}${counter}${colors.reset} Checking ${colors.bold}${task.id}${colors.reset}: ${desc}`,
               );
             }
             break;
@@ -163,7 +165,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
             // Show skipped in dim for TTY, but skip entirely for non-TTY to reduce noise
             if (isTTY) {
               console.log(
-                `${colors.dim}${counter} ∙ ${task.id}: ${desc}${colors.reset}`
+                `${colors.dim}${counter} ∙ ${task.id}: ${desc}${colors.reset}`,
               );
             }
             break;
@@ -171,7 +173,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
             // Always show creates
             if (isTTY) {
               process.stdout.write(
-                `${colors.dim}${counter}${colors.reset} ${colors.green}+${colors.reset} ${colors.bold}${task.id}${colors.reset}: ${desc}`
+                `${colors.dim}${counter}${colors.reset} ${colors.green}+${colors.reset} ${colors.bold}${task.id}${colors.reset}: ${desc}`,
               );
             } else {
               console.log(`${counter} + ${task.id}: ${desc}`);
@@ -181,7 +183,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
             // Always show updates
             if (isTTY) {
               process.stdout.write(
-                `${colors.dim}${counter}${colors.reset} ${colors.yellow}↻${colors.reset} ${colors.bold}${task.id}${colors.reset}: ${desc}`
+                `${colors.dim}${counter}${colors.reset} ${colors.yellow}↻${colors.reset} ${colors.bold}${task.id}${colors.reset}: ${desc}`,
               );
             } else {
               console.log(`${counter} ~ ${task.id}: ${desc}`);
@@ -205,14 +207,16 @@ ${colors.bold}EXAMPLE:${colors.reset}
       }
 
       // Update sync state timestamp
-      updateSyncState(options.storage.getIdentifier(), { lastSync: new Date().toISOString() });
+      updateSyncState(options.storage.getIdentifier(), {
+        lastSync: new Date().toISOString(),
+      });
 
       const created = results.filter((r) => r.created).length;
       const updated = results.filter((r) => !r.created && !r.skipped).length;
       const skipped = results.filter((r) => r.skipped).length;
 
       console.log(
-        `${colors.green}Synced${colors.reset} ${rootTasks.length} task(s) to ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}`
+        `${colors.green}Synced${colors.reset} ${rootTasks.length} task(s) to ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}`,
       );
       const parts = [];
       if (created > 0) parts.push(`${created} created`);
@@ -233,7 +237,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
  */
 async function saveGithubMetadata(
   service: ReturnType<typeof createService>,
-  result: SyncResult
+  result: SyncResult,
 ): Promise<void> {
   const task = await service.get(result.taskId);
   if (!task) return;
@@ -255,7 +259,7 @@ async function saveGithubMetadata(
  */
 async function findRootTask(
   service: ReturnType<typeof createService>,
-  task: Task
+  task: Task,
 ): Promise<Task> {
   if (!task.parent_id) {
     return task;

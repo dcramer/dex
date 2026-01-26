@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { FileStorage } from "../core/storage/index.js";
 import { runCli } from "./index.js";
-import { captureOutput, createTempStorage, CapturedOutput, TASK_ID_REGEX } from "./test-helpers.js";
+import {
+  captureOutput,
+  createTempStorage,
+  CapturedOutput,
+  TASK_ID_REGEX,
+} from "./test-helpers.js";
 
 describe("status command", () => {
   let storage: FileStorage;
@@ -32,8 +37,12 @@ describe("status command", () => {
   });
 
   it("shows stats summary correctly", async () => {
-    await runCli(["create", "-d", "Task one", "--context", "ctx"], { storage });
-    await runCli(["create", "-d", "Task two", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "Task one", "--description", "ctx"], {
+      storage,
+    });
+    await runCli(["create", "-n", "Task two", "--description", "ctx"], {
+      storage,
+    });
     output.stdout.length = 0;
 
     await runCli(["status"], { storage });
@@ -46,8 +55,12 @@ describe("status command", () => {
   });
 
   it("shows ready tasks section", async () => {
-    await runCli(["create", "-d", "Ready task one", "--context", "ctx"], { storage });
-    await runCli(["create", "-d", "Ready task two", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "Ready task one", "--description", "ctx"], {
+      storage,
+    });
+    await runCli(["create", "-n", "Ready task two", "--description", "ctx"], {
+      storage,
+    });
     output.stdout.length = 0;
 
     await runCli(["status"], { storage });
@@ -60,12 +73,25 @@ describe("status command", () => {
 
   it("shows blocked tasks with blocker info", async () => {
     // Create blocker task
-    await runCli(["create", "-d", "Blocker task", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "Blocker task", "--description", "ctx"], {
+      storage,
+    });
     const blockerId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     expect(blockerId).toBeDefined();
 
     // Create blocked task
-    await runCli(["create", "-d", "Blocked task", "--context", "ctx", "--blocked-by", blockerId!], { storage });
+    await runCli(
+      [
+        "create",
+        "-n",
+        "Blocked task",
+        "--description",
+        "ctx",
+        "--blocked-by",
+        blockerId!,
+      ],
+      { storage },
+    );
     output.stdout.length = 0;
 
     await runCli(["status"], { storage });
@@ -78,11 +104,15 @@ describe("status command", () => {
 
   it("shows recently completed tasks sorted by date", async () => {
     // Create and complete tasks
-    await runCli(["create", "-d", "First completed", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "First completed", "--description", "ctx"], {
+      storage,
+    });
     const firstId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     await runCli(["complete", firstId!, "--result", "done"], { storage });
 
-    await runCli(["create", "-d", "Second completed", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "Second completed", "--description", "ctx"], {
+      storage,
+    });
     const secondId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     await runCli(["complete", secondId!, "--result", "done"], { storage });
 
@@ -102,7 +132,9 @@ describe("status command", () => {
   });
 
   it("outputs JSON with --json flag", async () => {
-    await runCli(["create", "-d", "JSON task", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "JSON task", "--description", "ctx"], {
+      storage,
+    });
     output.stdout.length = 0;
 
     await runCli(["status", "--json"], { storage });
@@ -129,7 +161,9 @@ describe("status command", () => {
   });
 
   it("is the default command when dex is called with no args", async () => {
-    await runCli(["create", "-d", "Test task", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "Test task", "--description", "ctx"], {
+      storage,
+    });
     output.stdout.length = 0;
 
     // Run with no arguments
@@ -144,7 +178,9 @@ describe("status command", () => {
   it("limits ready tasks to 5 and shows overflow message", async () => {
     // Create 7 tasks
     for (let i = 1; i <= 7; i++) {
-      await runCli(["create", "-d", `Task ${i}`, "--context", "ctx"], { storage });
+      await runCli(["create", "-n", `Task ${i}`, "--description", "ctx"], {
+        storage,
+      });
     }
     output.stdout.length = 0;
 
@@ -159,13 +195,28 @@ describe("status command", () => {
 
   it("correctly counts blocked vs ready tasks", async () => {
     // Create 2 blocker tasks
-    await runCli(["create", "-d", "Blocker A", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "Blocker A", "--description", "ctx"], {
+      storage,
+    });
     const blockerAId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
 
-    await runCli(["create", "-d", "Blocker B", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "Blocker B", "--description", "ctx"], {
+      storage,
+    });
 
     // Create 1 blocked task
-    await runCli(["create", "-d", "Blocked", "--context", "ctx", "--blocked-by", blockerAId!], { storage });
+    await runCli(
+      [
+        "create",
+        "-n",
+        "Blocked",
+        "--description",
+        "ctx",
+        "--blocked-by",
+        blockerAId!,
+      ],
+      { storage },
+    );
     output.stdout.length = 0;
 
     await runCli(["status"], { storage });
@@ -179,13 +230,37 @@ describe("status command", () => {
 
   it("does not count parent tasks with incomplete children as ready", async () => {
     // Create a parent task
-    await runCli(["create", "-d", "Parent task", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "Parent task", "--description", "ctx"], {
+      storage,
+    });
     const parentId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     expect(parentId).toBeDefined();
 
     // Create incomplete child tasks under the parent
-    await runCli(["create", "-d", "Child task 1", "--context", "ctx", "--parent", parentId!], { storage });
-    await runCli(["create", "-d", "Child task 2", "--context", "ctx", "--parent", parentId!], { storage });
+    await runCli(
+      [
+        "create",
+        "-n",
+        "Child task 1",
+        "--description",
+        "ctx",
+        "--parent",
+        parentId!,
+      ],
+      { storage },
+    );
+    await runCli(
+      [
+        "create",
+        "-n",
+        "Child task 2",
+        "--description",
+        "ctx",
+        "--parent",
+        parentId!,
+      ],
+      { storage },
+    );
     output.stdout.length = 0;
 
     await runCli(["status"], { storage });
@@ -202,18 +277,42 @@ describe("status command", () => {
 
   it("counts parent task as ready when all children are completed", async () => {
     // Create a parent task
-    await runCli(["create", "-d", "Parent task", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "Parent task", "--description", "ctx"], {
+      storage,
+    });
     const parentId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     expect(parentId).toBeDefined();
     output.stdout.length = 0;
 
     // Create child tasks under the parent
-    await runCli(["create", "-d", "Child task 1", "--context", "ctx", "--parent", parentId!], { storage });
+    await runCli(
+      [
+        "create",
+        "-n",
+        "Child task 1",
+        "--description",
+        "ctx",
+        "--parent",
+        parentId!,
+      ],
+      { storage },
+    );
     const child1Id = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     expect(child1Id).toBeDefined();
     output.stdout.length = 0;
 
-    await runCli(["create", "-d", "Child task 2", "--context", "ctx", "--parent", parentId!], { storage });
+    await runCli(
+      [
+        "create",
+        "-n",
+        "Child task 2",
+        "--description",
+        "ctx",
+        "--parent",
+        parentId!,
+      ],
+      { storage },
+    );
     const child2Id = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     expect(child2Id).toBeDefined();
     output.stdout.length = 0;

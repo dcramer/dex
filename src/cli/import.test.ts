@@ -112,7 +112,7 @@ describe("import command", () => {
       // Verify task was created
       const tasks = await storage.readAsync();
       expect(tasks.tasks).toHaveLength(1);
-      expect(tasks.tasks[0].description).toBe("Test Issue");
+      expect(tasks.tasks[0].name).toBe("Test Issue");
       expect(tasks.tasks[0].metadata?.github?.issueNumber).toBe(123);
     });
 
@@ -146,8 +146,8 @@ describe("import command", () => {
           body: createFullDexIssueBody({
             context: "Main task context",
             subtasks: [
-              { id: "sub1", description: "Subtask 1" },
-              { id: "sub2", description: "Subtask 2", completed: true },
+              { id: "sub1", name: "Subtask 1" },
+              { id: "sub2", name: "Subtask 2", completed: true },
             ],
           }),
         }),
@@ -231,7 +231,7 @@ describe("import command", () => {
 
       const tasks = await storage.readAsync();
       expect(tasks.tasks).toHaveLength(1);
-      expect(tasks.tasks[0].description).toBe("Updated Title");
+      expect(tasks.tasks[0].name).toBe("Updated Title");
     });
 
     it("updates completion status from GitHub", async () => {
@@ -323,7 +323,7 @@ describe("import command", () => {
 
       // Task should still have original title
       const tasks = await storage.readAsync();
-      expect(tasks.tasks[0].description).toBe("Original");
+      expect(tasks.tasks[0].name).toBe("Original");
     });
   });
 
@@ -363,7 +363,7 @@ describe("import command", () => {
 
       const tasks = await storage.readAsync();
       expect(tasks.tasks).toHaveLength(1);
-      expect(tasks.tasks[0].description).toBe("Issue");
+      expect(tasks.tasks[0].name).toBe("Issue");
     });
   });
 
@@ -576,19 +576,19 @@ describe("import command", () => {
             subtasks: [
               {
                 id: "child001",
-                description: "First child",
-                context: "Child 1 context",
+                name: "First child",
+                description: "Child 1 context",
               },
               {
                 id: "child002",
-                description: "Second child",
+                name: "Second child",
                 parentId: "child001",
-                context: "Grandchild context",
+                description: "Grandchild context",
               },
               {
                 id: "child003",
-                description: "Third child",
-                context: "Child 3 context",
+                name: "Third child",
+                description: "Child 3 context",
               },
             ],
           }),
@@ -626,8 +626,8 @@ describe("import command", () => {
             subtasks: [
               {
                 id: "submeta1",
-                description: "Subtask with all metadata",
-                context: "Full subtask context",
+                name: "Subtask with all metadata",
+                description: "Full subtask context",
                 priority: 3,
                 completed: true,
                 result: "Subtask completed successfully",
@@ -667,8 +667,8 @@ describe("import command", () => {
             subtasks: [
               {
                 id: "subcomm1",
-                description: "Subtask with commit",
-                context: "Commit context",
+                name: "Subtask with commit",
+                description: "Commit context",
                 completed: true,
                 commit: {
                   sha: "fedcba0987654321",
@@ -709,9 +709,9 @@ describe("import command", () => {
             context: "Ordered subtasks test",
             rootMetadata: { id: "parent04" },
             subtasks: [
-              { id: "order001", description: "First", priority: 1 },
-              { id: "order002", description: "Second", priority: 2 },
-              { id: "order003", description: "Third", priority: 3 },
+              { id: "order001", name: "First", priority: 1 },
+              { id: "order002", name: "Second", priority: 2 },
+              { id: "order003", name: "Third", priority: 3 },
             ],
           }),
         }),
@@ -729,11 +729,7 @@ describe("import command", () => {
         "order002",
         "order003",
       ]);
-      expect(subtasks.map((s) => s.description)).toEqual([
-        "First",
-        "Second",
-        "Third",
-      ]);
+      expect(subtasks.map((s) => s.name)).toEqual(["First", "Second", "Third"]);
     });
   });
 
@@ -759,7 +755,7 @@ describe("import command", () => {
       expect(tasks.tasks).toHaveLength(1);
       const task = tasks.tasks[0];
       expect(task.id).toBe("legacy01");
-      expect(task.context).toBe("Old sync format context");
+      expect(task.description).toBe("Old sync format context");
     });
 
     it("imports issue without any dex metadata (manually created)", async () => {
@@ -781,8 +777,8 @@ describe("import command", () => {
       const task = tasks.tasks[0];
       // Should get a generated ID
       expect(task.id).toMatch(/^[a-z0-9]{8}$/);
-      expect(task.description).toBe("Manually created issue");
-      expect(task.context).toBe(
+      expect(task.name).toBe("Manually created issue");
+      expect(task.description).toBe(
         "This is a manually created GitHub issue.\n\nNo dex metadata here.",
       );
     });
@@ -862,7 +858,7 @@ Old subtask context.
 
       const tasks = await storage.readAsync();
       const task = tasks.tasks[0];
-      expect(task.context).toContain("Imported from GitHub issue");
+      expect(task.description).toContain("Imported from GitHub issue");
     });
 
     it("handles null body gracefully", async () => {
@@ -899,8 +895,8 @@ Old subtask context.
 
       const tasks = await storage.readAsync();
       const task = tasks.tasks[0];
-      expect(task.description).toContain("<script>");
-      expect(task.context).toContain("<html>");
+      expect(task.name).toContain("<script>");
+      expect(task.description).toContain("<html>");
     });
 
     it("handles very long context without truncation", async () => {
@@ -920,7 +916,7 @@ Old subtask context.
 
       const tasks = await storage.readAsync();
       const task = tasks.tasks[0];
-      expect(task.context.length).toBe(10000);
+      expect(task.description.length).toBe(10000);
     });
 
     it("strips root task metadata comments from context", async () => {
@@ -947,8 +943,8 @@ Old subtask context.
       const tasks = await storage.readAsync();
       const task = tasks.tasks[0];
       // Context should not contain dex:task: comments
-      expect(task.context).not.toContain("<!-- dex:task:");
-      expect(task.context).toBe(
+      expect(task.description).not.toContain("<!-- dex:task:");
+      expect(task.description).toBe(
         "Actual task context without metadata comments",
       );
     });
@@ -1055,7 +1051,7 @@ Old subtask context.
       const tasks = await storage.readAsync();
       expect(tasks.tasks).toHaveLength(1);
       const task = tasks.tasks[0];
-      expect(task.description).toBe("Updated title");
+      expect(task.name).toBe("Updated title");
       expect(task.priority).toBe(5);
     });
   });

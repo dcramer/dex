@@ -19,11 +19,13 @@ import { Task } from "../../types.js";
 
 const DEFAULT_TIMESTAMP = "2024-01-22T10:00:00Z";
 
-function createTestSubtask(overrides: Partial<EmbeddedSubtask> = {}): EmbeddedSubtask {
+function createTestSubtask(
+  overrides: Partial<EmbeddedSubtask> = {},
+): EmbeddedSubtask {
   return {
     id: "9-1",
-    description: "Test subtask",
-    context: "",
+    name: "Test subtask",
+    description: "",
     priority: 1,
     completed: false,
     result: null,
@@ -42,8 +44,8 @@ function createTestTask(overrides: Partial<Task> = {}): Task {
   return {
     id: "test",
     parent_id: null,
-    description: "Test task",
-    context: "",
+    name: "Test task",
+    description: "",
     priority: 1,
     completed: false,
     result: null,
@@ -61,7 +63,10 @@ function createTestTask(overrides: Partial<Task> = {}): Task {
 describe("parseSubtaskId", () => {
   it("parses valid compound ID", () => {
     expect(parseSubtaskId("9-1")).toEqual({ parentId: "9", localIndex: 1 });
-    expect(parseSubtaskId("123-45")).toEqual({ parentId: "123", localIndex: 45 });
+    expect(parseSubtaskId("123-45")).toEqual({
+      parentId: "123",
+      localIndex: 45,
+    });
   });
 
   it("returns null for non-compound IDs", () => {
@@ -85,7 +90,9 @@ describe("parseIssueBody", () => {
     const body = "This is the context.\n\nMore details here.";
     const result = parseIssueBody(body);
 
-    expect(result.context).toBe("This is the context.\n\nMore details here.");
+    expect(result.description).toBe(
+      "This is the context.\n\nMore details here.",
+    );
     expect(result.subtasks).toEqual([]);
   });
 
@@ -93,7 +100,7 @@ describe("parseIssueBody", () => {
     const body = "Context here.\n\n## Subtasks\n\n";
     const result = parseIssueBody(body);
 
-    expect(result.context).toBe("Context here.");
+    expect(result.description).toBe("Context here.");
     expect(result.subtasks).toEqual([]);
   });
 
@@ -111,19 +118,19 @@ describe("parseIssueBody", () => {
 <!-- dex:subtask:updated_at:2024-01-22T10:00:00Z -->
 <!-- dex:subtask:completed_at:null -->
 
-### Context
+### Description
 Subtask context here.
 
 </details>`;
 
     const result = parseIssueBody(body);
 
-    expect(result.context).toBe("Context here.");
+    expect(result.description).toBe("Context here.");
     expect(result.subtasks).toHaveLength(1);
     expect(result.subtasks[0]).toMatchObject({
       id: "9-1",
-      description: "First subtask",
-      context: "Subtask context here.",
+      name: "First subtask",
+      description: "Subtask context here.",
       priority: 5,
       completed: false,
       result: null,
@@ -144,7 +151,7 @@ Subtask context here.
 <!-- dex:subtask:updated_at:2024-01-22T12:00:00Z -->
 <!-- dex:subtask:completed_at:2024-01-22T12:00:00Z -->
 
-### Context
+### Description
 Task context.
 
 ### Result
@@ -157,7 +164,7 @@ The task was completed successfully.
     expect(result.subtasks).toHaveLength(1);
     expect(result.subtasks[0]).toMatchObject({
       id: "9-2",
-      description: "Completed task",
+      name: "Completed task",
       completed: true,
       result: "The task was completed successfully.",
     });
@@ -177,7 +184,7 @@ The task was completed successfully.
 <!-- dex:subtask:updated_at:2024-01-22T10:00:00Z -->
 <!-- dex:subtask:completed_at:null -->
 
-### Context
+### Description
 First context.
 
 </details>
@@ -191,7 +198,7 @@ First context.
 <!-- dex:subtask:updated_at:2024-01-22T11:00:00Z -->
 <!-- dex:subtask:completed_at:2024-01-22T11:00:00Z -->
 
-### Context
+### Description
 Second context.
 
 ### Result
@@ -203,9 +210,9 @@ Done.
 
     expect(result.subtasks).toHaveLength(2);
     expect(result.subtasks[0].id).toBe("9-1");
-    expect(result.subtasks[0].description).toBe("First task");
+    expect(result.subtasks[0].name).toBe("First task");
     expect(result.subtasks[1].id).toBe("9-2");
-    expect(result.subtasks[1].description).toBe("Second task");
+    expect(result.subtasks[1].name).toBe("Second task");
   });
 
   it("handles malformed details block gracefully", () => {
@@ -225,7 +232,7 @@ Some content without proper format
 <!-- dex:subtask:status:pending -->
 <!-- dex:subtask:created_at:2024-01-22T10:00:00Z -->
 
-### Context
+### Description
 Valid context.
 
 </details>`;
@@ -247,7 +254,7 @@ Valid context.
 <!-- dex:subtask:priority:1 -->
 <!-- dex:subtask:status:pending -->
 
-### Context
+### Description
 No ID here.
 
 </details>`;
@@ -265,8 +272,8 @@ describe("renderIssueBody", () => {
 
   it("renders body with one subtask", () => {
     const subtask = createTestSubtask({
-      description: "First subtask",
-      context: "Subtask context.",
+      name: "First subtask",
+      description: "Subtask context.",
       priority: 5,
     });
 
@@ -279,15 +286,15 @@ describe("renderIssueBody", () => {
     expect(result).toContain("<!-- dex:subtask:id:9-1 -->");
     expect(result).toContain("<!-- dex:subtask:priority:5 -->");
     expect(result).toContain("<!-- dex:subtask:completed:false -->");
-    expect(result).toContain("### Context");
+    expect(result).toContain("### Description");
     expect(result).toContain("Subtask context.");
     expect(result).toContain("</details>");
   });
 
   it("renders completed subtask with checkbox", () => {
     const subtask = createTestSubtask({
-      description: "Done task",
-      context: "Context.",
+      name: "Done task",
+      description: "Context.",
       completed: true,
       result: "Completed successfully.",
       updated_at: "2024-01-22T11:00:00Z",
@@ -304,11 +311,11 @@ describe("renderIssueBody", () => {
 
   it("renders multiple subtasks", () => {
     const subtasks = [
-      createTestSubtask({ id: "9-1", description: "First", context: "Context 1" }),
+      createTestSubtask({ id: "9-1", name: "First", description: "Context 1" }),
       createTestSubtask({
         id: "9-2",
-        description: "Second",
-        context: "Context 2",
+        name: "Second",
+        description: "Context 2",
         priority: 2,
         completed: true,
         result: "Done",
@@ -329,20 +336,20 @@ describe("renderIssueBody", () => {
 describe("round-trip parsing/rendering", () => {
   it("round-trips body with subtasks", () => {
     const subtask = createTestSubtask({
-      description: "Test subtask",
-      context: "Test context.",
+      name: "Test subtask",
+      description: "Test context.",
       priority: 3,
     });
 
     const rendered = renderIssueBody("Parent context.", [subtask]);
     const parsed = parseIssueBody(rendered);
 
-    expect(parsed.context).toBe("Parent context.");
+    expect(parsed.description).toBe("Parent context.");
     expect(parsed.subtasks).toHaveLength(1);
     expect(parsed.subtasks[0]).toMatchObject({
       id: "9-1",
-      description: "Test subtask",
-      context: "Test context.",
+      name: "Test subtask",
+      description: "Test context.",
       priority: 3,
       completed: false,
     });
@@ -351,8 +358,8 @@ describe("round-trip parsing/rendering", () => {
   it("round-trips completed subtask with result", () => {
     const subtask = createTestSubtask({
       id: "9-2",
-      description: "Completed",
-      context: "Context.",
+      name: "Completed",
+      description: "Context.",
       completed: true,
       result: "All done!",
       updated_at: "2024-01-22T11:00:00Z",
@@ -371,8 +378,8 @@ describe("round-trip parsing/rendering", () => {
 describe("embeddedSubtaskToTask", () => {
   it("converts embedded subtask to task", () => {
     const subtask = createTestSubtask({
-      description: "Subtask",
-      context: "Context",
+      name: "Subtask",
+      description: "Context",
       priority: 2,
     });
 
@@ -381,8 +388,8 @@ describe("embeddedSubtaskToTask", () => {
     expect(task).toEqual({
       id: "9-1",
       parent_id: "9",
-      description: "Subtask",
-      context: "Context",
+      name: "Subtask",
+      description: "Context",
       priority: 2,
       completed: false,
       result: null,
@@ -402,8 +409,8 @@ describe("taskToEmbeddedSubtask", () => {
     const task = createTestTask({
       id: "9-1",
       parent_id: "9",
-      description: "Subtask",
-      context: "Context",
+      name: "Subtask",
+      description: "Context",
       priority: 2,
     });
 
@@ -411,8 +418,8 @@ describe("taskToEmbeddedSubtask", () => {
 
     expect(subtask).toEqual({
       id: "9-1",
-      description: "Subtask",
-      context: "Context",
+      name: "Subtask",
+      description: "Context",
       priority: 2,
       completed: false,
       result: null,
@@ -442,7 +449,9 @@ describe("getNextSubtaskIndex", () => {
   });
 
   it("ignores subtasks from other parents", () => {
-    const subtasks = [createTestSubtask({ id: "10-5", description: "Other parent" })];
+    const subtasks = [
+      createTestSubtask({ id: "10-5", description: "Other parent" }),
+    ];
 
     expect(getNextSubtaskIndex(subtasks, "9")).toBe(1);
   });
@@ -614,28 +623,28 @@ describe("hierarchical issue body round-trip", () => {
     const tasks = [
       createTestTask({
         id: "root",
-        description: "Root task",
-        context: "Root context",
+        name: "Root task",
+        description: "Root context",
         children: ["child1", "child2"],
       }),
       createTestTask({
         id: "child1",
         parent_id: "root",
-        description: "First child",
-        context: "Child 1 context",
+        name: "First child",
+        description: "Child 1 context",
         children: ["grandchild1"],
       }),
       createTestTask({
         id: "grandchild1",
         parent_id: "child1",
-        description: "Grandchild",
-        context: "Grandchild context",
+        name: "Grandchild",
+        description: "Grandchild context",
       }),
       createTestTask({
         id: "child2",
         parent_id: "root",
-        description: "Second child",
-        context: "Child 2 context",
+        name: "Second child",
+        description: "Child 2 context",
         priority: 2,
         completed: true,
         result: "Done",
@@ -648,7 +657,7 @@ describe("hierarchical issue body round-trip", () => {
     const rendered = renderHierarchicalIssueBody("Root context", descendants);
     const parsed = parseHierarchicalIssueBody(rendered);
 
-    expect(parsed.context).toBe("Root context");
+    expect(parsed.description).toBe("Root context");
     expect(parsed.subtasks).toHaveLength(3);
 
     const child1 = parsed.subtasks.find((s) => s.id === "child1");
@@ -671,15 +680,15 @@ describe("hierarchical issue body round-trip", () => {
     const tasks = [
       createTestTask({
         id: "root",
-        description: "Root",
-        context: "Root context",
+        name: "Root",
+        description: "Root context",
         children: ["withcommit"],
       }),
       createTestTask({
         id: "withcommit",
         parent_id: "root",
-        description: "Task with commit",
-        context: "Commit context",
+        name: "Task with commit",
+        description: "Commit context",
         completed: true,
         result: "Implemented",
         metadata: { commit: commitMetadata },
@@ -699,12 +708,17 @@ describe("hierarchical issue body round-trip", () => {
   it("round-trips subtask with multi-line result", () => {
     const multiLineResult = "Step 1: Done\nStep 2: Done\nStep 3: Done";
     const tasks = [
-      createTestTask({ id: "root", description: "Root", context: "Root", children: ["multiline"] }),
+      createTestTask({
+        id: "root",
+        name: "Root",
+        description: "Root",
+        children: ["multiline"],
+      }),
       createTestTask({
         id: "multiline",
         parent_id: "root",
-        description: "Multi-line result task",
-        context: "Context",
+        name: "Multi-line result task",
+        description: "Context",
         completed: true,
         result: multiLineResult,
         updated_at: "2024-01-22T11:00:00Z",
@@ -722,12 +736,17 @@ describe("hierarchical issue body round-trip", () => {
 
   it("round-trips all timestamp fields", () => {
     const tasks = [
-      createTestTask({ id: "root", description: "Root", context: "Root", children: ["timestamps"] }),
+      createTestTask({
+        id: "root",
+        name: "Root",
+        description: "Root",
+        children: ["timestamps"],
+      }),
       createTestTask({
         id: "timestamps",
         parent_id: "root",
-        description: "Timestamp task",
-        context: "Context",
+        name: "Timestamp task",
+        description: "Context",
         priority: 3,
         completed: true,
         result: "Completed",
@@ -751,16 +770,32 @@ describe("hierarchical issue body round-trip", () => {
 
   it("preserves depth ordering in rendered output", () => {
     const tasks = [
-      createTestTask({ id: "root", description: "Root", context: "Root", children: ["a", "b"] }),
+      createTestTask({
+        id: "root",
+        name: "Root",
+        description: "Root",
+        children: ["a", "b"],
+      }),
       createTestTask({
         id: "a",
         parent_id: "root",
-        description: "A",
-        context: "A context",
+        name: "A",
+        description: "A context",
         children: ["a1"],
       }),
-      createTestTask({ id: "a1", parent_id: "a", description: "A1", context: "A1 context" }),
-      createTestTask({ id: "b", parent_id: "root", description: "B", context: "B context", priority: 2 }),
+      createTestTask({
+        id: "a1",
+        parent_id: "a",
+        name: "A1",
+        description: "A1 context",
+      }),
+      createTestTask({
+        id: "b",
+        parent_id: "root",
+        name: "B",
+        description: "B context",
+        priority: 2,
+      }),
     ];
 
     const descendants = collectDescendants(tasks, "root");

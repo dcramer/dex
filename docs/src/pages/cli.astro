@@ -36,11 +36,11 @@ dex status --json      # Output as JSON`}
 
   <div class="command-card">
     <h3>dex create</h3>
-    <div class="synopsis">dex create &lt;description&gt; [--context &lt;context&gt;] [options]</div>
-    <p>Create a new task with description and optional context.</p>
+    <div class="synopsis">dex create &lt;name&gt; [--description &lt;details&gt;] [options]</div>
+    <p>Create a new task with name and optional description.</p>
     <ul>
-      <li><code>&lt;description&gt;</code> — One-line summary (required, positional)</li>
-      <li><code>--context</code> — Full implementation details (optional)</li>
+      <li><code>&lt;name&gt;</code> — One-line summary (required, positional)</li>
+      <li><code>-d, --description</code> — Full implementation details (optional)</li>
       <li><code>-p, --priority &lt;n&gt;</code> — Lower = higher priority (default: 1)</li>
       <li><code>-b, --blocked-by &lt;ids&gt;</code> — Comma-separated task IDs that block this task</li>
       <li><code>--parent &lt;id&gt;</code> — Parent task ID (creates subtask)</li>
@@ -48,7 +48,7 @@ dex status --json      # Output as JSON`}
     <Terminal title="Terminal">
       <Code
         code={`dex create "Add JWT authentication" \\
-  --context "Implement JWT middleware for route protection..."
+  --description "Implement JWT middleware for route protection..."
 
 dex create "Fix login bug"
 
@@ -70,7 +70,7 @@ dex create "Add token refresh" --parent abc123`}
       <li><code>--completed</code> — Only completed tasks</li>
       <li><code>--ready</code> — Only unblocked tasks</li>
       <li><code>--blocked</code> — Only blocked tasks</li>
-      <li><code>--query &lt;text&gt;</code> — Search in description/context</li>
+      <li><code>--query &lt;text&gt;</code> — Search in name/description</li>
       <li><code>--flat</code> — Plain list instead of tree</li>
     </ul>
     <Terminal title="Terminal">
@@ -119,14 +119,14 @@ dex complete abc123 --result "..." --commit a1b2c3d`}
     <div class="synopsis">dex edit &lt;id&gt; [options]</div>
     <p>Edit an existing task.</p>
     <ul>
+      <li><code>-n, --name</code> — Updated name</li>
       <li><code>-d, --description</code> — Updated description</li>
-      <li><code>--context</code> — Updated context</li>
       <li><code>--add-blocker &lt;id&gt;</code> — Add blocking dependency</li>
       <li><code>--remove-blocker &lt;id&gt;</code> — Remove blocking dependency</li>
     </ul>
     <Terminal title="Terminal">
       <Code
-        code={`dex edit abc123 -d "Updated description"
+        code={`dex edit abc123 -n "Updated name"
 dex edit abc123 --add-blocker xyz789
 dex edit abc123 --remove-blocker xyz789`}
         lang="bash"

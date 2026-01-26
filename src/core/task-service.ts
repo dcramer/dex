@@ -181,8 +181,8 @@ export class TaskService {
     const task: Task = {
       id: taskId,
       parent_id: parentId,
-      description: input.description,
-      context: input.context ?? "",
+      name: input.name,
+      description: input.description ?? "",
       priority: input.priority ?? 1,
       completed: input.completed ?? false,
       result: input.result ?? null,
@@ -231,8 +231,8 @@ export class TaskService {
     const oldParentId = task.parent_id;
     const now = new Date().toISOString();
 
+    if (input.name !== undefined) task.name = input.name;
     if (input.description !== undefined) task.description = input.description;
-    if (input.context !== undefined) task.context = input.context;
     if (input.parent_id !== undefined) {
       if (input.parent_id !== null) {
         // Validate new parent exists and isn't self or descendant
@@ -413,8 +413,8 @@ export class TaskService {
       const q = input.query.toLowerCase();
       tasks = tasks.filter(
         (t) =>
-          t.description.toLowerCase().includes(q) ||
-          (t.context && t.context.toLowerCase().includes(q)),
+          t.name.toLowerCase().includes(q) ||
+          (t.description && t.description.toLowerCase().includes(q)),
       );
     }
 

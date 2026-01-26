@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { FileStorage } from "../core/storage/index.js";
 import { runCli } from "./index.js";
-import { captureOutput, createTempStorage, CapturedOutput, TASK_ID_REGEX } from "./test-helpers.js";
+import {
+  captureOutput,
+  createTempStorage,
+  CapturedOutput,
+  TASK_ID_REGEX,
+} from "./test-helpers.js";
 
 describe("show command", () => {
   let storage: FileStorage;
@@ -26,7 +31,10 @@ describe("show command", () => {
   });
 
   it("displays task details", async () => {
-    await runCli(["create", "-d", "Show test", "--context", "Detailed context here"], { storage });
+    await runCli(
+      ["create", "-n", "Show test", "--description", "Detailed context here"],
+      { storage },
+    );
 
     const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     expect(taskId).toBeDefined();
@@ -40,7 +48,9 @@ describe("show command", () => {
   });
 
   it("fails for nonexistent task", async () => {
-    await expect(runCli(["show", "nonexist"], { storage })).rejects.toThrow("process.exit");
+    await expect(runCli(["show", "nonexist"], { storage })).rejects.toThrow(
+      "process.exit",
+    );
     expect(output.stderr.join("\n")).toContain("not found");
   });
 
@@ -51,15 +61,31 @@ describe("show command", () => {
 
   it("shows hierarchy tree for nested task", async () => {
     // Create epic -> task -> subtask hierarchy
-    await runCli(["create", "-d", "Epic task", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "Epic task", "--description", "ctx"], {
+      storage,
+    });
     const epicId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     output.stdout.length = 0;
 
-    await runCli(["create", "-d", "Child task", "--context", "ctx", "--parent", epicId!], { storage });
+    await runCli(
+      [
+        "create",
+        "-n",
+        "Child task",
+        "--description",
+        "ctx",
+        "--parent",
+        epicId!,
+      ],
+      { storage },
+    );
     const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     output.stdout.length = 0;
 
-    await runCli(["create", "-d", "Subtask", "--context", "ctx", "--parent", taskId!], { storage });
+    await runCli(
+      ["create", "-n", "Subtask", "--description", "ctx", "--parent", taskId!],
+      { storage },
+    );
     const subtaskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     output.stdout.length = 0;
 
@@ -73,16 +99,41 @@ describe("show command", () => {
 
   it("shows subtask counts in hierarchy tree", async () => {
     // Create epic -> task -> subtask hierarchy
-    await runCli(["create", "-d", "Epic", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "Epic", "--description", "ctx"], { storage });
     const epicId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     output.stdout.length = 0;
 
-    await runCli(["create", "-d", "Task", "--context", "ctx", "--parent", epicId!], { storage });
+    await runCli(
+      ["create", "-n", "Task", "--description", "ctx", "--parent", epicId!],
+      { storage },
+    );
     const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     output.stdout.length = 0;
 
-    await runCli(["create", "-d", "Subtask 1", "--context", "ctx", "--parent", taskId!], { storage });
-    await runCli(["create", "-d", "Subtask 2", "--context", "ctx", "--parent", taskId!], { storage });
+    await runCli(
+      [
+        "create",
+        "-n",
+        "Subtask 1",
+        "--description",
+        "ctx",
+        "--parent",
+        taskId!,
+      ],
+      { storage },
+    );
+    await runCli(
+      [
+        "create",
+        "-n",
+        "Subtask 2",
+        "--description",
+        "ctx",
+        "--parent",
+        taskId!,
+      ],
+      { storage },
+    );
 
     output.stdout.length = 0;
     await runCli(["show", epicId!], { storage });
@@ -94,10 +145,15 @@ describe("show command", () => {
   });
 
   it("shows navigation hint with dex list instead of --parent", async () => {
-    await runCli(["create", "-d", "Parent", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "Parent", "--description", "ctx"], {
+      storage,
+    });
     const parentId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
 
-    await runCli(["create", "-d", "Child", "--context", "ctx", "--parent", parentId!], { storage });
+    await runCli(
+      ["create", "-n", "Child", "--description", "ctx", "--parent", parentId!],
+      { storage },
+    );
 
     output.stdout.length = 0;
     await runCli(["show", parentId!], { storage });
@@ -109,12 +165,25 @@ describe("show command", () => {
 
   it("shows blocked by section when task has blockers", async () => {
     // Create blocker task
-    await runCli(["create", "-d", "Task A", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "Task A", "--description", "ctx"], {
+      storage,
+    });
     const blockerId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     output.stdout.length = 0; // Clear output before next command
 
     // Create blocked task
-    await runCli(["create", "-d", "Task B", "--context", "ctx", "--blocked-by", blockerId!], { storage });
+    await runCli(
+      [
+        "create",
+        "-n",
+        "Task B",
+        "--description",
+        "ctx",
+        "--blocked-by",
+        blockerId!,
+      ],
+      { storage },
+    );
     const blockedId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
 
     output.stdout.length = 0;
@@ -128,12 +197,25 @@ describe("show command", () => {
 
   it("shows blocks section when task blocks others", async () => {
     // Create blocker task
-    await runCli(["create", "-d", "Task A", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "Task A", "--description", "ctx"], {
+      storage,
+    });
     const blockerId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     output.stdout.length = 0; // Clear output before next command
 
     // Create blocked task
-    await runCli(["create", "-d", "Task B", "--context", "ctx", "--blocked-by", blockerId!], { storage });
+    await runCli(
+      [
+        "create",
+        "-n",
+        "Task B",
+        "--description",
+        "ctx",
+        "--blocked-by",
+        blockerId!,
+      ],
+      { storage },
+    );
 
     output.stdout.length = 0;
     await runCli(["show", blockerId!], { storage });

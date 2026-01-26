@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { FileStorage } from "../core/storage/index.js";
 import { runCli } from "./index.js";
-import { captureOutput, createTempStorage, CapturedOutput, TASK_ID_REGEX } from "./test-helpers.js";
+import {
+  captureOutput,
+  createTempStorage,
+  CapturedOutput,
+  TASK_ID_REGEX,
+} from "./test-helpers.js";
 
 describe("edit command", () => {
   let storage: FileStorage;
@@ -25,37 +30,48 @@ describe("edit command", () => {
     mockExit.mockRestore();
   });
 
-  it("edits task description", async () => {
-    await runCli(["create", "-d", "Original description", "--context", "ctx"], { storage });
+  it("edits task name", async () => {
+    await runCli(["create", "-n", "Original name", "--description", "desc"], {
+      storage,
+    });
     const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     output.stdout.length = 0;
 
-    await runCli(["edit", taskId!, "-d", "Updated description"], { storage });
+    await runCli(["edit", taskId!, "-n", "Updated name"], { storage });
 
     const out = output.stdout.join("\n");
     expect(out).toContain("Updated");
-    expect(out).toContain("Updated description");
+    expect(out).toContain("Updated name");
   });
 
-  it("edits task context", async () => {
-    await runCli(["create", "-d", "Test task", "--context", "Original context"], { storage });
+  it("edits task description", async () => {
+    await runCli(
+      ["create", "-n", "Test task", "--description", "Original description"],
+      { storage },
+    );
     const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     output.stdout.length = 0;
 
-    await runCli(["edit", taskId!, "--context", "New context details"], { storage });
+    await runCli(
+      ["edit", taskId!, "--description", "New description details"],
+      { storage },
+    );
 
     const out = output.stdout.join("\n");
     expect(out).toContain("Updated");
 
-    // Verify context was updated by showing with verbose flag
+    // Verify description was updated by showing with verbose flag
     output.stdout.length = 0;
     await runCli(["show", taskId!, "--full"], { storage });
     const showOut = output.stdout.join("\n");
-    expect(showOut).toContain("New context details");
+    expect(showOut).toContain("New description details");
   });
 
   it("edits task priority", async () => {
-    await runCli(["create", "-d", "Test task", "--context", "ctx", "-p", "2"], { storage });
+    await runCli(
+      ["create", "-n", "Test task", "--description", "ctx", "-p", "2"],
+      { storage },
+    );
     const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     output.stdout.length = 0;
 
@@ -68,17 +84,23 @@ describe("edit command", () => {
 
   it("adds blocker to task", async () => {
     // Create blocker task
-    await runCli(["create", "-d", "Blocker task", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "Blocker task", "--description", "ctx"], {
+      storage,
+    });
     const blockerId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     output.stdout.length = 0;
 
     // Create task to be blocked
-    await runCli(["create", "-d", "Blocked task", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "Blocked task", "--description", "ctx"], {
+      storage,
+    });
     const blockedId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     output.stdout.length = 0;
 
     // Add blocker
-    await runCli(["edit", blockedId!, "--add-blocker", blockerId!], { storage });
+    await runCli(["edit", blockedId!, "--add-blocker", blockerId!], {
+      storage,
+    });
     expect(output.stdout.join("\n")).toContain("Updated");
     output.stdout.length = 0;
 
@@ -91,17 +113,32 @@ describe("edit command", () => {
 
   it("removes blocker from task", async () => {
     // Create blocker task
-    await runCli(["create", "-d", "Blocker task", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "Blocker task", "--description", "ctx"], {
+      storage,
+    });
     const blockerId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     output.stdout.length = 0;
 
     // Create task with blocker
-    await runCli(["create", "-d", "Blocked task", "--context", "ctx", "--blocked-by", blockerId!], { storage });
+    await runCli(
+      [
+        "create",
+        "-n",
+        "Blocked task",
+        "--description",
+        "ctx",
+        "--blocked-by",
+        blockerId!,
+      ],
+      { storage },
+    );
     const blockedId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     output.stdout.length = 0;
 
     // Remove blocker
-    await runCli(["edit", blockedId!, "--remove-blocker", blockerId!], { storage });
+    await runCli(["edit", blockedId!, "--remove-blocker", blockerId!], {
+      storage,
+    });
 
     const out = output.stdout.join("\n");
     expect(out).toContain("Updated");
@@ -110,21 +147,30 @@ describe("edit command", () => {
 
   it("adds multiple blockers via comma-separated list", async () => {
     // Create two blocker tasks
-    await runCli(["create", "-d", "Blocker 1", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "Blocker 1", "--description", "ctx"], {
+      storage,
+    });
     const blocker1 = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     output.stdout.length = 0;
 
-    await runCli(["create", "-d", "Blocker 2", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "Blocker 2", "--description", "ctx"], {
+      storage,
+    });
     const blocker2 = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     output.stdout.length = 0;
 
     // Create task to be blocked
-    await runCli(["create", "-d", "Main task", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "Main task", "--description", "ctx"], {
+      storage,
+    });
     const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     output.stdout.length = 0;
 
     // Add both blockers at once
-    await runCli(["edit", taskId!, "--add-blocker", `${blocker1},${blocker2}`], { storage });
+    await runCli(
+      ["edit", taskId!, "--add-blocker", `${blocker1},${blocker2}`],
+      { storage },
+    );
     expect(output.stdout.join("\n")).toContain("Updated");
     output.stdout.length = 0;
 
@@ -137,12 +183,16 @@ describe("edit command", () => {
   });
 
   it("fails for non-existent task", async () => {
-    await expect(runCli(["edit", "nonexist", "-d", "New desc"], { storage })).rejects.toThrow("process.exit");
+    await expect(
+      runCli(["edit", "nonexist", "-n", "New desc"], { storage }),
+    ).rejects.toThrow("process.exit");
     expect(output.stderr.join("\n")).toContain("not found");
   });
 
   it("can edit a completed task", async () => {
-    await runCli(["create", "-d", "To complete", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "To complete", "--description", "ctx"], {
+      storage,
+    });
     const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     output.stdout.length = 0;
 
@@ -151,7 +201,9 @@ describe("edit command", () => {
     output.stdout.length = 0;
 
     // Edit the completed task
-    await runCli(["edit", taskId!, "-d", "Updated completed task"], { storage });
+    await runCli(["edit", taskId!, "-n", "Updated completed task"], {
+      storage,
+    });
 
     const out = output.stdout.join("\n");
     expect(out).toContain("Updated");
@@ -159,11 +211,26 @@ describe("edit command", () => {
   });
 
   it("performs multiple edits in one command", async () => {
-    await runCli(["create", "-d", "Original", "--context", "Original ctx", "-p", "1"], { storage });
+    await runCli(
+      ["create", "-n", "Original", "--description", "Original ctx", "-p", "1"],
+      { storage },
+    );
     const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     output.stdout.length = 0;
 
-    await runCli(["edit", taskId!, "-d", "New desc", "--context", "New ctx", "-p", "3"], { storage });
+    await runCli(
+      [
+        "edit",
+        taskId!,
+        "-n",
+        "New desc",
+        "--description",
+        "New ctx",
+        "-p",
+        "3",
+      ],
+      { storage },
+    );
 
     const out = output.stdout.join("\n");
     expect(out).toContain("Updated");
@@ -179,12 +246,16 @@ describe("edit command", () => {
 
   it("edits task parent", async () => {
     // Create parent task
-    await runCli(["create", "-d", "Parent task", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "Parent task", "--description", "ctx"], {
+      storage,
+    });
     const parentId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     output.stdout.length = 0;
 
     // Create child task without parent
-    await runCli(["create", "-d", "Child task", "--context", "ctx"], { storage });
+    await runCli(["create", "-n", "Child task", "--description", "ctx"], {
+      storage,
+    });
     const childId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
     output.stdout.length = 0;
 
@@ -200,8 +271,8 @@ describe("edit command", () => {
 
     const out = output.stdout.join("\n");
     expect(out).toContain("dex edit");
+    expect(out).toContain("--name");
     expect(out).toContain("--description");
-    expect(out).toContain("--context");
     expect(out).toContain("--add-blocker");
     expect(out).toContain("--remove-blocker");
   });

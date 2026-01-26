@@ -4,7 +4,7 @@ import { colors, stripAnsi } from "./colors.js";
 export interface FormatTaskOptions {
   verbose?: boolean;
   treePrefix?: string;
-  truncateDescription?: number;
+  truncateName?: number;
   blockedByIds?: string[]; // IDs of incomplete tasks blocking this one
 }
 
@@ -25,10 +25,10 @@ export function formatAge(isoDate: string): string {
 export function formatBreadcrumb(
   ancestors: Task[],
   current: Task,
-  maxDescLength: number = 30,
+  maxNameLength: number = 30,
 ): string {
   const items = [...ancestors, current].map((t) =>
-    truncateText(t.description, maxDescLength),
+    truncateText(t.name, maxNameLength),
   );
   return items.join(` ${colors.dim}>${colors.reset} `);
 }
@@ -118,7 +118,7 @@ export function formatTask(
   const {
     verbose = false,
     treePrefix = "",
-    truncateDescription,
+    truncateName,
     blockedByIds,
   } = options;
 
@@ -141,11 +141,9 @@ export function formatTask(
     blockedIndicator = ` ${colors.red}[B: ${blockedInfo}]${colors.reset}`;
   }
 
-  const description = truncateDescription
-    ? truncateText(task.description, truncateDescription)
-    : task.description;
+  const name = truncateName ? truncateText(task.name, truncateName) : task.name;
 
-  let output = `${treePrefix}${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}${priority}${blockedIndicator}: ${description}${completionAge}`;
+  let output = `${treePrefix}${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}${priority}${blockedIndicator}: ${name}${completionAge}`;
 
   if (verbose) {
     const labelWidth = 12;
@@ -153,7 +151,7 @@ export function formatTask(
     const verbosePrefix = treePrefix
       .replace(/├── $/, "│   ")
       .replace(/└── $/, "    ");
-    output += `\n${verbosePrefix}  ${"Context:".padEnd(labelWidth)} ${task.context}`;
+    output += `\n${verbosePrefix}  ${"Description:".padEnd(labelWidth)} ${task.description}`;
     if (task.result) {
       output += `\n${verbosePrefix}  ${"Result:".padEnd(labelWidth)} ${colors.green}${task.result}${colors.reset}`;
     }

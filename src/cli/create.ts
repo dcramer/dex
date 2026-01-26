@@ -15,8 +15,8 @@ export async function createCommand(
   const { positional, flags } = parseArgs(
     args,
     {
+      name: { short: "n", hasValue: true },
       description: { short: "d", hasValue: true },
-      context: { hasValue: true },
       priority: { short: "p", hasValue: true },
       parent: { hasValue: true },
       "blocked-by": { short: "b", hasValue: true },
@@ -29,12 +29,12 @@ export async function createCommand(
     console.log(`${colors.bold}dex create${colors.reset} - Create a new task
 
 ${colors.bold}USAGE:${colors.reset}
-  dex create "description" [--context "context"] [options]
-  dex create -d "description" [--context "context"] [options]  ${colors.dim}# legacy${colors.reset}
+  dex create "name" [--description "details"] [options]
+  dex create -n "name" [--description "details"] [options]
 
 ${colors.bold}OPTIONS:${colors.reset}
-  -d, --description <text>   Task description (deprecated: use positional arg)
-  --context <text>           Task context/details (optional)
+  -n, --name <text>          Task name (or use positional arg)
+  -d, --description <text>   Task description/details (optional)
   -p, --priority <n>         Priority level (lower = higher priority, default: 1)
   --parent <id>              Parent task ID (creates subtask)
   -b, --blocked-by <ids>     Comma-separated task IDs that block this task
@@ -42,23 +42,21 @@ ${colors.bold}OPTIONS:${colors.reset}
 
 ${colors.bold}EXAMPLES:${colors.reset}
   dex create "Fix login bug"
-  dex create "Fix login bug" --context "Users report 500 errors on /login"
-  dex create "Write tests" --context "Cover auth module" -p 2
-  dex create "Subtask" --context "Part of bigger task" --parent abc123
-  dex create "Deploy" --context "Release to prod" --blocked-by abc123,def456
+  dex create "Fix login bug" --description "Users report 500 errors on /login"
+  dex create "Write tests" --description "Cover auth module" -p 2
+  dex create "Subtask" --description "Part of bigger task" --parent abc123
+  dex create "Deploy" --description "Release to prod" --blocked-by abc123,def456
 `);
     return;
   }
 
-  // Accept description from either positional arg or -d flag (for backward compatibility)
-  const description = positional[0] || getStringFlag(flags, "description");
-  const context = getStringFlag(flags, "context");
+  // Accept name from positional arg or -n flag
+  const name = positional[0] || getStringFlag(flags, "name");
+  const description = getStringFlag(flags, "description");
 
-  if (!description) {
-    console.error(`${colors.red}Error:${colors.reset} description is required`);
-    console.error(
-      `Usage: dex create "task description" [--context "context info"]`,
-    );
+  if (!name) {
+    console.error(`${colors.red}Error:${colors.reset} name is required`);
+    console.error(`Usage: dex create "task name" [--description "details"]`);
     process.exit(1);
   }
 
@@ -74,8 +72,8 @@ ${colors.bold}EXAMPLES:${colors.reset}
   const service = createService(options);
   try {
     const task = await service.create({
+      name,
       description,
-      context,
       parent_id: getStringFlag(flags, "parent"),
       priority: parseIntFlag(flags, "priority"),
       blocked_by: blockedBy,

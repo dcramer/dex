@@ -13,18 +13,18 @@ ${colors.bold}COMMANDS:${colors.reset}
   config <key>[=<value>]           Get or set config values
   mcp                              Start MCP server (stdio)
   status                           Show dashboard overview (default)
-  create "description" [--context "..."]  Create task
-  add                                     Alias for create command
+  create "name" [--description "..."]  Create task
+  add                                   Alias for create command
   list, ls                         List all pending tasks (tree view)
   list --flat                      List without tree hierarchy
   list --all                       Include completed tasks
   list --status completed          Filter by status
-  list --query "login"             Search description/context
+  list --query "login"             Search name/description
   list --json                      Output as JSON (for scripts)
   show <id>                        View task details (truncated)
-  show <id> --full                 View full context and result
+  show <id> --full                 View full description and result
   show <id> --json                 Output as JSON (for scripts)
-  edit <id> [-d "..."]             Edit task
+  edit <id> [-n "..."]             Edit task
   update                           Alias for edit command
   complete <id> --result "..."     Mark completed with result
   done                             Alias for complete command
@@ -47,14 +47,14 @@ ${colors.bold}ENVIRONMENT:${colors.reset}
   NO_COLOR                         Disable colored output
 
 ${colors.bold}EXAMPLES:${colors.reset}
-  ${colors.dim}# Create with detailed context (requirements, approach, done criteria):${colors.reset}
-  dex create "Add user auth" --context "Requirements:
+  ${colors.dim}# Create with detailed description (requirements, approach, done criteria):${colors.reset}
+  dex create "Add user auth" --description "Requirements:
     - JWT with refresh tokens
     - bcrypt for passwords
     Approach: /login, /register endpoints
     Done when: users can register/login, tests pass"
 
-  ${colors.dim}# Create simple task (context optional):${colors.reset}
+  ${colors.dim}# Create simple task (description optional):${colors.reset}
   dex create "Fix login bug"
 
   ${colors.dim}# Complete with detailed result (what, decisions, follow-ups):${colors.reset}
@@ -69,6 +69,6 @@ ${colors.bold}EXAMPLES:${colors.reset}
 
   ${colors.dim}# Other common operations:${colors.reset}
   dex list --json | jq '.[] | .id'
-  dex create "Subtask" --context "..." --parent abc123
+  dex create "Subtask" --description "..." --parent abc123
 `);
 }

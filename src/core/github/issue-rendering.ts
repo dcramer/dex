@@ -24,7 +24,7 @@ export function createSubtaskId(parentId: string, index: number): string {
  */
 export function renderIssueBody(
   context: string,
-  subtasks: EmbeddedSubtask[]
+  subtasks: EmbeddedSubtask[],
 ): string {
   if (subtasks.length === 0) {
     return context;
@@ -40,7 +40,7 @@ interface TaskLike {
   id: string;
   priority: number;
   completed: boolean;
-  context: string;
+  description: string;
   result: string | null;
   created_at: string;
   updated_at: string;
@@ -55,7 +55,7 @@ interface TaskLike {
  */
 function renderTaskMetadataAndContent(
   task: TaskLike,
-  parentId?: string | null
+  parentId?: string | null,
 ): string[] {
   const lines: string[] = [];
 
@@ -67,13 +67,17 @@ function renderTaskMetadataAndContent(
   lines.push(`<!-- dex:subtask:completed:${task.completed} -->`);
   lines.push(`<!-- dex:subtask:created_at:${task.created_at} -->`);
   lines.push(`<!-- dex:subtask:updated_at:${task.updated_at} -->`);
-  lines.push(`<!-- dex:subtask:completed_at:${task.completed_at ?? "null"} -->`);
+  lines.push(
+    `<!-- dex:subtask:completed_at:${task.completed_at ?? "null"} -->`,
+  );
 
   if (task.metadata?.commit) {
     const commit = task.metadata.commit;
     lines.push(`<!-- dex:subtask:commit_sha:${commit.sha} -->`);
     if (commit.message) {
-      lines.push(`<!-- dex:subtask:commit_message:${encodeMetadataValue(commit.message)} -->`);
+      lines.push(
+        `<!-- dex:subtask:commit_message:${encodeMetadataValue(commit.message)} -->`,
+      );
     }
     if (commit.branch) {
       lines.push(`<!-- dex:subtask:commit_branch:${commit.branch} -->`);
@@ -88,9 +92,9 @@ function renderTaskMetadataAndContent(
 
   lines.push("");
 
-  if (task.context) {
-    lines.push("### Context");
-    lines.push(task.context);
+  if (task.description) {
+    lines.push("### Description");
+    lines.push(task.description);
     lines.push("");
   }
 
@@ -111,7 +115,7 @@ function renderSubtaskBlock(subtask: EmbeddedSubtask): string {
 
   return [
     "<details>",
-    `<summary>[${checkbox}] ${subtask.description}</summary>`,
+    `<summary>[${checkbox}] ${subtask.name}</summary>`,
     ...renderTaskMetadataAndContent(subtask),
     "</details>",
   ].join("\n");
@@ -125,7 +129,7 @@ function renderSubtaskBlock(subtask: EmbeddedSubtask): string {
  */
 export function renderHierarchicalIssueBody(
   context: string,
-  descendants: HierarchicalTask[]
+  descendants: HierarchicalTask[],
 ): string {
   if (descendants.length === 0) {
     return context;
@@ -139,7 +143,7 @@ export function renderHierarchicalIssueBody(
   for (const { task, depth } of descendants) {
     const indent = "  ".repeat(depth);
     const checkbox = task.completed ? "x" : " ";
-    lines.push(`${indent}- [${checkbox}] **${task.description}** \`${task.id}\``);
+    lines.push(`${indent}- [${checkbox}] **${task.name}** \`${task.id}\``);
   }
   lines.push("");
 
@@ -160,14 +164,14 @@ export function renderHierarchicalIssueBody(
 function renderHierarchicalTaskBlock(
   task: Task,
   depth: number,
-  parentId: string | null
+  parentId: string | null,
 ): string {
   const checkbox = task.completed ? "x" : " ";
   const depthArrow = depth > 0 ? "↳".repeat(depth) + " " : "";
 
   return [
     "<details>",
-    `<summary>[${checkbox}] ${depthArrow}<b>${task.description}</b> <code>${task.id}</code></summary>`,
+    `<summary>[${checkbox}] ${depthArrow}<b>${task.name}</b> <code>${task.id}</code></summary>`,
     ...renderTaskMetadataAndContent(task, parentId),
     "</details>",
   ].join("\n");

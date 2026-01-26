@@ -14,7 +14,8 @@ import {
 
 // Mock git remote detection
 vi.mock("../core/github/remote.js", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../core/github/remote.js")>();
+  const original =
+    await importOriginal<typeof import("../core/github/remote.js")>();
   return {
     ...original,
     getGitHubRepo: vi.fn(() => ({ owner: "test-owner", repo: "test-repo" })),
@@ -78,10 +79,16 @@ describe("sync command", () => {
 
   /** Helper to create a task and return its ID, clearing output afterward. */
   async function createTask(
-    description: string,
-    opts: { context?: string; parent?: string } = {}
+    name: string,
+    opts: { description?: string; parent?: string } = {},
   ): Promise<string> {
-    const args = ["create", "-d", description, "--context", opts.context ?? "ctx"];
+    const args = [
+      "create",
+      "-n",
+      name,
+      "--description",
+      opts.description ?? "ctx",
+    ];
     if (opts.parent) args.push("--parent", opts.parent);
     await runCli(args, { storage });
     const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
@@ -104,7 +111,7 @@ describe("sync command", () => {
 
   describe("dry-run mode", () => {
     it("previews sync without making changes for all tasks", async () => {
-      const taskId = await createTask("Test task", { context: "context" });
+      const taskId = await createTask("Test task", { description: "context" });
 
       await runCli(["sync", "--dry-run"], { storage });
 
@@ -116,14 +123,20 @@ describe("sync command", () => {
     });
 
     it("shows update action for tasks already synced to GitHub", async () => {
-      const taskId = await createTask("Synced task", { context: "context" });
+      const taskId = await createTask("Synced task", {
+        description: "context",
+      });
 
       // Sync to create GitHub metadata
       githubMock.listIssues("test-owner", "test-repo", []);
-      githubMock.createIssue("test-owner", "test-repo", createIssueFixture({
-        number: 42,
-        title: "Synced task",
-      }));
+      githubMock.createIssue(
+        "test-owner",
+        "test-repo",
+        createIssueFixture({
+          number: 42,
+          title: "Synced task",
+        }),
+      );
       await runCli(["sync", taskId], { storage });
       output.stdout.length = 0;
 
@@ -148,13 +161,19 @@ describe("sync command", () => {
 
   describe("sync specific task", () => {
     it("syncs a specific task to GitHub", async () => {
-      const taskId = await createTask("Task to sync", { context: "Some context" });
+      const taskId = await createTask("Task to sync", {
+        description: "Some context",
+      });
 
       githubMock.listIssues("test-owner", "test-repo", []);
-      githubMock.createIssue("test-owner", "test-repo", createIssueFixture({
-        number: 101,
-        title: "Task to sync",
-      }));
+      githubMock.createIssue(
+        "test-owner",
+        "test-repo",
+        createIssueFixture({
+          number: 101,
+          title: "Task to sync",
+        }),
+      );
 
       await runCli(["sync", taskId], { storage });
 
@@ -166,7 +185,9 @@ describe("sync command", () => {
     });
 
     it("fails when task not found", async () => {
-      await expect(runCli(["sync", "nonexist"], { storage })).rejects.toThrow("process.exit");
+      await expect(runCli(["sync", "nonexist"], { storage })).rejects.toThrow(
+        "process.exit",
+      );
       expect(output.stderr.join("\n")).toContain("not found");
     });
 
@@ -175,10 +196,14 @@ describe("sync command", () => {
       const subtaskId = await createTask("Subtask", { parent: parentId });
 
       githubMock.listIssues("test-owner", "test-repo", []);
-      githubMock.createIssue("test-owner", "test-repo", createIssueFixture({
-        number: 102,
-        title: "Parent task",
-      }));
+      githubMock.createIssue(
+        "test-owner",
+        "test-repo",
+        createIssueFixture({
+          number: 102,
+          title: "Parent task",
+        }),
+      );
 
       await runCli(["sync", subtaskId], { storage });
 
@@ -190,13 +215,21 @@ describe("sync command", () => {
 
   describe("sync all tasks", () => {
     it("syncs all root tasks to GitHub", async () => {
-      await createTask("Task 1", { context: "ctx1" });
-      await createTask("Task 2", { context: "ctx2" });
+      await createTask("Task 1", { description: "ctx1" });
+      await createTask("Task 2", { description: "ctx2" });
 
       githubMock.listIssues("test-owner", "test-repo", []);
-      githubMock.createIssue("test-owner", "test-repo", createIssueFixture({ number: 201, title: "Task 1" }));
+      githubMock.createIssue(
+        "test-owner",
+        "test-repo",
+        createIssueFixture({ number: 201, title: "Task 1" }),
+      );
       githubMock.listIssues("test-owner", "test-repo", []);
-      githubMock.createIssue("test-owner", "test-repo", createIssueFixture({ number: 202, title: "Task 2" }));
+      githubMock.createIssue(
+        "test-owner",
+        "test-repo",
+        createIssueFixture({ number: 202, title: "Task 2" }),
+      );
 
       await runCli(["sync"], { storage });
 
@@ -211,7 +244,11 @@ describe("sync command", () => {
       await createTask("Subtask", { parent: rootId });
 
       githubMock.listIssues("test-owner", "test-repo", []);
-      githubMock.createIssue("test-owner", "test-repo", createIssueFixture({ number: 301, title: "Root task" }));
+      githubMock.createIssue(
+        "test-owner",
+        "test-repo",
+        createIssueFixture({ number: 301, title: "Root task" }),
+      );
 
       await runCli(["sync"], { storage });
 
@@ -225,7 +262,11 @@ describe("sync command", () => {
 
       // First sync to create the issue
       githubMock.listIssues("test-owner", "test-repo", []);
-      githubMock.createIssue("test-owner", "test-repo", createIssueFixture({ number: 400, title: "Already synced" }));
+      githubMock.createIssue(
+        "test-owner",
+        "test-repo",
+        createIssueFixture({ number: 400, title: "Already synced" }),
+      );
       await runCli(["sync", taskId], { storage });
       output.stdout.length = 0;
 
@@ -242,7 +283,12 @@ describe("sync command", () => {
       ]);
       // Page 2 empty (end of pagination)
       githubMock.listIssues("test-owner", "test-repo", []);
-      githubMock.updateIssue("test-owner", "test-repo", 400, createIssueFixture({ number: 400, title: "Already synced" }));
+      githubMock.updateIssue(
+        "test-owner",
+        "test-repo",
+        400,
+        createIssueFixture({ number: 400, title: "Already synced" }),
+      );
 
       await runCli(["sync"], { storage });
 
@@ -258,22 +304,36 @@ describe("sync command", () => {
       delete process.env.GITHUB_TOKEN;
       await createTask("Task");
 
-      await expect(runCli(["sync"], { storage })).rejects.toThrow("process.exit");
+      await expect(runCli(["sync"], { storage })).rejects.toThrow(
+        "process.exit",
+      );
       expect(output.stderr.join("\n")).toMatch(/GitHub token|GITHUB_TOKEN/i);
     });
 
     it.each([
-      ["401 unauthorized", (mock: GitHubMock) => mock.listIssues401("test-owner", "test-repo")],
-      ["403 rate limit", (mock: GitHubMock) => mock.listIssues403("test-owner", "test-repo", true)],
-      ["500 server error", (mock: GitHubMock) => {
-        mock.listIssues("test-owner", "test-repo", []);
-        mock.createIssue500("test-owner", "test-repo");
-      }],
+      [
+        "401 unauthorized",
+        (mock: GitHubMock) => mock.listIssues401("test-owner", "test-repo"),
+      ],
+      [
+        "403 rate limit",
+        (mock: GitHubMock) =>
+          mock.listIssues403("test-owner", "test-repo", true),
+      ],
+      [
+        "500 server error",
+        (mock: GitHubMock) => {
+          mock.listIssues("test-owner", "test-repo", []);
+          mock.createIssue500("test-owner", "test-repo");
+        },
+      ],
     ])("fails on GitHub API %s", async (_, setupMock) => {
       await createTask("Task");
       setupMock(githubMock);
 
-      await expect(runCli(["sync"], { storage })).rejects.toThrow("process.exit");
+      await expect(runCli(["sync"], { storage })).rejects.toThrow(
+        "process.exit",
+      );
       expect(output.stderr.join("\n").length).toBeGreaterThan(0);
     });
   });

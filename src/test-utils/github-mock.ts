@@ -19,25 +19,53 @@ export interface GitHubIssueFixture {
 
 export interface GitHubMock {
   scope: nock.Scope;
-  getIssue: (owner: string, repo: string, number: number, response: GitHubIssueFixture) => void;
+  getIssue: (
+    owner: string,
+    repo: string,
+    number: number,
+    response: GitHubIssueFixture,
+  ) => void;
   getIssue404: (owner: string, repo: string, number: number) => void;
   getIssue401: (owner: string, repo: string, number: number) => void;
-  getIssue403: (owner: string, repo: string, number: number, rateLimited?: boolean) => void;
+  getIssue403: (
+    owner: string,
+    repo: string,
+    number: number,
+    rateLimited?: boolean,
+  ) => void;
   getIssue500: (owner: string, repo: string, number: number) => void;
   getIssueTimeout: (owner: string, repo: string, number: number) => void;
-  listIssues: (owner: string, repo: string, response: GitHubIssueFixture[]) => void;
+  listIssues: (
+    owner: string,
+    repo: string,
+    response: GitHubIssueFixture[],
+  ) => void;
   listIssues401: (owner: string, repo: string) => void;
   listIssues403: (owner: string, repo: string, rateLimited?: boolean) => void;
   listIssues404: (owner: string, repo: string) => void;
   listIssues500: (owner: string, repo: string) => void;
   listIssuesTimeout: (owner: string, repo: string) => void;
-  createIssue: (owner: string, repo: string, response: GitHubIssueFixture) => void;
+  createIssue: (
+    owner: string,
+    repo: string,
+    response: GitHubIssueFixture,
+  ) => void;
   createIssue401: (owner: string, repo: string) => void;
   createIssue403: (owner: string, repo: string, rateLimited?: boolean) => void;
   createIssue500: (owner: string, repo: string) => void;
-  updateIssue: (owner: string, repo: string, number: number, response: GitHubIssueFixture) => void;
+  updateIssue: (
+    owner: string,
+    repo: string,
+    number: number,
+    response: GitHubIssueFixture,
+  ) => void;
   updateIssue401: (owner: string, repo: string, number: number) => void;
-  updateIssue403: (owner: string, repo: string, number: number, rateLimited?: boolean) => void;
+  updateIssue403: (
+    owner: string,
+    repo: string,
+    number: number,
+    rateLimited?: boolean,
+  ) => void;
   updateIssue404: (owner: string, repo: string, number: number) => void;
   updateIssue500: (owner: string, repo: string, number: number) => void;
   done: () => void;
@@ -53,7 +81,12 @@ export function setupGitHubMock(): GitHubMock {
   return {
     scope,
 
-    getIssue(owner: string, repo: string, number: number, response: GitHubIssueFixture) {
+    getIssue(
+      owner: string,
+      repo: string,
+      number: number,
+      response: GitHubIssueFixture,
+    ) {
       scope
         .get(`/repos/${owner}/${repo}/issues/${number}`)
         .reply(200, response);
@@ -66,31 +99,34 @@ export function setupGitHubMock(): GitHubMock {
     },
 
     getIssue401(owner: string, repo: string, number: number) {
-      scope
-        .get(`/repos/${owner}/${repo}/issues/${number}`)
-        .reply(401, {
-          message: "Bad credentials",
-          documentation_url: "https://docs.github.com/rest",
-        });
+      scope.get(`/repos/${owner}/${repo}/issues/${number}`).reply(401, {
+        message: "Bad credentials",
+        documentation_url: "https://docs.github.com/rest",
+      });
     },
 
-    getIssue403(owner: string, repo: string, number: number, rateLimited = false) {
+    getIssue403(
+      owner: string,
+      repo: string,
+      number: number,
+      rateLimited = false,
+    ) {
       if (rateLimited) {
-        scope
-          .get(`/repos/${owner}/${repo}/issues/${number}`)
-          .reply(403, {
+        scope.get(`/repos/${owner}/${repo}/issues/${number}`).reply(
+          403,
+          {
             message: "API rate limit exceeded",
             documentation_url: "https://docs.github.com/rest/rate-limit",
-          }, {
+          },
+          {
             "X-RateLimit-Remaining": "0",
             "X-RateLimit-Reset": String(Math.floor(Date.now() / 1000) + 3600),
-          });
+          },
+        );
       } else {
-        scope
-          .get(`/repos/${owner}/${repo}/issues/${number}`)
-          .reply(403, {
-            message: "Resource not accessible by integration",
-          });
+        scope.get(`/repos/${owner}/${repo}/issues/${number}`).reply(403, {
+          message: "Resource not accessible by integration",
+        });
       }
     },
 
@@ -115,13 +151,10 @@ export function setupGitHubMock(): GitHubMock {
     },
 
     listIssues401(owner: string, repo: string) {
-      scope
-        .get(`/repos/${owner}/${repo}/issues`)
-        .query(true)
-        .reply(401, {
-          message: "Bad credentials",
-          documentation_url: "https://docs.github.com/rest",
-        });
+      scope.get(`/repos/${owner}/${repo}/issues`).query(true).reply(401, {
+        message: "Bad credentials",
+        documentation_url: "https://docs.github.com/rest",
+      });
     },
 
     listIssues403(owner: string, repo: string, rateLimited = false) {
@@ -129,20 +162,21 @@ export function setupGitHubMock(): GitHubMock {
         scope
           .get(`/repos/${owner}/${repo}/issues`)
           .query(true)
-          .reply(403, {
-            message: "API rate limit exceeded",
-            documentation_url: "https://docs.github.com/rest/rate-limit",
-          }, {
-            "X-RateLimit-Remaining": "0",
-            "X-RateLimit-Reset": String(Math.floor(Date.now() / 1000) + 3600),
-          });
+          .reply(
+            403,
+            {
+              message: "API rate limit exceeded",
+              documentation_url: "https://docs.github.com/rest/rate-limit",
+            },
+            {
+              "X-RateLimit-Remaining": "0",
+              "X-RateLimit-Reset": String(Math.floor(Date.now() / 1000) + 3600),
+            },
+          );
       } else {
-        scope
-          .get(`/repos/${owner}/${repo}/issues`)
-          .query(true)
-          .reply(403, {
-            message: "Resource not accessible by integration",
-          });
+        scope.get(`/repos/${owner}/${repo}/issues`).query(true).reply(403, {
+          message: "Resource not accessible by integration",
+        });
       }
     },
 
@@ -169,40 +203,36 @@ export function setupGitHubMock(): GitHubMock {
     },
 
     createIssue(owner: string, repo: string, response: GitHubIssueFixture) {
-      scope
-        .post(`/repos/${owner}/${repo}/issues`)
-        .reply(201, {
-          ...response,
-          html_url: `https://github.com/${owner}/${repo}/issues/${response.number}`,
-        });
+      scope.post(`/repos/${owner}/${repo}/issues`).reply(201, {
+        ...response,
+        html_url: `https://github.com/${owner}/${repo}/issues/${response.number}`,
+      });
     },
 
     createIssue401(owner: string, repo: string) {
-      scope
-        .post(`/repos/${owner}/${repo}/issues`)
-        .reply(401, {
-          message: "Bad credentials",
-          documentation_url: "https://docs.github.com/rest",
-        });
+      scope.post(`/repos/${owner}/${repo}/issues`).reply(401, {
+        message: "Bad credentials",
+        documentation_url: "https://docs.github.com/rest",
+      });
     },
 
     createIssue403(owner: string, repo: string, rateLimited = false) {
       if (rateLimited) {
-        scope
-          .post(`/repos/${owner}/${repo}/issues`)
-          .reply(403, {
+        scope.post(`/repos/${owner}/${repo}/issues`).reply(
+          403,
+          {
             message: "API rate limit exceeded",
             documentation_url: "https://docs.github.com/rest/rate-limit",
-          }, {
+          },
+          {
             "X-RateLimit-Remaining": "0",
             "X-RateLimit-Reset": String(Math.floor(Date.now() / 1000) + 3600),
-          });
+          },
+        );
       } else {
-        scope
-          .post(`/repos/${owner}/${repo}/issues`)
-          .reply(403, {
-            message: "Resource not accessible by integration",
-          });
+        scope.post(`/repos/${owner}/${repo}/issues`).reply(403, {
+          message: "Resource not accessible by integration",
+        });
       }
     },
 
@@ -212,41 +242,47 @@ export function setupGitHubMock(): GitHubMock {
         .reply(500, { message: "Internal Server Error" });
     },
 
-    updateIssue(owner: string, repo: string, number: number, response: GitHubIssueFixture) {
-      scope
-        .patch(`/repos/${owner}/${repo}/issues/${number}`)
-        .reply(200, {
-          ...response,
-          html_url: `https://github.com/${owner}/${repo}/issues/${response.number}`,
-        });
+    updateIssue(
+      owner: string,
+      repo: string,
+      number: number,
+      response: GitHubIssueFixture,
+    ) {
+      scope.patch(`/repos/${owner}/${repo}/issues/${number}`).reply(200, {
+        ...response,
+        html_url: `https://github.com/${owner}/${repo}/issues/${response.number}`,
+      });
     },
 
     updateIssue401(owner: string, repo: string, number: number) {
-      scope
-        .patch(`/repos/${owner}/${repo}/issues/${number}`)
-        .reply(401, {
-          message: "Bad credentials",
-          documentation_url: "https://docs.github.com/rest",
-        });
+      scope.patch(`/repos/${owner}/${repo}/issues/${number}`).reply(401, {
+        message: "Bad credentials",
+        documentation_url: "https://docs.github.com/rest",
+      });
     },
 
-    updateIssue403(owner: string, repo: string, number: number, rateLimited = false) {
+    updateIssue403(
+      owner: string,
+      repo: string,
+      number: number,
+      rateLimited = false,
+    ) {
       if (rateLimited) {
-        scope
-          .patch(`/repos/${owner}/${repo}/issues/${number}`)
-          .reply(403, {
+        scope.patch(`/repos/${owner}/${repo}/issues/${number}`).reply(
+          403,
+          {
             message: "API rate limit exceeded",
             documentation_url: "https://docs.github.com/rest/rate-limit",
-          }, {
+          },
+          {
             "X-RateLimit-Remaining": "0",
             "X-RateLimit-Reset": String(Math.floor(Date.now() / 1000) + 3600),
-          });
+          },
+        );
       } else {
-        scope
-          .patch(`/repos/${owner}/${repo}/issues/${number}`)
-          .reply(403, {
-            message: "Resource not accessible by integration",
-          });
+        scope.patch(`/repos/${owner}/${repo}/issues/${number}`).reply(403, {
+          message: "Resource not accessible by integration",
+        });
       }
     },
 
@@ -280,7 +316,7 @@ export function cleanupGitHubMock(): void {
  * Create a minimal GitHub issue fixture.
  */
 export function createIssueFixture(
-  overrides: Partial<GitHubIssueFixture> & { number: number }
+  overrides: Partial<GitHubIssueFixture> & { number: number },
 ): GitHubIssueFixture {
   return {
     title: `Test Issue #${overrides.number}`,
@@ -300,8 +336,8 @@ export function createTask(overrides: Partial<Task> = {}): Task {
   return {
     id: "test123",
     parent_id: null,
-    description: "Test task",
-    context: "Test context",
+    name: "Test task",
+    description: "Test description",
     priority: 1,
     completed: false,
     result: null,

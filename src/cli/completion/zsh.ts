@@ -30,7 +30,7 @@ _dex() {
     _dex_task_ids() {
         local -a tasks
         if command -v jq &>/dev/null; then
-            tasks=(\${(f)"\$(dex list --all --json 2>/dev/null | jq -r '.[] | "\\(.id):\\(.description | .[0:50])"' 2>/dev/null)"})
+            tasks=(\${(f)"\$(dex list --all --json 2>/dev/null | jq -r '.[] | "\\(.id):\\(.name | .[0:50])"' 2>/dev/null)"})
         else
             tasks=(\${(f)"\$(dex list --all --json 2>/dev/null | grep -o '"id": *"[^"]*"' | cut -d'"' -f4)"})
         fi
@@ -54,14 +54,14 @@ _dex() {
                     case \$words[1] in
                         show)
                             _arguments \\
-                                '--full[Show full context and result]' \\
+                                '--full[Show full description and result]' \\
                                 '--json[Output as JSON]' \\
                                 '(-h --help)'{-h,--help}'[Show help]'
                             ;;
                         edit|update)
                             _arguments \\
+                                '(-n --name)'{-n,--name}'[New name]:name:' \\
                                 '(-d --description)'{-d,--description}'[New description]:description:' \\
-                                '(-c --context)'{-c,--context}'[New context]:context:' \\
                                 '(-p --priority)'{-p,--priority}'[New priority]:priority:' \\
                                 '--parent[New parent task ID]:parent:_dex_task_ids' \\
                                 '(-s --status)'{-s,--status}'[New status]:status:(pending completed)' \\
@@ -81,8 +81,8 @@ _dex() {
                     ;;
                 create)
                     _arguments \\
+                        '(-n --name)'{-n,--name}'[Task name]:name:' \\
                         '(-d --description)'{-d,--description}'[Task description]:description:' \\
-                        '(-c --context)'{-c,--context}'[Task context]:context:' \\
                         '(-p --priority)'{-p,--priority}'[Task priority]:priority:' \\
                         '--parent[Parent task ID]:parent:_dex_task_ids' \\
                         '(-h --help)'{-h,--help}'[Show help]'

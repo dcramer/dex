@@ -17,7 +17,7 @@ describe("create command", () => {
     fixture.cleanup();
   });
 
-  it("creates a task with positional description", async () => {
+  it("creates a task with positional name", async () => {
     await runCli(["create", "Test task"], { storage: fixture.storage });
 
     const out = fixture.output.stdout.join("\n");
@@ -26,11 +26,11 @@ describe("create command", () => {
 
     const tasks = await fixture.storage.readAsync();
     expect(tasks.tasks).toHaveLength(1);
-    expect(tasks.tasks[0].description).toBe("Test task");
+    expect(tasks.tasks[0].name).toBe("Test task");
   });
 
-  it("creates a task with positional description and context", async () => {
-    await runCli(["create", "Test task", "--context", "Test context"], {
+  it("creates a task with positional name and description", async () => {
+    await runCli(["create", "Test task", "--description", "Test description"], {
       storage: fixture.storage,
     });
 
@@ -40,14 +40,17 @@ describe("create command", () => {
 
     const tasks = await fixture.storage.readAsync();
     expect(tasks.tasks).toHaveLength(1);
-    expect(tasks.tasks[0].description).toBe("Test task");
-    expect(tasks.tasks[0].context).toBe("Test context");
+    expect(tasks.tasks[0].name).toBe("Test task");
+    expect(tasks.tasks[0].description).toBe("Test description");
   });
 
-  it("creates a task with legacy -d flag (backward compatibility)", async () => {
-    await runCli(["create", "-d", "Test task", "--context", "Test context"], {
-      storage: fixture.storage,
-    });
+  it("creates a task with -n flag", async () => {
+    await runCli(
+      ["create", "-n", "Test task", "--description", "Test description"],
+      {
+        storage: fixture.storage,
+      },
+    );
 
     const out = fixture.output.stdout.join("\n");
     expect(out).toContain("Created");
@@ -55,7 +58,7 @@ describe("create command", () => {
 
     const tasks = await fixture.storage.readAsync();
     expect(tasks.tasks).toHaveLength(1);
-    expect(tasks.tasks[0].description).toBe("Test task");
+    expect(tasks.tasks[0].name).toBe("Test task");
   });
 
   it("shows help with --help flag", async () => {
@@ -63,17 +66,15 @@ describe("create command", () => {
 
     const out = fixture.output.stdout.join("\n");
     expect(out).toContain("dex create");
-    expect(out).toContain("--description");
+    expect(out).toContain("--name");
   });
 
-  it("requires description", async () => {
+  it("requires name", async () => {
     await expect(
       runCli(["create"], { storage: fixture.storage }),
     ).rejects.toThrow("process.exit");
 
-    expect(fixture.output.stderr.join("\n")).toContain(
-      "description is required",
-    );
+    expect(fixture.output.stderr.join("\n")).toContain("name is required");
 
     const tasks = await fixture.storage.readAsync();
     expect(tasks.tasks).toHaveLength(0);
@@ -90,7 +91,7 @@ describe("create command", () => {
 
     const tasks = await fixture.storage.readAsync();
     expect(tasks.tasks).toHaveLength(1);
-    expect(tasks.tasks[0].context).toBe("");
+    expect(tasks.tasks[0].description).toBe("");
   });
 
   it("creates a task with custom priority", async () => {

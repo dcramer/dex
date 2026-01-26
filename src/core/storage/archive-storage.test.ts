@@ -23,7 +23,7 @@ describe("ArchiveStorage", () => {
   ): ArchivedTask => ({
     id: "test-id",
     parent_id: null,
-    description: "Test task",
+    name: "Test task",
     result: null,
     completed_at: null,
     archived_at: new Date().toISOString(),
@@ -47,8 +47,8 @@ describe("ArchiveStorage", () => {
     });
 
     it("parses valid JSONL file", () => {
-      const task1 = createArchivedTask({ id: "task-1", description: "First" });
-      const task2 = createArchivedTask({ id: "task-2", description: "Second" });
+      const task1 = createArchivedTask({ id: "task-1", name: "First" });
+      const task2 = createArchivedTask({ id: "task-2", name: "Second" });
 
       fs.mkdirSync(tempDir, { recursive: true });
       fs.writeFileSync(
@@ -98,8 +98,8 @@ describe("ArchiveStorage", () => {
       const task = createArchivedTask({
         id: "parent",
         archived_children: [
-          { id: "child-1", description: "Child 1", result: "Done" },
-          { id: "child-2", description: "Child 2", result: null },
+          { id: "child-1", name: "Child 1", result: "Done" },
+          { id: "child-2", name: "Child 2", result: null },
         ],
       });
 
@@ -111,7 +111,7 @@ describe("ArchiveStorage", () => {
 
       const store = storage.readArchive();
       expect(store.tasks[0].archived_children).toHaveLength(2);
-      expect(store.tasks[0].archived_children[0].description).toBe("Child 1");
+      expect(store.tasks[0].archived_children[0].name).toBe("Child 1");
     });
   });
 
@@ -199,19 +199,19 @@ describe("ArchiveStorage", () => {
     it("skips duplicate IDs", () => {
       const existing = createArchivedTask({
         id: "dup",
-        description: "Original",
+        name: "Original",
       });
       storage.writeArchive({ tasks: [existing] });
 
       const duplicate = createArchivedTask({
         id: "dup",
-        description: "Duplicate",
+        name: "Duplicate",
       });
       storage.appendArchive([duplicate]);
 
       const store = storage.readArchive();
       expect(store.tasks).toHaveLength(1);
-      expect(store.tasks[0].description).toBe("Original");
+      expect(store.tasks[0].name).toBe("Original");
     });
   });
 
@@ -220,21 +220,21 @@ describe("ArchiveStorage", () => {
       const tasks = [
         createArchivedTask({
           id: "auth",
-          description: "Add authentication",
+          name: "Add authentication",
           result: "Implemented JWT",
         }),
         createArchivedTask({
           id: "ui",
-          description: "Update dashboard",
+          name: "Update dashboard",
           result: "Fixed layout",
         }),
         createArchivedTask({
           id: "parent",
-          description: "Epic task",
+          name: "Epic task",
           archived_children: [
             {
               id: "child",
-              description: "Add login page",
+              name: "Add login page",
               result: "Done",
             },
           ],
@@ -275,11 +275,11 @@ describe("ArchiveStorage", () => {
 
   describe("getArchived", () => {
     it("returns task by ID", () => {
-      const task = createArchivedTask({ id: "target", description: "Target" });
+      const task = createArchivedTask({ id: "target", name: "Target" });
       storage.writeArchive({ tasks: [task] });
 
       const result = storage.getArchived("target");
-      expect(result?.description).toBe("Target");
+      expect(result?.name).toBe("Target");
     });
 
     it("returns undefined when not found", () => {
@@ -353,7 +353,7 @@ describe("ArchiveStorage", () => {
       const task: ArchivedTask = {
         id: "full-task",
         parent_id: "parent-123",
-        description: "Complete task",
+        name: "Complete task",
         result: "Successfully completed",
         completed_at: "2024-01-15T10:00:00.000Z",
         archived_at: "2024-01-20T10:00:00.000Z",
@@ -365,7 +365,7 @@ describe("ArchiveStorage", () => {
           },
         },
         archived_children: [
-          { id: "child-1", description: "Subtask 1", result: "Done" },
+          { id: "child-1", name: "Subtask 1", result: "Done" },
         ],
       };
 

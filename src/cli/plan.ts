@@ -1,15 +1,27 @@
 import { CliOptions, createService, formatCliError } from "./utils.js";
 import { colors } from "./colors.js";
-import { getBooleanFlag, getStringFlag, parseArgs, parseIntFlag } from "./args.js";
+import {
+  getBooleanFlag,
+  getStringFlag,
+  parseArgs,
+  parseIntFlag,
+} from "./args.js";
 import { formatTask } from "./formatting.js";
 import { parsePlanFile } from "../core/plan-parser.js";
 
-export async function planCommand(args: string[], options: CliOptions): Promise<void> {
-  const { positional, flags } = parseArgs(args, {
-    priority: { short: "p", hasValue: true },
-    parent: { hasValue: true },
-    help: { short: "h", hasValue: false },
-  }, "plan");
+export async function planCommand(
+  args: string[],
+  options: CliOptions,
+): Promise<void> {
+  const { positional, flags } = parseArgs(
+    args,
+    {
+      priority: { short: "p", hasValue: true },
+      parent: { hasValue: true },
+      help: { short: "h", hasValue: false },
+    },
+    "plan",
+  );
 
   if (getBooleanFlag(flags, "help")) {
     console.log(`${colors.bold}dex plan${colors.reset} - Create task from plan markdown file
@@ -41,13 +53,15 @@ ${colors.bold}EXAMPLE:${colors.reset}
   try {
     const { title, content } = await parsePlanFile(filePath);
     const task = await service.create({
-      description: title,
-      context: content,
+      name: title,
+      description: content,
       parent_id: getStringFlag(flags, "parent"),
       priority: parseIntFlag(flags, "priority"),
     });
 
-    console.log(`${colors.green}Created${colors.reset} task ${colors.bold}${task.id}${colors.reset} from plan`);
+    console.log(
+      `${colors.green}Created${colors.reset} task ${colors.bold}${task.id}${colors.reset} from plan`,
+    );
     console.log(formatTask(task, {}));
   } catch (err) {
     console.error(formatCliError(err));

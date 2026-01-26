@@ -4,12 +4,19 @@ import { getBooleanFlag, getStringFlag, parseArgs } from "./args.js";
 import { formatTaskShow } from "./show.js";
 import { getCommitInfo } from "./git.js";
 
-export async function completeCommand(args: string[], options: CliOptions): Promise<void> {
-  const { positional, flags } = parseArgs(args, {
-    result: { short: "r", hasValue: true },
-    commit: { short: "c", hasValue: true },
-    help: { short: "h", hasValue: false },
-  }, "complete");
+export async function completeCommand(
+  args: string[],
+  options: CliOptions,
+): Promise<void> {
+  const { positional, flags } = parseArgs(
+    args,
+    {
+      result: { short: "r", hasValue: true },
+      commit: { short: "c", hasValue: true },
+      help: { short: "h", hasValue: false },
+    },
+    "complete",
+  );
 
   if (getBooleanFlag(flags, "help")) {
     console.log(`${colors.bold}dex complete${colors.reset} - Mark a task as completed
@@ -43,7 +50,9 @@ ${colors.bold}EXAMPLE:${colors.reset}
   }
 
   if (!result) {
-    console.error(`${colors.red}Error:${colors.reset} --result (-r) is required`);
+    console.error(
+      `${colors.red}Error:${colors.reset} --result (-r) is required`,
+    );
     console.error(`Usage: dex complete <task-id> --result "completion notes"`);
     process.exit(1);
   }
@@ -53,20 +62,31 @@ ${colors.bold}EXAMPLE:${colors.reset}
     // Check for incomplete blockers and warn
     const incompleteBlockers = await service.getIncompleteBlockers(id);
     if (incompleteBlockers.length > 0) {
-      console.log(`${colors.yellow}Warning:${colors.reset} This task is blocked by ${incompleteBlockers.length} incomplete task(s):`);
+      console.log(
+        `${colors.yellow}Warning:${colors.reset} This task is blocked by ${incompleteBlockers.length} incomplete task(s):`,
+      );
       for (const blocker of incompleteBlockers) {
-        console.log(`  ${colors.dim}•${colors.reset} ${colors.bold}${blocker.id}${colors.reset}: ${blocker.description}`);
+        console.log(
+          `  ${colors.dim}•${colors.reset} ${colors.bold}${blocker.id}${colors.reset}: ${blocker.name}`,
+        );
       }
       console.log("");
     }
 
     const metadata = commitSha
-      ? { commit: { ...getCommitInfo(commitSha), timestamp: new Date().toISOString() } }
+      ? {
+          commit: {
+            ...getCommitInfo(commitSha),
+            timestamp: new Date().toISOString(),
+          },
+        }
       : undefined;
 
     const task = await service.complete(id, result, metadata);
 
-    console.log(`${colors.green}Completed${colors.reset} task ${colors.bold}${id}${colors.reset}`);
+    console.log(
+      `${colors.green}Completed${colors.reset} task ${colors.bold}${id}${colors.reset}`,
+    );
     console.log(formatTaskShow(task));
   } catch (err) {
     console.error(formatCliError(err));

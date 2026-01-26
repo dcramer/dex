@@ -11,8 +11,8 @@ import { Task } from "../types.js";
 const createTask = (overrides: Partial<Task> = {}): Task => ({
   id: "test-id",
   parent_id: null,
-  description: "Test task",
-  context: "Some context",
+  name: "Test task",
+  description: "Some description",
   priority: 1,
   completed: false,
   result: null,
@@ -30,8 +30,8 @@ describe("compactTask", () => {
   it("strips unnecessary fields", () => {
     const task = createTask({
       id: "task-1",
-      description: "My task",
-      context: "Lots of context here",
+      name: "My task",
+      description: "Lots of description here",
       priority: 5,
       completed: true,
       result: "Done successfully",
@@ -46,14 +46,14 @@ describe("compactTask", () => {
     // Preserved fields
     expect(archived.id).toBe("task-1");
     expect(archived.parent_id).toBeNull();
-    expect(archived.description).toBe("My task");
+    expect(archived.name).toBe("My task");
     expect(archived.result).toBe("Done successfully");
     expect(archived.completed_at).toBe("2024-01-15T10:00:00.000Z");
     expect(archived.archived_at).toBeDefined();
     expect(archived.archived_children).toEqual([]);
 
     // Stripped fields should not exist
-    expect("context" in archived).toBe(false);
+    expect("description" in archived).toBe(false);
     expect("priority" in archived).toBe(false);
     expect("blockedBy" in archived).toBe(false);
     expect("blocks" in archived).toBe(false);
@@ -69,10 +69,10 @@ describe("compactTask", () => {
       result: "Parent done",
     });
     const children = [
-      createTask({ id: "child-1", description: "First child", result: "Done" }),
+      createTask({ id: "child-1", name: "First child", result: "Done" }),
       createTask({
         id: "child-2",
-        description: "Second child",
+        name: "Second child",
         result: null,
       }),
     ];
@@ -82,12 +82,12 @@ describe("compactTask", () => {
     expect(archived.archived_children).toHaveLength(2);
     expect(archived.archived_children[0]).toEqual({
       id: "child-1",
-      description: "First child",
+      name: "First child",
       result: "Done",
     });
     expect(archived.archived_children[1]).toEqual({
       id: "child-2",
-      description: "Second child",
+      name: "Second child",
       result: null,
     });
   });

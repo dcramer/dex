@@ -2,16 +2,11 @@ import { Task } from "../types.js";
 import { CliOptions, createService, exitIfTaskNotFound } from "./utils.js";
 import { colors, stripAnsi, terminalWidth } from "./colors.js";
 import { getBooleanFlag, parseArgs } from "./args.js";
-import {
-  formatAge,
-  pluralize,
-  truncateText,
-  wrapText,
-} from "./formatting.js";
+import { formatAge, pluralize, truncateText, wrapText } from "./formatting.js";
 
-// Max description length for tree display
-const SHOW_TREE_DESCRIPTION_MAX_LENGTH = 50;
-// Max characters before truncation for context/result fields
+// Max name length for tree display
+const SHOW_TREE_NAME_MAX_LENGTH = 50;
+// Max characters before truncation for description/result fields
 const SHOW_TEXT_MAX_LENGTH = 300;
 
 interface FormatTaskShowOptions {
@@ -19,15 +14,18 @@ interface FormatTaskShowOptions {
   children?: Task[];
   grandchildren?: Task[];
   full?: boolean;
-  blockedByTasks?: Task[];  // Tasks that block this one
-  blocksTasks?: Task[];     // Tasks this one blocks
+  blockedByTasks?: Task[]; // Tasks that block this one
+  blocksTasks?: Task[]; // Tasks this one blocks
 }
 
 /**
  * Truncate text if needed and report whether truncation occurred.
  * Returns the (possibly truncated) text and a boolean indicating if it was truncated.
  */
-function truncateIfNeeded(text: string, maxLength: number): { text: string; truncated: boolean } {
+function truncateIfNeeded(
+  text: string,
+  maxLength: number,
+): { text: string; truncated: boolean } {
   const visibleLength = stripAnsi(text).length;
   if (visibleLength <= maxLength) {
     return { text, truncated: false };
@@ -38,30 +36,44 @@ function truncateIfNeeded(text: string, maxLength: number): { text: string; trun
 /**
  * Format a task line for the hierarchy tree.
  */
-function formatTreeTask(task: Task, options: {
-  prefix?: string;
-  isCurrent?: boolean;
-  truncateDescription?: number;
-  childCount?: number;
-}): string {
-  const { prefix = "", isCurrent = false, truncateDescription = SHOW_TREE_DESCRIPTION_MAX_LENGTH, childCount } = options;
+function formatTreeTask(
+  task: Task,
+  options: {
+    prefix?: string;
+    isCurrent?: boolean;
+    truncateName?: number;
+    childCount?: number;
+  },
+): string {
+  const {
+    prefix = "",
+    isCurrent = false,
+    truncateName = SHOW_TREE_NAME_MAX_LENGTH,
+    childCount,
+  } = options;
   const statusIcon = task.completed ? "[x]" : "[ ]";
   const statusColor = task.completed ? colors.green : colors.yellow;
-  const desc = truncateText(task.description, truncateDescription);
-  const childInfo = childCount !== undefined && childCount > 0
-    ? ` ${colors.dim}(${childCount} ${pluralize(childCount, "subtask")})${colors.reset}`
-    : "";
+  const name = truncateText(task.name, truncateName);
+  const childInfo =
+    childCount !== undefined && childCount > 0
+      ? ` ${colors.dim}(${childCount} ${pluralize(childCount, "subtask")})${colors.reset}`
+      : "";
 
   if (isCurrent) {
-    return `${prefix}${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}: ${desc}${childInfo}  ${colors.cyan}← viewing${colors.reset}`;
+    return `${prefix}${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}: ${name}${childInfo}  ${colors.cyan}← viewing${colors.reset}`;
   }
-  return `${prefix}${statusColor}${statusIcon}${colors.reset} ${colors.dim}${task.id}${colors.reset}: ${desc}${childInfo}`;
+  return `${prefix}${statusColor}${statusIcon}${colors.reset} ${colors.dim}${task.id}${colors.reset}: ${name}${childInfo}`;
 }
 
 /**
  * Format the hierarchy tree showing ancestors, current task, and children.
  */
-function formatHierarchyTree(task: Task, ancestors: Task[], children: Task[], grandchildren: Task[]): string[] {
+function formatHierarchyTree(
+  task: Task,
+  ancestors: Task[],
+  children: Task[],
+  grandchildren: Task[],
+): string[] {
   const lines: string[] = [];
 
   // Build the tree from root to current task
@@ -89,11 +101,13 @@ function formatHierarchyTree(task: Task, ancestors: Task[], children: Task[], gr
   // Current task - highlighted
   const currentConnector = ancestors.length > 0 ? "└── " : "";
   const currentPrefix = currentIndent + currentConnector;
-  lines.push(formatTreeTask(task, {
-    prefix: currentPrefix,
-    isCurrent: true,
-    childCount: children.length,
-  }));
+  lines.push(
+    formatTreeTask(task, {
+      prefix: currentPrefix,
+      isCurrent: true,
+      childCount: children.length,
+    }),
+  );
 
   // Children of current task
   if (children.length > 0) {
@@ -110,11 +124,15 @@ function formatHierarchyTree(task: Task, ancestors: Task[], children: Task[], gr
       const child = sortedChildren[i];
       const isLast = i === sortedChildren.length - 1;
       const connector = isLast ? "└── " : "├── ";
-      const childGrandchildren = grandchildren.filter((g) => g.parent_id === child.id);
-      lines.push(formatTreeTask(child, {
-        prefix: childIndent + connector,
-        childCount: childGrandchildren.length,
-      }));
+      const childGrandchildren = grandchildren.filter(
+        (g) => g.parent_id === child.id,
+      );
+      lines.push(
+        formatTreeTask(child, {
+          prefix: childIndent + connector,
+          childCount: childGrandchildren.length,
+        }),
+      );
     }
   }
 
@@ -124,22 +142,39 @@ function formatHierarchyTree(task: Task, ancestors: Task[], children: Task[], gr
 /**
  * Format the detailed show view for a task with proper text wrapping.
  */
-export function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}): string {
-  const { ancestors = [], children = [], grandchildren = [], full = false, blockedByTasks = [], blocksTasks = [] } = options;
+export function formatTaskShow(
+  task: Task,
+  options: FormatTaskShowOptions = {},
+): string {
+  const {
+    ancestors = [],
+    children = [],
+    grandchildren = [],
+    full = false,
+    blockedByTasks = [],
+    blocksTasks = [],
+  } = options;
   let wasTruncated = false;
-  const priority = task.priority !== 1 ? ` ${colors.cyan}[p${task.priority}]${colors.reset}` : "";
+  const priority =
+    task.priority !== 1
+      ? ` ${colors.cyan}[p${task.priority}]${colors.reset}`
+      : "";
 
   const lines: string[] = [];
 
   // Hierarchy tree (if this task has ancestors or children)
   if (ancestors.length > 0 || children.length > 0) {
-    lines.push(...formatHierarchyTree(task, ancestors, children, grandchildren));
+    lines.push(
+      ...formatHierarchyTree(task, ancestors, children, grandchildren),
+    );
     lines.push(""); // Blank line after tree
   } else {
     // No hierarchy - just show the task header
     const statusIcon = task.completed ? "[x]" : "[ ]";
     const statusColor = task.completed ? colors.green : colors.yellow;
-    lines.push(`${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}${priority}: ${task.description}`);
+    lines.push(
+      `${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}${priority}: ${task.name}`,
+    );
     lines.push(""); // Blank line after header
   }
 
@@ -148,7 +183,9 @@ export function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}):
   if (incompleteBlockers.length > 0) {
     lines.push(`${colors.bold}${colors.red}Blocked by:${colors.reset}`);
     for (const blocker of incompleteBlockers) {
-      lines.push(`  ${colors.dim}•${colors.reset} ${colors.bold}${blocker.id}${colors.reset}: ${truncateText(blocker.description, 50)}`);
+      lines.push(
+        `  ${colors.dim}•${colors.reset} ${colors.bold}${blocker.id}${colors.reset}: ${truncateText(blocker.name, 50)}`,
+      );
     }
     lines.push(""); // Blank line after
   }
@@ -158,25 +195,37 @@ export function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}):
   if (incompleteBlocked.length > 0) {
     lines.push(`${colors.bold}Blocks:${colors.reset}`);
     for (const blocked of incompleteBlocked) {
-      lines.push(`  ${colors.dim}•${colors.reset} ${colors.bold}${blocked.id}${colors.reset}: ${truncateText(blocked.description, 50)}`);
+      lines.push(
+        `  ${colors.dim}•${colors.reset} ${colors.bold}${blocked.id}${colors.reset}: ${truncateText(blocked.name, 50)}`,
+      );
     }
     lines.push(""); // Blank line after
   }
 
-  // Context section with word wrapping
+  // Description section with word wrapping
   const indent = "  ";
-  lines.push(`${colors.bold}Context:${colors.reset}`);
-  const context = full ? { text: task.context, truncated: false } : truncateIfNeeded(task.context, SHOW_TEXT_MAX_LENGTH);
-  wasTruncated ||= context.truncated;
-  lines.push(wrapText(context.text, terminalWidth, indent));
+  lines.push(`${colors.bold}Description:${colors.reset}`);
+  const description = full
+    ? { text: task.description, truncated: false }
+    : truncateIfNeeded(task.description, SHOW_TEXT_MAX_LENGTH);
+  wasTruncated ||= description.truncated;
+  lines.push(wrapText(description.text, terminalWidth, indent));
 
   // Result section (if present) with word wrapping
   if (task.result) {
     lines.push(""); // Blank line before result
     lines.push(`${colors.bold}Result:${colors.reset}`);
-    const result = full ? { text: task.result, truncated: false } : truncateIfNeeded(task.result, SHOW_TEXT_MAX_LENGTH);
+    const result = full
+      ? { text: task.result, truncated: false }
+      : truncateIfNeeded(task.result, SHOW_TEXT_MAX_LENGTH);
     wasTruncated ||= result.truncated;
-    lines.push(wrapText(`${colors.green}${result.text}${colors.reset}`, terminalWidth, indent));
+    lines.push(
+      wrapText(
+        `${colors.green}${result.text}${colors.reset}`,
+        terminalWidth,
+        indent,
+      ),
+    );
   }
 
   // Commit metadata section (if present)
@@ -199,38 +248,58 @@ export function formatTaskShow(task: Task, options: FormatTaskShowOptions = {}):
   // Metadata section
   lines.push(""); // Blank line before metadata
   const labelWidth = 10;
-  lines.push(`${"Created:".padEnd(labelWidth)} ${colors.dim}${task.created_at}${colors.reset}`);
-  lines.push(`${"Updated:".padEnd(labelWidth)} ${colors.dim}${task.updated_at}${colors.reset}`);
+  lines.push(
+    `${"Created:".padEnd(labelWidth)} ${colors.dim}${task.created_at}${colors.reset}`,
+  );
+  lines.push(
+    `${"Updated:".padEnd(labelWidth)} ${colors.dim}${task.updated_at}${colors.reset}`,
+  );
   if (task.completed_at) {
-    lines.push(`${"Completed:".padEnd(labelWidth)} ${colors.dim}${task.completed_at}${colors.reset}`);
+    lines.push(
+      `${"Completed:".padEnd(labelWidth)} ${colors.dim}${task.completed_at}${colors.reset}`,
+    );
   }
 
   // More Information section (navigation hints)
-  const parentTask = ancestors.length > 0 ? ancestors[ancestors.length - 1] : null;
+  const parentTask =
+    ancestors.length > 0 ? ancestors[ancestors.length - 1] : null;
   if (parentTask || children.length > 0 || wasTruncated) {
     lines.push("");
     lines.push(`${colors.bold}More Information:${colors.reset}`);
 
     if (parentTask) {
-      lines.push(`  ${colors.dim}•${colors.reset} View parent task: ${colors.cyan}dex show ${parentTask.id}${colors.reset}`);
+      lines.push(
+        `  ${colors.dim}•${colors.reset} View parent task: ${colors.cyan}dex show ${parentTask.id}${colors.reset}`,
+      );
     }
     if (children.length > 0) {
-      lines.push(`  ${colors.dim}•${colors.reset} View subtree: ${colors.cyan}dex list ${task.id}${colors.reset}`);
+      lines.push(
+        `  ${colors.dim}•${colors.reset} View subtree: ${colors.cyan}dex list ${task.id}${colors.reset}`,
+      );
     }
     if (wasTruncated) {
-      lines.push(`  ${colors.dim}•${colors.reset} View full content: ${colors.cyan}dex show ${task.id} --full${colors.reset}`);
+      lines.push(
+        `  ${colors.dim}•${colors.reset} View full content: ${colors.cyan}dex show ${task.id} --full${colors.reset}`,
+      );
     }
   }
 
   return lines.join("\n");
 }
 
-export async function showCommand(args: string[], options: CliOptions): Promise<void> {
-  const { positional, flags } = parseArgs(args, {
-    json: { hasValue: false },
-    full: { short: "f", hasValue: false },
-    help: { short: "h", hasValue: false },
-  }, "show");
+export async function showCommand(
+  args: string[],
+  options: CliOptions,
+): Promise<void> {
+  const { positional, flags } = parseArgs(
+    args,
+    {
+      json: { hasValue: false },
+      full: { short: "f", hasValue: false },
+      help: { short: "h", hasValue: false },
+    },
+    "show",
+  );
 
   if (getBooleanFlag(flags, "help")) {
     console.log(`${colors.bold}dex show${colors.reset} - Show task details
@@ -242,7 +311,7 @@ ${colors.bold}ARGUMENTS:${colors.reset}
   <task-id>                  Task ID to display (required)
 
 ${colors.bold}OPTIONS:${colors.reset}
-  -f, --full                 Show full context and result (no truncation)
+  -f, --full                 Show full description and result (no truncation)
   --json                     Output as JSON
   -h, --help                 Show this help message
 
@@ -284,20 +353,31 @@ ${colors.bold}EXAMPLE:${colors.reset}
     const pendingGrandchildren = grandchildren.filter((c) => !c.completed);
     const jsonOutput = {
       ...task,
-      ancestors: ancestors.map((a) => ({ id: a.id, description: a.description })),
+      ancestors: ancestors.map((a) => ({ id: a.id, name: a.name })),
       depth: ancestors.length,
       subtasks: {
         pending: pending.length,
         completed: children.length - pending.length,
         children,
       },
-      grandchildren: grandchildren.length > 0 ? {
-        pending: pendingGrandchildren.length,
-        completed: grandchildren.length - pendingGrandchildren.length,
-        tasks: grandchildren,
-      } : null,
-      blockedBy: blockedByTasks.map((t) => ({ id: t.id, description: t.description, completed: t.completed })),
-      blocks: blocksTasks.map((t) => ({ id: t.id, description: t.description, completed: t.completed })),
+      grandchildren:
+        grandchildren.length > 0
+          ? {
+              pending: pendingGrandchildren.length,
+              completed: grandchildren.length - pendingGrandchildren.length,
+              tasks: grandchildren,
+            }
+          : null,
+      blockedBy: blockedByTasks.map((t) => ({
+        id: t.id,
+        name: t.name,
+        completed: t.completed,
+      })),
+      blocks: blocksTasks.map((t) => ({
+        id: t.id,
+        name: t.name,
+        completed: t.completed,
+      })),
       isBlocked: blockedByTasks.some((t) => !t.completed),
     };
     console.log(JSON.stringify(jsonOutput, null, 2));
@@ -305,5 +385,14 @@ ${colors.bold}EXAMPLE:${colors.reset}
   }
 
   const full = getBooleanFlag(flags, "full");
-  console.log(formatTaskShow(task, { ancestors, children, grandchildren, full, blockedByTasks, blocksTasks }));
+  console.log(
+    formatTaskShow(task, {
+      ancestors,
+      children,
+      grandchildren,
+      full,
+      blockedByTasks,
+      blocksTasks,
+    }),
+  );
 }

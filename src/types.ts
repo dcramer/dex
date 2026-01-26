@@ -35,13 +35,13 @@ export type TaskMetadata = z.infer<typeof TaskMetadataSchema>;
 const TaskSchemaBase = z.object({
   id: z.string().min(1, "Task ID is required"),
   parent_id: z.string().min(1).nullable().default(null),
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .max(MAX_CONTENT_LENGTH, "Name exceeds maximum length"),
   description: z
     .string()
-    .min(1, "Description is required")
-    .max(MAX_CONTENT_LENGTH, "Description exceeds maximum length"),
-  context: z
-    .string()
-    .max(MAX_CONTENT_LENGTH, "Context exceeds maximum length")
+    .max(MAX_CONTENT_LENGTH, "Description exceeds maximum length")
     .default(""),
   priority: z
     .number()
@@ -65,17 +65,27 @@ const TaskSchemaBase = z.object({
   children: z.array(z.string().min(1)).default([]), // Child task IDs (inverse of parent_id)
 });
 
-// Preprocess to convert old `status` field to `completed` for backwards compatibility
-// and add defaults for new fields
+// Preprocess to convert old fields for backwards compatibility
 export const TaskSchema = z.preprocess((data) => {
   if (typeof data === "object" && data !== null) {
     const obj = data as Record<string, unknown>;
 
     // Convert old status field
     if ("status" in obj && !("completed" in obj)) {
-      const { status, ...rest } = obj;
-      obj.completed = status === "completed";
+      obj.completed = obj.status === "completed";
       delete obj.status;
+    }
+
+    // Migrate old field names: description → name, context → description
+    // Old format: { description: "short title", context: "long details" }
+    // New format: { name: "short title", description: "long details" }
+    // Detect old format by presence of 'context' field or absence of 'name' field
+    if ("context" in obj || !("name" in obj)) {
+      const oldDescription = obj.description; // This was the short title
+      const oldContext = obj.context ?? ""; // This was the long details
+      obj.name = oldDescription;
+      obj.description = oldContext;
+      delete obj.context;
     }
 
     // Add defaults for new bidirectional relationship fields
@@ -97,13 +107,13 @@ export const TaskStoreSchema = z.object({
 export type TaskStore = z.infer<typeof TaskStoreSchema>;
 
 export const CreateTaskInputSchema = z.object({
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .max(MAX_CONTENT_LENGTH, "Name exceeds maximum length"),
   description: z
     .string()
-    .min(1, "Description is required")
-    .max(MAX_CONTENT_LENGTH, "Description exceeds maximum length"),
-  context: z
-    .string()
-    .max(MAX_CONTENT_LENGTH, "Context exceeds maximum length")
+    .max(MAX_CONTENT_LENGTH, "Description exceeds maximum length")
     .optional(),
   parent_id: z.string().min(1).optional(),
   priority: z
@@ -131,14 +141,14 @@ export type CreateTaskInput = z.infer<typeof CreateTaskInputSchema>;
 
 export const UpdateTaskInputSchema = z.object({
   id: z.string().min(1, "Task ID is required"),
+  name: z
+    .string()
+    .min(1, "Name cannot be empty")
+    .max(MAX_CONTENT_LENGTH, "Name exceeds maximum length")
+    .optional(),
   description: z
     .string()
-    .min(1, "Description cannot be empty")
     .max(MAX_CONTENT_LENGTH, "Description exceeds maximum length")
-    .optional(),
-  context: z
-    .string()
-    .max(MAX_CONTENT_LENGTH, "Context exceeds maximum length")
     .optional(),
   parent_id: z.string().min(1).nullable().optional(),
   priority: z
@@ -171,12 +181,12 @@ export const ListTasksInputSchema = z.object({
 export type ListTasksInput = z.infer<typeof ListTasksInputSchema>;
 
 // Archived task schema - compacted version of Task for long-term storage
-// Drops: context, blockedBy, blocks, children, created_at, updated_at, priority
-// Keeps: id, parent_id, description, completed_at, archived_at, result, metadata.github
+// Drops: description (details), blockedBy, blocks, children, created_at, updated_at, priority
+// Keeps: id, parent_id, name, completed_at, archived_at, result, metadata.github
 // Adds: archived_children for rolled-up subtasks
 export const ArchivedChildSchema = z.object({
   id: z.string().min(1),
-  description: z.string().min(1),
+  name: z.string().min(1),
   result: z.string().nullable().default(null),
 });
 
@@ -185,7 +195,7 @@ export type ArchivedChild = z.infer<typeof ArchivedChildSchema>;
 export const ArchivedTaskSchema = z.object({
   id: z.string().min(1, "Task ID is required"),
   parent_id: z.string().min(1).nullable().default(null),
-  description: z.string().min(1, "Description is required"),
+  name: z.string().min(1, "Name is required"),
   result: z.string().nullable().default(null),
   completed_at: z.string().datetime().nullable().default(null),
   archived_at: z.string().datetime(),

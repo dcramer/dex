@@ -1,15 +1,26 @@
 import { Task } from "../types.js";
 import { CliOptions, createService } from "./utils.js";
 import { colors } from "./colors.js";
-import { getBooleanFlag, getStringFlag, parseArgs, parseIntFlag } from "./args.js";
+import {
+  getBooleanFlag,
+  getStringFlag,
+  parseArgs,
+  parseIntFlag,
+} from "./args.js";
 import { formatBreadcrumb, formatTask } from "./formatting.js";
 import { getGitHubIssueNumber } from "../core/github/index.js";
 import { getIncompleteBlockerIds } from "../core/task-relationships.js";
 
-// Max description length for list view (to keep tree readable)
-const LIST_DESCRIPTION_MAX_LENGTH = 60;
+// Max name length for list view (to keep tree readable)
+const LIST_NAME_MAX_LENGTH = 60;
 
-function printTaskTree(tasks: Task[], allTasks: Task[], parentId: string | null, prefix: string = "", isRoot: boolean = true): void {
+function printTaskTree(
+  tasks: Task[],
+  allTasks: Task[],
+  parentId: string | null,
+  prefix: string = "",
+  isRoot: boolean = true,
+): void {
   const children = tasks
     .filter((t) => t.parent_id === parentId)
     .toSorted((a, b) => a.priority - b.priority);
@@ -21,31 +32,46 @@ function printTaskTree(tasks: Task[], allTasks: Task[], parentId: string | null,
 
     if (isRoot) {
       // Root level tasks: no tree connectors
-      console.log(formatTask(task, { truncateDescription: LIST_DESCRIPTION_MAX_LENGTH, blockedByIds }));
+      console.log(
+        formatTask(task, { truncateName: LIST_NAME_MAX_LENGTH, blockedByIds }),
+      );
       printTaskTree(tasks, allTasks, task.id, "", false);
     } else {
       // Child tasks: use tree connectors
       const connector = isLast ? "└── " : "├── ";
       const childPrefix = prefix + (isLast ? "    " : "│   ");
-      console.log(formatTask(task, { treePrefix: prefix + connector, truncateDescription: LIST_DESCRIPTION_MAX_LENGTH, blockedByIds }));
+      console.log(
+        formatTask(task, {
+          treePrefix: prefix + connector,
+          truncateName: LIST_NAME_MAX_LENGTH,
+          blockedByIds,
+        }),
+      );
       printTaskTree(tasks, allTasks, task.id, childPrefix, false);
     }
   }
 }
 
-export async function listCommand(args: string[], options: CliOptions): Promise<void> {
-  const { positional, flags } = parseArgs(args, {
-    all: { short: "a", hasValue: false },
-    completed: { short: "c", hasValue: false },
-    query: { short: "q", hasValue: true },
-    flat: { short: "f", hasValue: false },
-    blocked: { short: "b", hasValue: false },
-    ready: { short: "r", hasValue: false },
-    issue: { hasValue: true },
-    commit: { hasValue: true },
-    json: { hasValue: false },
-    help: { short: "h", hasValue: false },
-  }, "list");
+export async function listCommand(
+  args: string[],
+  options: CliOptions,
+): Promise<void> {
+  const { positional, flags } = parseArgs(
+    args,
+    {
+      all: { short: "a", hasValue: false },
+      completed: { short: "c", hasValue: false },
+      query: { short: "q", hasValue: true },
+      flat: { short: "f", hasValue: false },
+      blocked: { short: "b", hasValue: false },
+      ready: { short: "r", hasValue: false },
+      issue: { hasValue: true },
+      commit: { hasValue: true },
+      json: { hasValue: false },
+      help: { short: "h", hasValue: false },
+    },
+    "list",
+  );
 
   if (getBooleanFlag(flags, "help")) {
     console.log(`${colors.bold}dex list${colors.reset} - List tasks
@@ -61,7 +87,7 @@ ${colors.bold}OPTIONS:${colors.reset}
   -c, --completed            Show only completed tasks
   -b, --blocked              Show only blocked tasks (have incomplete blockers)
   -r, --ready                Show only ready tasks (pending with no blockers)
-  -q, --query <text>         Search in description and context (deprecated: use positional)
+  -q, --query <text>         Search in name and description (deprecated: use positional)
   -f, --flat                 Show flat list instead of tree view
   --issue <number>           Find task by GitHub issue number
   --commit <sha>             Find task by commit SHA (prefix match)
@@ -111,7 +137,9 @@ ${colors.bold}EXAMPLES:${colors.reset}
     const parentTask = await service.get(parentFilter);
     if (!parentTask) {
       // Fall back to treating as query if not a valid task ID
-      console.log(`${colors.dim}No task found with ID "${filterArg}", searching by text...${colors.reset}`);
+      console.log(
+        `${colors.dim}No task found with ID "${filterArg}", searching by text...${colors.reset}`,
+      );
       queryFilter = filterArg;
       parentFilter = undefined;
     }
@@ -159,7 +187,9 @@ ${colors.bold}EXAMPLES:${colors.reset}
     const descendants = new Set<string>();
     collectSubtreeIds(tasks, parentFilter, descendants);
     // Include the root task itself
-    filteredTasks = tasks.filter((t) => t.id === parentFilter || descendants.has(t.id));
+    filteredTasks = tasks.filter(
+      (t) => t.id === parentFilter || descendants.has(t.id),
+    );
     subtreeRoot = filteredTasks.find((t) => t.id === parentFilter);
   }
 
@@ -185,19 +215,30 @@ ${colors.bold}EXAMPLES:${colors.reset}
   }
 
   // Use flat mode when explicitly requested or when filtering (tree display doesn't work well with filtered results)
-  const useFlat = getBooleanFlag(flags, "flat") || Boolean(query) ||
-    getBooleanFlag(flags, "blocked") || getBooleanFlag(flags, "ready") ||
-    issueFilter !== undefined || commitFilter !== undefined;
+  const useFlat =
+    getBooleanFlag(flags, "flat") ||
+    Boolean(query) ||
+    getBooleanFlag(flags, "blocked") ||
+    getBooleanFlag(flags, "ready") ||
+    issueFilter !== undefined ||
+    commitFilter !== undefined;
 
   if (useFlat) {
     for (const task of filteredTasks) {
       const blockedByIds = getIncompleteBlockerIds(allTasks, task);
-      console.log(formatTask(task, { truncateDescription: LIST_DESCRIPTION_MAX_LENGTH, blockedByIds }));
+      console.log(
+        formatTask(task, { truncateName: LIST_NAME_MAX_LENGTH, blockedByIds }),
+      );
     }
   } else if (subtreeRoot) {
     // Subtree view: show the root task, then its children as a tree
     const blockedByIds = getIncompleteBlockerIds(allTasks, subtreeRoot);
-    console.log(formatTask(subtreeRoot, { truncateDescription: LIST_DESCRIPTION_MAX_LENGTH, blockedByIds }));
+    console.log(
+      formatTask(subtreeRoot, {
+        truncateName: LIST_NAME_MAX_LENGTH,
+        blockedByIds,
+      }),
+    );
     printTaskTree(filteredTasks, allTasks, subtreeRoot.id, "", false);
   } else {
     // Full tree view: show all root-level tasks
@@ -208,7 +249,11 @@ ${colors.bold}EXAMPLES:${colors.reset}
 /**
  * Collect all descendant task IDs under a parent.
  */
-function collectSubtreeIds(tasks: Task[], parentId: string, result: Set<string>): void {
+function collectSubtreeIds(
+  tasks: Task[],
+  parentId: string,
+  result: Set<string>,
+): void {
   for (const task of tasks) {
     if (task.parent_id === parentId && !result.has(task.id)) {
       result.add(task.id);

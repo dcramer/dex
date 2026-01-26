@@ -15,7 +15,9 @@ describe("plan command", () => {
 
   beforeEach(async () => {
     // Create temp storage for dex tasks
-    const tempStorageDir = await fs.mkdtemp(path.join(os.tmpdir(), "dex-cli-test-"));
+    const tempStorageDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), "dex-cli-test-"),
+    );
     storage = new FileStorage(tempStorageDir);
     cleanup = () => fs.rm(tempStorageDir, { recursive: true, force: true });
 
@@ -37,7 +39,10 @@ describe("plan command", () => {
 
   it("creates task from plan file", async () => {
     const planPath = path.join(tempDir, "test-plan.md");
-    await fs.writeFile(planPath, "# Plan: Test Feature\n\nFull plan content here.");
+    await fs.writeFile(
+      planPath,
+      "# Plan: Test Feature\n\nFull plan content here.",
+    );
 
     await runCli(["plan", planPath], { storage });
 
@@ -85,8 +90,8 @@ Detailed summary here.
     const tasks = await service.list({ all: true });
     const task = tasks.find((t) => t.id === taskId);
     expect(task).toBeTruthy();
-    expect(task!.context).toBe(planContent);
-    expect(task!.description).toBe("Feature X");
+    expect(task!.description).toBe(planContent);
+    expect(task!.name).toBe("Feature X");
   });
 
   it("handles priority flag", async () => {
@@ -102,7 +107,10 @@ Detailed summary here.
 
   it("handles parent flag", async () => {
     // Create parent task first
-    await runCli(["create", "-d", "Parent", "--context", "Parent context"], { storage });
+    await runCli(
+      ["create", "-n", "Parent", "--description", "Parent description"],
+      { storage },
+    );
 
     const { TaskService } = await import("../core/task-service.js");
     const service = new TaskService(storage);
@@ -117,7 +125,7 @@ Detailed summary here.
 
     // Verify subtask was created
     const allTasks = await service.list({ all: true });
-    const subtask = allTasks.find((t) => t.description === "Subtask Plan");
+    const subtask = allTasks.find((t) => t.name === "Subtask Plan");
     expect(subtask).toBeTruthy();
     expect(subtask!.parent_id).toBe(parentId);
   });
@@ -141,9 +149,9 @@ Detailed summary here.
   it("handles non-existent file", async () => {
     const nonExistentPath = path.join(tempDir, "does-not-exist.md");
 
-    await expect(runCli(["plan", nonExistentPath], { storage })).rejects.toThrow(
-      "process.exit"
-    );
+    await expect(
+      runCli(["plan", nonExistentPath], { storage }),
+    ).rejects.toThrow("process.exit");
 
     expect(output.stderr.join("\n")).toContain("ENOENT");
   });
@@ -152,7 +160,9 @@ Detailed summary here.
     const emptyPath = path.join(tempDir, "empty.md");
     await fs.writeFile(emptyPath, "");
 
-    await expect(runCli(["plan", emptyPath], { storage })).rejects.toThrow("process.exit");
+    await expect(runCli(["plan", emptyPath], { storage })).rejects.toThrow(
+      "process.exit",
+    );
 
     expect(output.stderr.join("\n")).toContain("Plan file is empty");
   });

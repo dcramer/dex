@@ -272,14 +272,14 @@ export class GitHubSyncService {
         const hasChanges = cached
           ? this.hasIssueChangedFromCache(
               cached,
-              parent.description,
+              parent.name,
               expectedBody,
               expectedLabels,
               shouldClose,
             )
           : await this.hasIssueChanged(
               issueNumber,
-              parent.description,
+              parent.name,
               expectedBody,
               expectedLabels,
               shouldClose,
@@ -427,7 +427,7 @@ export class GitHubSyncService {
     const { data: issue } = await this.octokit.issues.create({
       owner: this.owner,
       repo: this.repo,
-      title: parent.description,
+      title: parent.name,
       body,
       labels: this.buildLabels(parent, shouldClose),
     });
@@ -475,7 +475,7 @@ export class GitHubSyncService {
       owner: this.owner,
       repo: this.repo,
       issue_number: issueNumber,
-      title: parent.description,
+      title: parent.name,
       body,
       labels: this.buildLabels(parent, shouldClose),
       state: shouldClose ? "closed" : "open",
@@ -524,7 +524,7 @@ export class GitHubSyncService {
       }
     }
 
-    const body = renderHierarchicalIssueBody(task.context, descendants);
+    const body = renderHierarchicalIssueBody(task.description, descendants);
     return `${rootMeta.join("\n")}\n${body}`;
   }
 

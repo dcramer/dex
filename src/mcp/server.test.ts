@@ -19,23 +19,26 @@ describe("MCP Server", () => {
   });
 
   async function createTask(args: {
-    description: string;
-    context?: string;
+    name: string;
+    description?: string;
     blocked_by?: string[];
     parent_id?: string;
     priority?: number;
   }): Promise<Task> {
     const result = await ctx.client.callTool({
       name: "create_task",
-      arguments: { context: "Context", ...args },
+      arguments: { description: "Description", ...args },
     });
     return parseToolResponse<Task>(result);
   }
 
-  async function createBlockerAndBlockedTask(): Promise<{ blocker: Task; blocked: Task }> {
-    const blocker = await createTask({ description: "Blocker" });
+  async function createBlockerAndBlockedTask(): Promise<{
+    blocker: Task;
+    blocked: Task;
+  }> {
+    const blocker = await createTask({ name: "Blocker" });
     const blocked = await createTask({
-      description: "Blocked task",
+      name: "Blocked task",
       blocked_by: [blocker.id],
     });
     return { blocker, blocked };
@@ -67,16 +70,16 @@ describe("MCP Server", () => {
       const result = await ctx.client.callTool({
         name: "create_task",
         arguments: {
-          description: "Test task",
-          context: "Test context for the task",
+          name: "Test task",
+          description: "Test description for the task",
         },
       });
 
       const task = parseToolResponse<Task>(result);
 
       expect(task.id).toBeDefined();
-      expect(task.description).toBe("Test task");
-      expect(task.context).toBe("Test context for the task");
+      expect(task.name).toBe("Test task");
+      expect(task.description).toBe("Test description for the task");
       expect(task.completed).toBe(false);
       expect(task.priority).toBe(1);
       expect(task.parent_id).toBeNull();
@@ -86,8 +89,8 @@ describe("MCP Server", () => {
       const result = await ctx.client.callTool({
         name: "create_task",
         arguments: {
-          description: "High priority task",
-          context: "Urgent work",
+          name: "High priority task",
+          description: "Urgent work",
           priority: 5,
         },
       });
@@ -101,8 +104,8 @@ describe("MCP Server", () => {
       const parentResult = await ctx.client.callTool({
         name: "create_task",
         arguments: {
-          description: "Parent task",
-          context: "Parent context",
+          name: "Parent task",
+          description: "Parent context",
         },
       });
       const parent = parseToolResponse<Task>(parentResult);
@@ -111,8 +114,8 @@ describe("MCP Server", () => {
       const subtaskResult = await ctx.client.callTool({
         name: "create_task",
         arguments: {
-          description: "Subtask",
-          context: "Subtask context",
+          name: "Subtask",
+          description: "Subtask context",
           parent_id: parent.id,
         },
       });
@@ -125,7 +128,7 @@ describe("MCP Server", () => {
       const result = await ctx.client.callTool({
         name: "create_task",
         arguments: {
-          context: "Only context, no description",
+          description: "Only context, no description",
         },
       });
 
@@ -136,7 +139,7 @@ describe("MCP Server", () => {
       const result = await ctx.client.callTool({
         name: "create_task",
         arguments: {
-          description: "Only description, no context",
+          name: "Only description, no context",
         },
       });
 
@@ -147,8 +150,8 @@ describe("MCP Server", () => {
       const result = await ctx.client.callTool({
         name: "create_task",
         arguments: {
-          description: "Orphan subtask",
-          context: "Context",
+          name: "Orphan subtask",
+          description: "Context",
           parent_id: "nonexistent123",
         },
       });
@@ -167,8 +170,8 @@ describe("MCP Server", () => {
       const result = await ctx.client.callTool({
         name: "create_task",
         arguments: {
-          description: "Task with bad blocker",
-          context: "Context",
+          name: "Task with bad blocker",
+          description: "Context",
           blocked_by: ["nonexistent123"],
         },
       });
@@ -194,12 +197,12 @@ describe("MCP Server", () => {
       // Create a pending and a completed task
       await ctx.client.callTool({
         name: "create_task",
-        arguments: { description: "Pending task", context: "Context" },
+        arguments: { name: "Pending task", description: "Context" },
       });
 
       const createResult = await ctx.client.callTool({
         name: "create_task",
-        arguments: { description: "To be completed", context: "Context" },
+        arguments: { name: "To be completed", description: "Context" },
       });
       const toComplete = parseToolResponse<Task>(createResult);
 
@@ -216,14 +219,14 @@ describe("MCP Server", () => {
 
       const tasks = parseToolResponse<Task[]>(result);
       expect(tasks).toHaveLength(1);
-      expect(tasks[0].description).toBe("Pending task");
+      expect(tasks[0].name).toBe("Pending task");
     });
 
     it("filters by completed", async () => {
       // Create tasks
       const createResult = await ctx.client.callTool({
         name: "create_task",
-        arguments: { description: "Task to complete", context: "Context" },
+        arguments: { name: "Task to complete", description: "Context" },
       });
       const task = parseToolResponse<Task>(createResult);
 
@@ -247,13 +250,13 @@ describe("MCP Server", () => {
       // Create one pending and one completed
       const createResult = await ctx.client.callTool({
         name: "create_task",
-        arguments: { description: "Pending", context: "Context" },
+        arguments: { name: "Pending", description: "Context" },
       });
       const pending = parseToolResponse<Task>(createResult);
 
       const createResult2 = await ctx.client.callTool({
         name: "create_task",
-        arguments: { description: "Completed", context: "Context" },
+        arguments: { name: "Completed", description: "Context" },
       });
       const toComplete = parseToolResponse<Task>(createResult2);
 
@@ -275,11 +278,14 @@ describe("MCP Server", () => {
     it("searches by query", async () => {
       await ctx.client.callTool({
         name: "create_task",
-        arguments: { description: "Fix authentication bug", context: "Auth context" },
+        arguments: {
+          name: "Fix authentication bug",
+          description: "Auth context",
+        },
       });
       await ctx.client.callTool({
         name: "create_task",
-        arguments: { description: "Add new feature", context: "Feature context" },
+        arguments: { name: "Add new feature", description: "Feature context" },
       });
 
       const result = await ctx.client.callTool({
@@ -289,12 +295,12 @@ describe("MCP Server", () => {
 
       const tasks = parseToolResponse<Task[]>(result);
       expect(tasks).toHaveLength(1);
-      expect(tasks[0].description).toContain("authentication");
+      expect(tasks[0].name).toContain("authentication");
     });
 
     it("filters blocked tasks", async () => {
       await createBlockerAndBlockedTask();
-      await createTask({ description: "Unblocked task" });
+      await createTask({ name: "Unblocked task" });
 
       const result = await ctx.client.callTool({
         name: "list_tasks",
@@ -303,12 +309,12 @@ describe("MCP Server", () => {
 
       const tasks = parseToolResponse<Task[]>(result);
       expect(tasks).toHaveLength(1);
-      expect(tasks[0].description).toBe("Blocked task");
+      expect(tasks[0].name).toBe("Blocked task");
     });
 
     it("filters ready tasks (unblocked pending)", async () => {
       await createBlockerAndBlockedTask();
-      await createTask({ description: "Ready task" });
+      await createTask({ name: "Ready task" });
 
       const result = await ctx.client.callTool({
         name: "list_tasks",
@@ -318,50 +324,50 @@ describe("MCP Server", () => {
       const tasks = parseToolResponse<Task[]>(result);
       // Blocker and Ready task are both ready (no incomplete blockers)
       expect(tasks).toHaveLength(2);
-      const descriptions = tasks.map((t) => t.description);
-      expect(descriptions).toContain("Blocker");
-      expect(descriptions).toContain("Ready task");
-      expect(descriptions).not.toContain("Blocked task");
+      const names = tasks.map((t) => t.name);
+      expect(names).toContain("Blocker");
+      expect(names).toContain("Ready task");
+      expect(names).not.toContain("Blocked task");
     });
   });
 
   describe("update_task", () => {
+    it("updates task name", async () => {
+      const createResult = await ctx.client.callTool({
+        name: "create_task",
+        arguments: { name: "Original", description: "Context" },
+      });
+      const task = parseToolResponse<Task>(createResult);
+
+      const updateResult = await ctx.client.callTool({
+        name: "update_task",
+        arguments: { id: task.id, name: "Updated" },
+      });
+
+      const updated = parseToolResponse<Task>(updateResult);
+      expect(updated.name).toBe("Updated");
+    });
+
     it("updates task description", async () => {
       const createResult = await ctx.client.callTool({
         name: "create_task",
-        arguments: { description: "Original", context: "Context" },
+        arguments: { name: "Task", description: "Original description" },
       });
       const task = parseToolResponse<Task>(createResult);
 
       const updateResult = await ctx.client.callTool({
         name: "update_task",
-        arguments: { id: task.id, description: "Updated" },
+        arguments: { id: task.id, description: "Updated description" },
       });
 
       const updated = parseToolResponse<Task>(updateResult);
-      expect(updated.description).toBe("Updated");
-    });
-
-    it("updates task context", async () => {
-      const createResult = await ctx.client.callTool({
-        name: "create_task",
-        arguments: { description: "Task", context: "Original context" },
-      });
-      const task = parseToolResponse<Task>(createResult);
-
-      const updateResult = await ctx.client.callTool({
-        name: "update_task",
-        arguments: { id: task.id, context: "Updated context" },
-      });
-
-      const updated = parseToolResponse<Task>(updateResult);
-      expect(updated.context).toBe("Updated context");
+      expect(updated.description).toBe("Updated description");
     });
 
     it("updates task priority", async () => {
       const createResult = await ctx.client.callTool({
         name: "create_task",
-        arguments: { description: "Task", context: "Context" },
+        arguments: { name: "Task", description: "Context" },
       });
       const task = parseToolResponse<Task>(createResult);
 
@@ -377,7 +383,7 @@ describe("MCP Server", () => {
     it("completes a task with result", async () => {
       const createResult = await ctx.client.callTool({
         name: "create_task",
-        arguments: { description: "Task to complete", context: "Context" },
+        arguments: { name: "Task to complete", description: "Context" },
       });
       const task = parseToolResponse<Task>(createResult);
 
@@ -392,14 +398,16 @@ describe("MCP Server", () => {
 
       const completed = parseToolResponse<Task>(updateResult);
       expect(completed.completed).toBe(true);
-      expect(completed.result).toBe("Task completed successfully with these changes...");
+      expect(completed.result).toBe(
+        "Task completed successfully with these changes...",
+      );
       expect(completed.completed_at).toBeTruthy();
     });
 
     it("deletes a task", async () => {
       const createResult = await ctx.client.callTool({
         name: "create_task",
-        arguments: { description: "Task to delete", context: "Context" },
+        arguments: { name: "Task to delete", description: "Context" },
       });
       const task = parseToolResponse<Task>(createResult);
 
@@ -408,7 +416,9 @@ describe("MCP Server", () => {
         arguments: { id: task.id, delete: true },
       });
 
-      const response = parseToolResponse<{ deleted: boolean; id: string }>(deleteResult);
+      const response = parseToolResponse<{ deleted: boolean; id: string }>(
+        deleteResult,
+      );
       expect(response.deleted).toBe(true);
       expect(response.id).toBe(task.id);
 
@@ -424,7 +434,7 @@ describe("MCP Server", () => {
     it("returns error for non-existent task", async () => {
       const result = await ctx.client.callTool({
         name: "update_task",
-        arguments: { id: "nonexistent123", description: "New description" },
+        arguments: { id: "nonexistent123", name: "New name" },
       });
 
       expect(isErrorResult(result)).toBe(true);
@@ -435,7 +445,7 @@ describe("MCP Server", () => {
     it("returns validation error for missing id", async () => {
       const result = await ctx.client.callTool({
         name: "update_task",
-        arguments: { description: "No ID provided" },
+        arguments: { name: "No ID provided" },
       });
 
       expect(isErrorResult(result)).toBe(true);
@@ -444,13 +454,13 @@ describe("MCP Server", () => {
     it("updates parent_id to create subtask relationship", async () => {
       const parentResult = await ctx.client.callTool({
         name: "create_task",
-        arguments: { description: "Parent", context: "Context" },
+        arguments: { name: "Parent", description: "Context" },
       });
       const parent = parseToolResponse<Task>(parentResult);
 
       const childResult = await ctx.client.callTool({
         name: "create_task",
-        arguments: { description: "Child", context: "Context" },
+        arguments: { name: "Child", description: "Context" },
       });
       const child = parseToolResponse<Task>(childResult);
 
@@ -466,13 +476,17 @@ describe("MCP Server", () => {
     it("removes parent_id by setting to null", async () => {
       const parentResult = await ctx.client.callTool({
         name: "create_task",
-        arguments: { description: "Parent", context: "Context" },
+        arguments: { name: "Parent", description: "Context" },
       });
       const parent = parseToolResponse<Task>(parentResult);
 
       const childResult = await ctx.client.callTool({
         name: "create_task",
-        arguments: { description: "Child", context: "Context", parent_id: parent.id },
+        arguments: {
+          name: "Child",
+          description: "Context",
+          parent_id: parent.id,
+        },
       });
       const child = parseToolResponse<Task>(childResult);
 
@@ -486,7 +500,7 @@ describe("MCP Server", () => {
     });
 
     it("adds commit metadata when completing task", async () => {
-      const task = await createTask({ description: "Task with commit" });
+      const task = await createTask({ name: "Task with commit" });
 
       const updateResult = await ctx.client.callTool({
         name: "update_task",
@@ -507,13 +521,15 @@ describe("MCP Server", () => {
       expect(updated.metadata?.commit?.sha).toBe("abc123def");
       expect(updated.metadata?.commit?.message).toBe("feat: add new feature");
       expect(updated.metadata?.commit?.branch).toBe("feature-branch");
-      expect(updated.metadata?.commit?.url).toBe("https://github.com/org/repo/commit/abc123def");
+      expect(updated.metadata?.commit?.url).toBe(
+        "https://github.com/org/repo/commit/abc123def",
+      );
       expect(updated.metadata?.commit?.timestamp).toBeDefined();
     });
 
     it("adds blocked_by dependencies", async () => {
-      const blocker = await createTask({ description: "Blocker" });
-      const task = await createTask({ description: "Task" });
+      const blocker = await createTask({ name: "Blocker" });
+      const task = await createTask({ name: "Task" });
 
       const updateResult = await ctx.client.callTool({
         name: "update_task",
@@ -538,7 +554,7 @@ describe("MCP Server", () => {
     });
 
     it("returns error when adding non-existent blocked_by", async () => {
-      const task = await createTask({ description: "Task" });
+      const task = await createTask({ name: "Task" });
 
       const result = await ctx.client.callTool({
         name: "update_task",
@@ -554,8 +570,8 @@ describe("MCP Server", () => {
       const result = await ctx.client.callTool({
         name: "create_task",
         arguments: {
-          description: "Task with invalid priority",
-          context: "Context",
+          name: "Task with invalid priority",
+          description: "Context",
           priority: 101,
         },
       });
@@ -564,7 +580,7 @@ describe("MCP Server", () => {
     });
 
     it("returns validation error for invalid commit_sha format", async () => {
-      const task = await createTask({ description: "Task" });
+      const task = await createTask({ name: "Task" });
 
       const result = await ctx.client.callTool({
         name: "update_task",
@@ -578,7 +594,7 @@ describe("MCP Server", () => {
     });
 
     it("accepts valid short commit SHA", async () => {
-      const task = await createTask({ description: "Task" });
+      const task = await createTask({ name: "Task" });
 
       const result = await ctx.client.callTool({
         name: "update_task",
@@ -594,7 +610,7 @@ describe("MCP Server", () => {
     });
 
     it("accepts valid full commit SHA", async () => {
-      const task = await createTask({ description: "Task" });
+      const task = await createTask({ name: "Task" });
 
       const result = await ctx.client.callTool({
         name: "update_task",
@@ -606,7 +622,9 @@ describe("MCP Server", () => {
 
       expect(isErrorResult(result)).toBe(false);
       const updated = parseToolResponse<Task>(result);
-      expect(updated.metadata?.commit?.sha).toBe("abc123def456789012345678901234567890abcd");
+      expect(updated.metadata?.commit?.sha).toBe(
+        "abc123def456789012345678901234567890abcd",
+      );
     });
   });
 });

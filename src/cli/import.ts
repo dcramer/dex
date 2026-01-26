@@ -183,7 +183,7 @@ async function importSingleIssue(
   const task = await importIssueAsTask(service, issue, parsed);
   console.log(
     `${colors.green}Imported${colors.reset} issue #${parsed.number} as task ` +
-      `${colors.bold}${task.id}${colors.reset}: "${task.description}"`,
+      `${colors.bold}${task.id}${colors.reset}: "${task.name}"`,
   );
 
   if (subtasks.length > 0) {
@@ -197,8 +197,8 @@ async function importSingleIssue(
 
       const createdSubtask = await service.create({
         id: subtask.id,
-        description: subtask.description,
-        context: subtask.context || "Imported from GitHub issue",
+        name: subtask.name,
+        description: subtask.description || "Imported from GitHub issue",
         parent_id: localParentId,
         priority: subtask.priority,
         completed: subtask.completed,
@@ -337,10 +337,10 @@ interface ParsedIssueData {
 
 function parseIssueData(issue: GitHubIssue, repo: GitHubRepo): ParsedIssueData {
   const body = issue.body || "";
-  const { context } = parseHierarchicalIssueBody(body);
+  const { description } = parseHierarchicalIssueBody(body);
 
   // Remove dex:task: comments (both new format dex:task:key:value and legacy dex:task:id)
-  const cleanContext = context
+  const cleanContext = description
     .replace(/<!-- dex:task:[^\s]+ -->\n?/g, "")
     .trim();
 
@@ -378,8 +378,8 @@ async function importIssueAsTask(
 
   return await service.create({
     id: rootMetadata?.id, // Use original ID if available (will fail if conflict)
-    description: issue.title,
-    context: cleanContext || `Imported from GitHub issue #${issue.number}`,
+    name: issue.title,
+    description: cleanContext || `Imported from GitHub issue #${issue.number}`,
     priority: rootMetadata?.priority,
     completed,
     result:
@@ -407,8 +407,8 @@ async function updateTaskFromIssue(
 
   return await service.update({
     id: existingTask.id,
-    description: issue.title,
-    context: cleanContext || existingTask.context,
+    name: issue.title,
+    description: cleanContext || existingTask.description,
     priority: rootMetadata?.priority ?? existingTask.priority,
     metadata: {
       ...existingTask.metadata,

@@ -7,7 +7,11 @@ import { Task, CommitMetadata } from "../../types.js";
 export function encodeMetadataValue(value: string): string {
   // If the value contains newlines, --> (which would break HTML comment), or
   // starts with "base64:" (which is our encoding marker), encode it
-  if (value.includes("\n") || value.includes("-->") || value.startsWith("base64:")) {
+  if (
+    value.includes("\n") ||
+    value.includes("-->") ||
+    value.startsWith("base64:")
+  ) {
     return `base64:${Buffer.from(value, "utf-8").toString("base64")}`;
   }
   return value;
@@ -44,7 +48,9 @@ export interface ParsedRootTaskMetadata {
  * @param body - The GitHub issue body
  * @returns Parsed metadata or null if no dex task metadata found
  */
-export function parseRootTaskMetadata(body: string): ParsedRootTaskMetadata | null {
+export function parseRootTaskMetadata(
+  body: string,
+): ParsedRootTaskMetadata | null {
   const metadata: ParsedRootTaskMetadata = {};
   const commit: Partial<CommitMetadata> = {};
   let foundAny = false;
@@ -125,7 +131,7 @@ export type EmbeddedSubtask = Omit<Task, "parent_id">;
  */
 export interface HierarchicalTask {
   task: Task;
-  depth: number;  // 0 = immediate child of root, 1 = grandchild, etc.
+  depth: number; // 0 = immediate child of root, 1 = grandchild, etc.
   parentId: string | null;
 }
 
@@ -133,7 +139,7 @@ export interface HierarchicalTask {
  * Result of parsing an issue body.
  */
 export interface ParsedIssueBody {
-  context: string;
+  description: string;
   subtasks: EmbeddedSubtask[];
 }
 
@@ -170,7 +176,7 @@ export function parseSubtaskId(id: string): ParsedSubtaskId | null {
  * Result of parsing an issue body with hierarchy info.
  */
 export interface ParsedHierarchicalIssueBody {
-  context: string;
+  description: string;
   subtasks: Array<EmbeddedSubtask & { parentId?: string }>;
 }
 
@@ -187,20 +193,22 @@ export function parseIssueBody(body: string): ParsedIssueBody {
 
   if (taskTreeIndex !== -1 || taskDetailsIndex !== -1) {
     // New hierarchical format
-    const contextEnd = Math.min(
+    const descriptionEnd = Math.min(
       taskTreeIndex !== -1 ? taskTreeIndex : Infinity,
-      taskDetailsIndex !== -1 ? taskDetailsIndex : Infinity
+      taskDetailsIndex !== -1 ? taskDetailsIndex : Infinity,
     );
-    const context = body.slice(0, contextEnd).trim();
+    const description = body.slice(0, descriptionEnd).trim();
 
     // Parse subtasks from Task Details section
     if (taskDetailsIndex !== -1) {
-      const detailsSection = body.slice(taskDetailsIndex + TASK_DETAILS_HEADER.length);
+      const detailsSection = body.slice(
+        taskDetailsIndex + TASK_DETAILS_HEADER.length,
+      );
       const subtasks = parseSubtasksSection(detailsSection);
-      return { context, subtasks };
+      return { description, subtasks };
     }
 
-    return { context, subtasks: [] };
+    return { description, subtasks: [] };
   }
 
   // Old flat format
@@ -208,45 +216,52 @@ export function parseIssueBody(body: string): ParsedIssueBody {
 
   if (subtasksIndex === -1) {
     return {
-      context: body.trim(),
+      description: body.trim(),
       subtasks: [],
     };
   }
 
-  const context = body.slice(0, subtasksIndex).trim();
+  const description = body.slice(0, subtasksIndex).trim();
   const subtasksSection = body.slice(subtasksIndex + SUBTASKS_HEADER.length);
 
   const subtasks = parseSubtasksSection(subtasksSection);
 
-  return { context, subtasks };
+  return { description, subtasks };
 }
 
 /**
  * Parse an issue body preserving hierarchy information.
  * Returns subtasks with their parentId for reconstructing the tree.
  * @param body - The GitHub issue body
- * @returns Parsed context and subtasks with parent info
+ * @returns Parsed description and subtasks with parent info
  */
-export function parseHierarchicalIssueBody(body: string): ParsedHierarchicalIssueBody {
+export function parseHierarchicalIssueBody(
+  body: string,
+): ParsedHierarchicalIssueBody {
   const taskTreeIndex = body.indexOf(TASK_TREE_HEADER);
   const taskDetailsIndex = body.indexOf(TASK_DETAILS_HEADER);
 
-  // Determine context end
-  const contextEnd = Math.min(
+  // Determine description end
+  const descriptionEnd = Math.min(
     taskTreeIndex !== -1 ? taskTreeIndex : Infinity,
     taskDetailsIndex !== -1 ? taskDetailsIndex : Infinity,
-    body.indexOf(SUBTASKS_HEADER) !== -1 ? body.indexOf(SUBTASKS_HEADER) : Infinity
+    body.indexOf(SUBTASKS_HEADER) !== -1
+      ? body.indexOf(SUBTASKS_HEADER)
+      : Infinity,
   );
 
-  const context = contextEnd === Infinity
-    ? body.trim()
-    : body.slice(0, contextEnd).trim();
+  const description =
+    descriptionEnd === Infinity
+      ? body.trim()
+      : body.slice(0, descriptionEnd).trim();
 
   // Parse subtasks with parent info
   const subtasks: Array<EmbeddedSubtask & { parentId?: string }> = [];
 
   if (taskDetailsIndex !== -1) {
-    const detailsSection = body.slice(taskDetailsIndex + TASK_DETAILS_HEADER.length);
+    const detailsSection = body.slice(
+      taskDetailsIndex + TASK_DETAILS_HEADER.length,
+    );
     const detailsRegex = /<details>([\s\S]*?)<\/details>/g;
     let match;
 
@@ -258,12 +273,14 @@ export function parseHierarchicalIssueBody(body: string): ParsedHierarchicalIssu
     }
   } else if (body.indexOf(SUBTASKS_HEADER) !== -1) {
     // Old format - no parent info
-    const subtasksSection = body.slice(body.indexOf(SUBTASKS_HEADER) + SUBTASKS_HEADER.length);
+    const subtasksSection = body.slice(
+      body.indexOf(SUBTASKS_HEADER) + SUBTASKS_HEADER.length,
+    );
     const parsed = parseSubtasksSection(subtasksSection);
     subtasks.push(...parsed);
   }
 
-  return { context, subtasks };
+  return { description, subtasks };
 }
 
 /**
@@ -291,19 +308,19 @@ function parseSubtasksSection(section: string): EmbeddedSubtask[] {
  * Parse a single <details> block into a subtask.
  */
 function parseDetailsBlock(content: string): EmbeddedSubtask | null {
-  // Extract summary (description and checkbox status)
+  // Extract summary (name and checkbox status)
   const summaryMatch = content.match(
-    /<summary>\s*\[([ x])\]\s*(.*?)\s*<\/summary>/i
+    /<summary>\s*\[([ x])\]\s*(.*?)\s*<\/summary>/i,
   );
   if (!summaryMatch) {
     return null;
   }
 
   const isCompleted = summaryMatch[1].toLowerCase() === "x";
-  // Clean up description: remove depth arrows, HTML tags, and code blocks
-  const rawDescription = summaryMatch[2].trim();
-  const description = rawDescription
-    .replace(/^↳+\s*/, "")  // Remove depth arrows
+  // Clean up name: remove depth arrows, HTML tags, and code blocks
+  const rawName = summaryMatch[2].trim();
+  const name = rawName
+    .replace(/^↳+\s*/, "") // Remove depth arrows
     .replace(/<\/?b>/g, "") // Remove <b> tags
     .replace(/<code>.*?<\/code>/g, "") // Remove <code>id</code> blocks
     .trim();
@@ -314,11 +331,11 @@ function parseDetailsBlock(content: string): EmbeddedSubtask | null {
     return null;
   }
 
-  // Extract context (### Context section)
-  const contextMatch = content.match(
-    /### Context\s*\n([\s\S]*?)(?=###|$)/
+  // Extract description (### Description section, or legacy ### Context section)
+  const descriptionMatch = content.match(
+    /### (?:Description|Context)\s*\n([\s\S]*?)(?=###|$)/,
   );
-  const context = contextMatch ? contextMatch[1].trim() : "";
+  const description = descriptionMatch ? descriptionMatch[1].trim() : "";
 
   // Extract result (### Result section)
   const resultMatch = content.match(/### Result\s*\n([\s\S]*?)(?=###|$)/);
@@ -326,8 +343,8 @@ function parseDetailsBlock(content: string): EmbeddedSubtask | null {
 
   return {
     id: metadata.id,
+    name,
     description,
-    context,
     priority: metadata.priority ?? 1,
     completed: metadata.completed ?? isCompleted,
     result,
@@ -345,7 +362,7 @@ function parseDetailsBlock(content: string): EmbeddedSubtask | null {
  * Parse a single <details> block into a subtask with parent info.
  */
 function parseDetailsBlockWithParent(
-  content: string
+  content: string,
 ): (EmbeddedSubtask & { parentId?: string }) | null {
   const subtask = parseDetailsBlock(content);
   if (!subtask) return null;
@@ -439,7 +456,7 @@ function parseMetadataComments(content: string): {
  */
 export function embeddedSubtaskToTask(
   subtask: EmbeddedSubtask,
-  parentId: string
+  parentId: string,
 ): Task {
   return { ...subtask, parent_id: parentId };
 }
@@ -460,7 +477,7 @@ export function taskToEmbeddedSubtask(task: Task): EmbeddedSubtask {
  */
 export function getNextSubtaskIndex(
   existingSubtasks: EmbeddedSubtask[],
-  parentId: string
+  parentId: string,
 ): number {
   let maxIndex = 0;
 
@@ -482,7 +499,7 @@ export function getNextSubtaskIndex(
  */
 export function collectDescendants(
   allTasks: Task[],
-  rootId: string
+  rootId: string,
 ): HierarchicalTask[] {
   const result: HierarchicalTask[] = [];
 

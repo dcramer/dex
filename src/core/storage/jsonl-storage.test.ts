@@ -9,8 +9,8 @@ import { DataCorruptionError, StorageError } from "../../errors.js";
 function createTask(overrides: Partial<Task> = {}): Task {
   return {
     id: "abc12345",
-    description: "Test task",
-    context: "",
+    name: "Test task",
+    description: "",
     completed: false,
     priority: 1,
     created_at: new Date().toISOString(),
@@ -54,7 +54,7 @@ describe("JsonlStorage", () => {
     });
 
     it("reads single task from JSONL file", () => {
-      const task = createTask({ context: "Test context" });
+      const task = createTask({ description: "Test context" });
       const tasksFile = path.join(tempDir, "tasks.jsonl");
       fs.writeFileSync(tasksFile, JSON.stringify(task) + "\n", "utf-8");
 
@@ -66,13 +66,13 @@ describe("JsonlStorage", () => {
     it("reads multiple tasks from JSONL file", () => {
       const task1 = createTask({
         id: "abc12345",
-        description: "Task 1",
-        context: "Context 1",
+        name: "Task 1",
+        description: "Context 1",
       });
       const task2 = createTask({
         id: "def67890",
-        description: "Task 2",
-        context: "Context 2",
+        name: "Task 2",
+        description: "Context 2",
         completed: true,
         priority: 2,
         completed_at: new Date().toISOString(),
@@ -169,7 +169,7 @@ describe("JsonlStorage", () => {
     });
 
     it("writes single task to JSONL file", () => {
-      const task = createTask({ context: "Test context" });
+      const task = createTask({ description: "Test context" });
       const store: TaskStore = { tasks: [task] };
       storage.write(store);
 
@@ -213,7 +213,7 @@ describe("JsonlStorage", () => {
     });
 
     it("writes compact JSON (one line per task)", () => {
-      const task = createTask({ context: "Test context" });
+      const task = createTask({ description: "Test context" });
       const store: TaskStore = { tasks: [task] };
       storage.write(store);
 
@@ -241,8 +241,8 @@ describe("JsonlStorage", () => {
     it("reads what was written", () => {
       const task1: Task = {
         id: "abc12345",
-        description: "Task 1",
-        context: "Context 1",
+        name: "Task 1",
+        description: "Context 1",
         completed: false,
         priority: 1,
         created_at: "2024-01-01T00:00:00.000Z",
@@ -258,8 +258,8 @@ describe("JsonlStorage", () => {
 
       const task2: Task = {
         id: "def67890",
-        description: "Task 2",
-        context: "Context 2",
+        name: "Task 2",
+        description: "Context 2",
         completed: true,
         priority: 2,
         created_at: "2024-01-02T00:00:00.000Z",
@@ -383,8 +383,8 @@ describe("JsonlStorage", () => {
 
       const task: Task = {
         id: "abc12345",
-        description: "Test task",
-        context: "Full context here",
+        name: "Test task",
+        description: "Full context here",
         completed: true,
         priority: 3,
         created_at: "2024-01-01T00:00:00.000Z",
@@ -492,7 +492,7 @@ describe("JsonlStorage", () => {
       const backupFile = path.join(tempDir, "tasks.bak", "abc12345.json");
       const modifiedTask = createTask({
         id: "abc12345",
-        description: "MODIFIED",
+        name: "MODIFIED",
       });
       fs.writeFileSync(
         backupFile,
@@ -503,7 +503,7 @@ describe("JsonlStorage", () => {
       // Second read should use JSONL
       const store = storage.read();
 
-      expect(store.tasks[0].description).toBe("Test task"); // Original, not MODIFIED
+      expect(store.tasks[0].name).toBe("Test task"); // Original, not MODIFIED
     });
 
     it("handles backup directory name collision", () => {

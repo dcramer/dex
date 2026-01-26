@@ -3,7 +3,10 @@ import { ASCII_BANNER, CliOptions, createService } from "./utils.js";
 import { colors } from "./colors.js";
 import { getBooleanFlag, parseArgs } from "./args.js";
 import { formatTask, truncateText } from "./formatting.js";
-import { getIncompleteBlockerIds, hasIncompleteChildren } from "../core/task-relationships.js";
+import {
+  getIncompleteBlockerIds,
+  hasIncompleteChildren,
+} from "../core/task-relationships.js";
 
 // Limits for displayed tasks in each section
 const READY_LIMIT = 5;
@@ -55,22 +58,26 @@ function getContinuationPrefix(prefix: string): string {
 function printTaskWithChildren(
   task: Task,
   ctx: PrintContext,
-  prefix: string
+  prefix: string,
 ): void {
   if (ctx.count >= ctx.limit || ctx.printed.has(task.id)) return;
 
   const blockedByIds = ctx.getBlockedByIds?.(task) || [];
 
-  console.log(formatTask(task, {
-    treePrefix: prefix,
-    truncateDescription: STATUS_DESCRIPTION_MAX_LENGTH,
-    blockedByIds,
-  }));
+  console.log(
+    formatTask(task, {
+      treePrefix: prefix,
+      truncateName: STATUS_DESCRIPTION_MAX_LENGTH,
+      blockedByIds,
+    }),
+  );
   ctx.printed.add(task.id);
   ctx.count++;
 
   // Print children that are in the section
-  const children = (ctx.childrenMap.get(task.id) || []).filter((c) => !ctx.printed.has(c.id));
+  const children = (ctx.childrenMap.get(task.id) || []).filter(
+    (c) => !ctx.printed.has(c.id),
+  );
 
   for (let i = 0; i < children.length && ctx.count < ctx.limit; i++) {
     const isLast = i === children.length - 1 || ctx.count + 1 >= ctx.limit;
@@ -90,7 +97,7 @@ function printGroupedTasks(
   sectionTasks: Task[],
   allTasks: Task[],
   limit: number,
-  options: { blockedByIds?: (task: Task) => string[] } = {}
+  options: { blockedByIds?: (task: Task) => string[] } = {},
 ): void {
   const sectionTaskIds = new Set(sectionTasks.map((t) => t.id));
   const childrenMap = buildChildrenMap(sectionTasks);
@@ -138,14 +145,20 @@ function printGroupedTasks(
     // Show dimmed parent header
     const parent = allTasks.find((t) => t.id === parentId);
     if (parent) {
-      const parentDesc = truncateText(parent.description, STATUS_DESCRIPTION_MAX_LENGTH);
+      const parentName = truncateText(
+        parent.name,
+        STATUS_DESCRIPTION_MAX_LENGTH,
+      );
       const parentIcon = parent.completed ? "[x]" : "[ ]";
-      console.log(`${colors.dim}${parentIcon} ${parent.id}: ${parentDesc}${colors.reset}`);
+      console.log(
+        `${colors.dim}${parentIcon} ${parent.id}: ${parentName}${colors.reset}`,
+      );
     }
 
     // Print children with tree connectors
     for (let i = 0; i < remainingChildren.length && ctx.count < limit; i++) {
-      const isLast = i === remainingChildren.length - 1 || ctx.count + 1 >= limit;
+      const isLast =
+        i === remainingChildren.length - 1 || ctx.count + 1 >= limit;
       const connector = isLast ? "└── " : "├── ";
       printTaskWithChildren(remainingChildren[i], ctx, connector);
     }
@@ -194,7 +207,11 @@ function calculateStatus(tasks: Task[]): StatusData {
   // Recently completed: sorted by completed_at descending
   const recentlyCompleted = completed
     .filter((t) => t.completed_at)
-    .toSorted((a, b) => new Date(b.completed_at!).getTime() - new Date(a.completed_at!).getTime());
+    .toSorted(
+      (a, b) =>
+        new Date(b.completed_at!).getTime() -
+        new Date(a.completed_at!).getTime(),
+    );
 
   return {
     stats: {
@@ -210,11 +227,18 @@ function calculateStatus(tasks: Task[]): StatusData {
   };
 }
 
-export async function statusCommand(args: string[], options: CliOptions): Promise<void> {
-  const { flags } = parseArgs(args, {
-    json: { hasValue: false },
-    help: { short: "h", hasValue: false },
-  }, "status");
+export async function statusCommand(
+  args: string[],
+  options: CliOptions,
+): Promise<void> {
+  const { flags } = parseArgs(
+    args,
+    {
+      json: { hasValue: false },
+      help: { short: "h", hasValue: false },
+    },
+    "status",
+  );
 
   if (getBooleanFlag(flags, "help")) {
     console.log(`${colors.bold}dex status${colors.reset} - Show task dashboard overview
@@ -246,18 +270,29 @@ ${colors.bold}EXAMPLES:${colors.reset}
 
   // JSON output mode
   if (getBooleanFlag(flags, "json")) {
-    console.log(JSON.stringify({
-      stats: statusData.stats,
-      readyTasks: statusData.readyTasks.slice(0, READY_LIMIT),
-      blockedTasks: statusData.blockedTasks,
-      recentlyCompleted: statusData.recentlyCompleted.slice(0, COMPLETED_LIMIT),
-    }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          stats: statusData.stats,
+          readyTasks: statusData.readyTasks.slice(0, READY_LIMIT),
+          blockedTasks: statusData.blockedTasks,
+          recentlyCompleted: statusData.recentlyCompleted.slice(
+            0,
+            COMPLETED_LIMIT,
+          ),
+        },
+        null,
+        2,
+      ),
+    );
     return;
   }
 
   // Empty state
   if (allTasks.length === 0) {
-    console.log("No tasks yet. Create one with: dex create -d \"Description\" --context \"Details\"");
+    console.log(
+      'No tasks yet. Create one with: dex create "Task name" --description "Details"',
+    );
     return;
   }
 
@@ -268,7 +303,8 @@ ${colors.bold}EXAMPLES:${colors.reset}
   console.log("");
 
   // Metric cards - big numbers with labels below, centered over each label
-  const pct = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+  const pct =
+    stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
 
   // Helper to center a string within a width
   const center = (s: string, w: number) => {
@@ -282,25 +318,33 @@ ${colors.bold}EXAMPLES:${colors.reset}
   const col2 = center(String(stats.ready), 5);
   const col3 = center(String(stats.blocked), 7);
 
-  console.log(`${colors.green}${colors.bold}${col1}${colors.reset}   ${colors.green}${colors.bold}${col2}${colors.reset}   ${colors.yellow}${col3}${colors.reset}`);
+  console.log(
+    `${colors.green}${colors.bold}${col1}${colors.reset}   ${colors.green}${colors.bold}${col2}${colors.reset}   ${colors.yellow}${col3}${colors.reset}`,
+  );
   console.log(`${colors.dim}complete   ready   blocked${colors.reset}`);
 
   // Ready to Work section
   if (readyTasks.length > 0) {
     console.log("");
-    console.log(`${colors.bold}Ready to Work (${readyTasks.length})${colors.reset}`);
+    console.log(
+      `${colors.bold}Ready to Work (${readyTasks.length})${colors.reset}`,
+    );
     console.log(`${colors.dim}────────────────────${colors.reset}`);
     printGroupedTasks(readyTasks, allTasks, READY_LIMIT);
     if (readyTasks.length > READY_LIMIT) {
       const remaining = readyTasks.length - READY_LIMIT;
-      console.log(`${colors.dim}... and ${remaining} more (dex list --ready)${colors.reset}`);
+      console.log(
+        `${colors.dim}... and ${remaining} more (dex list --ready)${colors.reset}`,
+      );
     }
   }
 
   // Blocked section
   if (blockedTasks.length > 0) {
     console.log("");
-    console.log(`${colors.bold}Blocked (${blockedTasks.length})${colors.reset}`);
+    console.log(
+      `${colors.bold}Blocked (${blockedTasks.length})${colors.reset}`,
+    );
     console.log(`${colors.dim}────────────────────${colors.reset}`);
     printGroupedTasks(blockedTasks, allTasks, blockedTasks.length, {
       blockedByIds: (task) => getIncompleteBlockerIds(allTasks, task),

@@ -21,8 +21,8 @@ import { NotFoundError } from "../errors.js";
 function createTask(overrides: Partial<Task> = {}): Task {
   return {
     id: overrides.id ?? "task1",
-    description: "Test task",
-    context: "",
+    name: "Test task",
+    description: "",
     completed: false,
     priority: 1,
     created_at: new Date().toISOString(),
