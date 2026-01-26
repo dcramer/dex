@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+// Maximum content length (50KB) to prevent excessive file sizes
+const MAX_CONTENT_LENGTH = 50 * 1024;
+
 export const CommitMetadataSchema = z.object({
   sha: z.string().min(1),
   message: z.string().optional(),
@@ -30,11 +33,11 @@ export type TaskMetadata = z.infer<typeof TaskMetadataSchema>;
 const TaskSchemaBase = z.object({
   id: z.string().min(1, "Task ID is required"),
   parent_id: z.string().min(1).nullable().default(null),
-  description: z.string().min(1, "Description is required"),
-  context: z.string().min(1, "Context is required"),
-  priority: z.number().int().min(0).default(1),
+  description: z.string().min(1, "Description is required").max(MAX_CONTENT_LENGTH, "Description exceeds maximum length"),
+  context: z.string().min(1, "Context is required").max(MAX_CONTENT_LENGTH, "Context exceeds maximum length"),
+  priority: z.number().int().min(0).max(100, "Priority cannot exceed 100").default(1),
   completed: z.boolean().default(false),
-  result: z.string().nullable().default(null),
+  result: z.string().max(MAX_CONTENT_LENGTH, "Result exceeds maximum length").nullable().default(null),
   metadata: TaskMetadataSchema.default(null),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
@@ -77,15 +80,15 @@ export const TaskStoreSchema = z.object({
 export type TaskStore = z.infer<typeof TaskStoreSchema>;
 
 export const CreateTaskInputSchema = z.object({
-  description: z.string().min(1, "Description is required"),
-  context: z.string().min(1, "Context is required"),
+  description: z.string().min(1, "Description is required").max(MAX_CONTENT_LENGTH, "Description exceeds maximum length"),
+  context: z.string().min(1, "Context is required").max(MAX_CONTENT_LENGTH, "Context exceeds maximum length"),
   parent_id: z.string().min(1).optional(),
-  priority: z.number().int().min(0).optional(),
+  priority: z.number().int().min(0).max(100, "Priority cannot exceed 100").optional(),
   blocked_by: z.array(z.string().min(1)).optional(),
   // Optional fields for import/restore scenarios
   id: z.string().min(1).optional(), // Use specific ID (fails if conflict)
   completed: z.boolean().optional(),
-  result: z.string().nullable().optional(),
+  result: z.string().max(MAX_CONTENT_LENGTH, "Result exceeds maximum length").nullable().optional(),
   metadata: TaskMetadataSchema.optional(),
   created_at: z.string().datetime().optional(),
   updated_at: z.string().datetime().optional(),
@@ -96,12 +99,12 @@ export type CreateTaskInput = z.infer<typeof CreateTaskInputSchema>;
 
 export const UpdateTaskInputSchema = z.object({
   id: z.string().min(1, "Task ID is required"),
-  description: z.string().min(1, "Description cannot be empty").optional(),
-  context: z.string().min(1, "Context cannot be empty").optional(),
+  description: z.string().min(1, "Description cannot be empty").max(MAX_CONTENT_LENGTH, "Description exceeds maximum length").optional(),
+  context: z.string().min(1, "Context cannot be empty").max(MAX_CONTENT_LENGTH, "Context exceeds maximum length").optional(),
   parent_id: z.string().min(1).nullable().optional(),
-  priority: z.number().int().min(0).optional(),
+  priority: z.number().int().min(0).max(100, "Priority cannot exceed 100").optional(),
   completed: z.boolean().optional(),
-  result: z.string().optional(),
+  result: z.string().max(MAX_CONTENT_LENGTH, "Result exceeds maximum length").optional(),
   metadata: TaskMetadataSchema.optional(),
   delete: z.boolean().optional(),
   add_blocked_by: z.array(z.string().min(1)).optional(),

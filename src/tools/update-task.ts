@@ -3,15 +3,21 @@ import { TaskService } from "../core/task-service.js";
 import { UpdateTaskInput } from "../types.js";
 import { jsonResponse, McpToolResponse } from "./response.js";
 
+// Maximum content length (50KB) to prevent excessive file sizes
+const MAX_CONTENT_LENGTH = 50 * 1024;
+
+// Git SHA validation: 40 hex chars (full SHA) or 7+ hex chars (short SHA prefix)
+const gitShaRegex = /^[0-9a-f]{7,40}$/i;
+
 export const UpdateTaskArgsSchema = z.object({
   id: z.string().min(1).describe("Task ID"),
-  description: z.string().min(1).optional().describe("Updated description"),
-  context: z.string().min(1).optional().describe("Updated context"),
+  description: z.string().min(1).max(MAX_CONTENT_LENGTH).optional().describe("Updated description"),
+  context: z.string().min(1).max(MAX_CONTENT_LENGTH).optional().describe("Updated context"),
   parent_id: z.string().min(1).nullable().optional().describe("Parent task ID (null to remove parent)"),
-  priority: z.number().int().min(0).optional().describe("Updated priority"),
+  priority: z.number().int().min(0).max(100).optional().describe("Updated priority"),
   completed: z.boolean().optional().describe("Mark task as completed (true) or pending (false)"),
-  result: z.string().optional().describe("Implementation summary like a PR description. Explain what was implemented and how the solution works, key decisions made and their rationale, trade-offs or alternatives you considered, and any follow-up work or tech debt. Write naturally so anyone can understand the solution without reading code. See .dex/tasks/c2w75okn.json for a real example."),
-  commit_sha: z.string().optional().describe("Git commit SHA that implements this task"),
+  result: z.string().max(MAX_CONTENT_LENGTH).optional().describe("Implementation summary like a PR description. Explain what was implemented and how the solution works, key decisions made and their rationale, trade-offs or alternatives you considered, and any follow-up work or tech debt. Write naturally so anyone can understand the solution without reading code."),
+  commit_sha: z.string().regex(gitShaRegex, "Invalid git SHA format (expected 7-40 hex characters)").optional().describe("Git commit SHA that implements this task"),
   commit_message: z.string().optional().describe("Commit message"),
   commit_branch: z.string().optional().describe("Branch name where commit was made"),
   commit_url: z.string().url().optional().describe("URL to the commit (e.g., GitHub commit URL)"),

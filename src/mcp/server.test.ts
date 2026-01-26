@@ -549,5 +549,64 @@ describe("MCP Server", () => {
       const response = parseToolResponse<{ error: string }>(result);
       expect(response.error).toContain("not found");
     });
+
+    it("returns validation error for priority exceeding max", async () => {
+      const result = await ctx.client.callTool({
+        name: "create_task",
+        arguments: {
+          description: "Task with invalid priority",
+          context: "Context",
+          priority: 101,
+        },
+      });
+
+      expect(isErrorResult(result)).toBe(true);
+    });
+
+    it("returns validation error for invalid commit_sha format", async () => {
+      const task = await createTask({ description: "Task" });
+
+      const result = await ctx.client.callTool({
+        name: "update_task",
+        arguments: {
+          id: task.id,
+          commit_sha: "not-a-valid-sha!",
+        },
+      });
+
+      expect(isErrorResult(result)).toBe(true);
+    });
+
+    it("accepts valid short commit SHA", async () => {
+      const task = await createTask({ description: "Task" });
+
+      const result = await ctx.client.callTool({
+        name: "update_task",
+        arguments: {
+          id: task.id,
+          commit_sha: "abc1234",
+        },
+      });
+
+      expect(isErrorResult(result)).toBe(false);
+      const updated = parseToolResponse<Task>(result);
+      expect(updated.metadata?.commit?.sha).toBe("abc1234");
+    });
+
+    it("accepts valid full commit SHA", async () => {
+      const task = await createTask({ description: "Task" });
+
+      const result = await ctx.client.callTool({
+        name: "update_task",
+        arguments: {
+          id: task.id,
+          commit_sha: "abc123def456789012345678901234567890abcd",
+        },
+      });
+
+      expect(isErrorResult(result)).toBe(false);
+      const updated = parseToolResponse<Task>(result);
+      expect(updated.metadata?.commit?.sha).toBe("abc123def456789012345678901234567890abcd");
+    });
   });
 });
