@@ -130,13 +130,20 @@ export function wouldCreateBlockingCycle(
 }
 
 /**
- * Check if a task is blocked (has any incomplete tasks in blockedBy).
+ * Get IDs of incomplete tasks that are blocking a given task.
  */
-export function isBlocked(tasks: Task[], task: Task): boolean {
-  return task.blockedBy.some((blockerId) => {
+export function getIncompleteBlockerIds(tasks: Task[], task: Task): string[] {
+  return task.blockedBy.filter((blockerId) => {
     const blocker = tasks.find((t) => t.id === blockerId);
     return blocker && !blocker.completed;
   });
+}
+
+/**
+ * Check if a task is blocked (has any incomplete tasks in blockedBy).
+ */
+export function isBlocked(tasks: Task[], task: Task): boolean {
+  return getIncompleteBlockerIds(tasks, task).length > 0;
 }
 
 /**

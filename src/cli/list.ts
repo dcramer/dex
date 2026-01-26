@@ -6,12 +6,12 @@ import {
   formatTask,
   formatBreadcrumb,
   getBooleanFlag,
-  getIncompleteBlockerIds,
   getStringFlag,
   parseArgs,
   parseIntFlag,
 } from "./utils.js";
 import { getGitHubIssueNumber } from "../core/github-sync.js";
+import { getIncompleteBlockerIds } from "../core/task-relationships.js";
 
 // Max description length for list view (to keep tree readable)
 const LIST_DESCRIPTION_MAX_LENGTH = 60;

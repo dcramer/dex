@@ -64,27 +64,6 @@ export function createService(options: CliOptions): TaskService {
 }
 
 /**
- * Get IDs of incomplete tasks that are blocking a given task.
- */
-export function getIncompleteBlockerIds(tasks: Task[], task: Task): string[] {
-  return task.blockedBy.filter((blockerId) => {
-    const blocker = tasks.find((t) => t.id === blockerId);
-    return blocker && !blocker.completed;
-  });
-}
-
-/**
- * Check if a task has any incomplete children.
- * Parent tasks with incomplete children are not actionable.
- */
-export function hasIncompleteChildren(tasks: Task[], task: Task): boolean {
-  return task.children.some((childId) => {
-    const child = tasks.find((t) => t.id === childId);
-    return child && !child.completed;
-  });
-}
-
-/**
  * Simple pluralization helper.
  */
 export function pluralize(count: number, singular: string, plural?: string): string {

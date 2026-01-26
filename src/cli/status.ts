@@ -6,11 +6,10 @@ import {
   createService,
   formatTask,
   getBooleanFlag,
-  getIncompleteBlockerIds,
-  hasIncompleteChildren,
   parseArgs,
   truncateText,
 } from "./utils.js";
+import { getIncompleteBlockerIds, hasIncompleteChildren } from "../core/task-relationships.js";
 
 // Limits for displayed tasks in each section
 const READY_LIMIT = 5;
