@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { TaskStorage } from "../src/core/storage.js";
+import { TaskStorage } from "./storage.js";
+import { createTask, createStore } from "../test-utils/github-mock.js";
 
 describe("TaskStorage", () => {
   let tempDir: string;
@@ -160,31 +161,14 @@ describe("TaskStorage", () => {
       expect(store.tasks[0].id).toBe("valid");
     });
 
-    it("skips empty task files", () => {
+    it("throws on empty task files", () => {
       const storagePath = path.join(tempDir, ".dex");
       const tasksDir = path.join(storagePath, "tasks");
       fs.mkdirSync(tasksDir, { recursive: true });
-
-      const taskData = {
-        id: "valid",
-        parent_id: null,
-        description: "Valid task",
-        context: "Context",
-        priority: 1,
-        completed: false,
-        result: null,
-        created_at: "2024-01-01T00:00:00.000Z",
-        updated_at: "2024-01-01T00:00:00.000Z",
-        completed_at: null,
-      };
-      fs.writeFileSync(path.join(tasksDir, "valid.json"), JSON.stringify(taskData));
       fs.writeFileSync(path.join(tasksDir, "empty.json"), "");
 
       const storage = new TaskStorage(storagePath);
-      const store = storage.read();
-
-      expect(store.tasks).toHaveLength(1);
-      expect(store.tasks[0].id).toBe("valid");
+      expect(() => storage.read()).toThrow("is corrupted: File is empty");
     });
   });
 
@@ -201,59 +185,30 @@ describe("TaskStorage", () => {
     it("writes each task to its own file", () => {
       const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
-      const taskData = {
-        tasks: [
-          {
-            id: "abc12345",
-            parent_id: null,
-            description: "Test",
-            context: "Context",
-            priority: 1,
-            completed: false,
-            result: null,
-            created_at: "2024-01-01T00:00:00.000Z",
-            updated_at: "2024-01-01T00:00:00.000Z",
-          },
-        ],
-      };
+      const task = createTask({
+        id: "abc12345",
+        description: "Test",
+        context: "Context",
+        created_at: "2024-01-01T00:00:00.000Z",
+        updated_at: "2024-01-01T00:00:00.000Z",
+      });
+      const taskData = createStore([task]);
 
       storage.write(taskData);
 
       const taskPath = path.join(storagePath, "tasks", "abc12345.json");
       expect(fs.existsSync(taskPath)).toBe(true);
       const content = fs.readFileSync(taskPath, "utf-8");
-      expect(JSON.parse(content)).toEqual(taskData.tasks[0]);
+      expect(JSON.parse(content)).toEqual(task);
     });
 
     it("writes multiple tasks to separate files", () => {
       const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
-      const taskData = {
-        tasks: [
-          {
-            id: "task1",
-            parent_id: null,
-            description: "Task 1",
-            context: "Context",
-            priority: 1,
-            completed: false,
-            result: null,
-            created_at: "2024-01-01T00:00:00.000Z",
-            updated_at: "2024-01-01T00:00:00.000Z",
-          },
-          {
-            id: "task2",
-            parent_id: null,
-            description: "Task 2",
-            context: "Context",
-            priority: 1,
-            completed: false,
-            result: null,
-            created_at: "2024-01-01T00:00:00.000Z",
-            updated_at: "2024-01-01T00:00:00.000Z",
-          },
-        ],
-      };
+      const taskData = createStore([
+        createTask({ id: "task1", description: "Task 1" }),
+        createTask({ id: "task2", description: "Task 2" }),
+      ]);
 
       storage.write(taskData);
 
@@ -268,39 +223,16 @@ describe("TaskStorage", () => {
       fs.mkdirSync(tasksDir, { recursive: true });
 
       // Create initial task file
-      const oldTask = {
-        id: "oldtask",
-        parent_id: null,
-        description: "Old task",
-        context: "Context",
-        priority: 1,
-        completed: false,
-        result: null,
-        created_at: "2024-01-01T00:00:00.000Z",
-        updated_at: "2024-01-01T00:00:00.000Z",
-        completed_at: null,
-      };
+      const oldTask = createTask({ id: "oldtask", description: "Old task" });
       fs.writeFileSync(
         path.join(tasksDir, "oldtask.json"),
         JSON.stringify(oldTask)
       );
 
       const storage = new TaskStorage(storagePath);
-      const newData = {
-        tasks: [
-          {
-            id: "newtask",
-            parent_id: null,
-            description: "New",
-            context: "Context",
-            priority: 1,
-            completed: false,
-            result: null,
-            created_at: "2024-01-01T00:00:00.000Z",
-            updated_at: "2024-01-01T00:00:00.000Z",
-          },
-        ],
-      };
+      const newData = createStore([
+        createTask({ id: "newtask", description: "New" }),
+      ]);
 
       storage.write(newData);
 
@@ -311,21 +243,9 @@ describe("TaskStorage", () => {
     it("writes with pretty formatting", () => {
       const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
-      const taskData = {
-        tasks: [
-          {
-            id: "pretty",
-            parent_id: null,
-            description: "Test",
-            context: "Context",
-            priority: 1,
-            completed: false,
-            result: null,
-            created_at: "2024-01-01T00:00:00.000Z",
-            updated_at: "2024-01-01T00:00:00.000Z",
-          },
-        ],
-      };
+      const taskData = createStore([
+        createTask({ id: "pretty", description: "Test" }),
+      ]);
 
       storage.write(taskData);
 
@@ -446,36 +366,27 @@ describe("TaskStorage", () => {
     it("preserves task data through read/write cycle", () => {
       const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
-      const originalData = {
-        tasks: [
-          {
-            id: "task0001",
-            parent_id: null,
-            description: "First task",
-            context: "Some context here",
-            priority: 5,
-            completed: false,
-            result: null,
-            metadata: null,
-            created_at: "2024-06-15T10:30:00.000Z",
-            updated_at: "2024-06-15T10:30:00.000Z",
-            completed_at: null,
-          },
-          {
-            id: "task0002",
-            parent_id: "task0001",
-            description: "Child task",
-            context: "Child context",
-            priority: 1,
-            completed: true,
-            result: "Done!",
-            metadata: null,
-            created_at: "2024-06-15T11:00:00.000Z",
-            updated_at: "2024-06-15T12:00:00.000Z",
-            completed_at: "2024-06-15T12:00:00.000Z",
-          },
-        ],
-      };
+      const originalData = createStore([
+        createTask({
+          id: "task0001",
+          description: "First task",
+          context: "Some context here",
+          priority: 5,
+          created_at: "2024-06-15T10:30:00.000Z",
+          updated_at: "2024-06-15T10:30:00.000Z",
+        }),
+        createTask({
+          id: "task0002",
+          parent_id: "task0001",
+          description: "Child task",
+          context: "Child context",
+          completed: true,
+          result: "Done!",
+          created_at: "2024-06-15T11:00:00.000Z",
+          updated_at: "2024-06-15T12:00:00.000Z",
+          completed_at: "2024-06-15T12:00:00.000Z",
+        }),
+      ]);
 
       storage.write(originalData);
       const readData = storage.read();
@@ -487,66 +398,39 @@ describe("TaskStorage", () => {
       const sortedRead = [...readData.tasks].sort((a, b) =>
         a.id.localeCompare(b.id)
       );
-      // Schema preprocessing adds default values for new fields (blockedBy, blocks, children)
-      for (let i = 0; i < sortedRead.length; i++) {
-        expect(sortedRead[i]).toMatchObject(sortedOriginal[i]);
-      }
+      expect(sortedRead).toEqual(sortedOriginal);
     });
 
     it("handles special characters in task content", () => {
       const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
-      const dataWithSpecialChars = {
-        tasks: [
-          {
-            id: "special1",
-            parent_id: null,
-            description: 'Task with "quotes" and \\backslashes\\',
-            context: "Context with\nnewlines\tand\ttabs",
-            priority: 1,
-            completed: false,
-            result: null,
-            metadata: null,
-            created_at: "2024-01-01T00:00:00.000Z",
-            updated_at: "2024-01-01T00:00:00.000Z",
-            completed_at: null,
-          },
-        ],
-      };
+      const task = createTask({
+        id: "special1",
+        description: 'Task with "quotes" and \\backslashes\\',
+        context: "Context with\nnewlines\tand\ttabs",
+      });
+      const dataWithSpecialChars = createStore([task]);
 
       storage.write(dataWithSpecialChars);
       const readData = storage.read();
 
-      // Schema preprocessing adds default values for new fields
-      expect(readData.tasks[0]).toMatchObject(dataWithSpecialChars.tasks[0]);
+      expect(readData.tasks[0]).toEqual(task);
     });
 
     it("handles unicode characters", () => {
       const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
-      const dataWithUnicode = {
-        tasks: [
-          {
-            id: "unicode1",
-            parent_id: null,
-            description: "Task with emoji and unicode",
-            context: "Context with Chinese and Japanese characters",
-            priority: 1,
-            completed: false,
-            result: null,
-            metadata: null,
-            created_at: "2024-01-01T00:00:00.000Z",
-            updated_at: "2024-01-01T00:00:00.000Z",
-            completed_at: null,
-          },
-        ],
-      };
+      const task = createTask({
+        id: "unicode1",
+        description: "Task with emoji and unicode",
+        context: "Context with Chinese and Japanese characters",
+      });
+      const dataWithUnicode = createStore([task]);
 
       storage.write(dataWithUnicode);
       const readData = storage.read();
 
-      // Schema preprocessing adds default values for new fields
-      expect(readData.tasks[0]).toMatchObject(dataWithUnicode.tasks[0]);
+      expect(readData.tasks[0]).toEqual(task);
     });
   });
 
@@ -556,21 +440,12 @@ describe("TaskStorage", () => {
       const storage = new TaskStorage(storagePath);
 
       for (let i = 0; i < 10; i++) {
-        const data = {
-          tasks: [
-            {
-              id: `task${i.toString().padStart(4, "0")}`,
-              parent_id: null,
-              description: `Task ${i}`,
-              context: "Context",
-              priority: 1,
-              completed: false,
-              result: null,
-              created_at: "2024-01-01T00:00:00.000Z",
-              updated_at: "2024-01-01T00:00:00.000Z",
-            },
-          ],
-        };
+        const data = createStore([
+          createTask({
+            id: `task${i.toString().padStart(4, "0")}`,
+            description: `Task ${i}`,
+          }),
+        ]);
         storage.write(data);
       }
 
@@ -584,7 +459,7 @@ describe("TaskStorage", () => {
       const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
 
-      storage.write({ tasks: [] });
+      storage.write(createStore([]));
       const data = storage.read();
 
       expect(data).toEqual({ tasks: [] });
@@ -593,19 +468,16 @@ describe("TaskStorage", () => {
     it("handles large number of tasks", () => {
       const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
-      const tasks = Array.from({ length: 100 }, (_, i) => ({
-        id: `task${i.toString().padStart(4, "0")}`,
-        parent_id: null,
-        description: `Task number ${i}`,
-        context: `Context for task ${i}`,
-        priority: i % 10,
-        completed: false,
-        result: null,
-        created_at: "2024-01-01T00:00:00.000Z",
-        updated_at: "2024-01-01T00:00:00.000Z",
-      }));
+      const tasks = Array.from({ length: 100 }, (_, i) =>
+        createTask({
+          id: `task${i.toString().padStart(4, "0")}`,
+          description: `Task number ${i}`,
+          context: `Context for task ${i}`,
+          priority: i % 10,
+        })
+      );
 
-      storage.write({ tasks });
+      storage.write(createStore(tasks));
       const data = storage.read();
 
       expect(data.tasks).toHaveLength(100);
@@ -615,21 +487,13 @@ describe("TaskStorage", () => {
       const storagePath = path.join(tempDir, ".dex");
       const storage = new TaskStorage(storagePath);
       const longText = "a".repeat(10000);
-      const data = {
-        tasks: [
-          {
-            id: "longtext",
-            parent_id: null,
-            description: longText,
-            context: longText,
-            priority: 1,
-            completed: false,
-            result: null,
-            created_at: "2024-01-01T00:00:00.000Z",
-            updated_at: "2024-01-01T00:00:00.000Z",
-          },
-        ],
-      };
+      const data = createStore([
+        createTask({
+          id: "longtext",
+          description: longText,
+          context: longText,
+        }),
+      ]);
 
       storage.write(data);
       const readData = storage.read();

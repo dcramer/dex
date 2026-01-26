@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { loadConfig, getConfigPath } from "../src/core/config.js";
+import { loadConfig, getConfigPath } from "./config.js";
 
 describe("Config", () => {
   describe("getConfigPath", () => {
@@ -142,12 +142,10 @@ result = "Result"
       expect(config.storage["github-projects"]?.field_names?.priority).toBe("Priority");
     });
 
-    it("returns defaults on malformed TOML", () => {
+    it("throws error on malformed TOML", () => {
       fs.writeFileSync(tempConfigPath, "invalid toml [[[");
 
-      const config = loadConfig();
-
-      expect(config.storage.engine).toBe("file");
+      expect(() => loadConfig()).toThrow("Failed to parse config file");
     });
 
     it("handles missing storage section", () => {
