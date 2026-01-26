@@ -18,6 +18,7 @@ import { importCommand } from "./import.js";
 import { doctorCommand } from "./doctor.js";
 import { statusCommand } from "./status.js";
 import { configCommand } from "./config.js";
+import { dirCommand } from "./dir.js";
 
 export type { CliOptions } from "./utils.js";
 
@@ -64,6 +65,8 @@ export async function runCli(
       return await configCommand(args.slice(1), {
         storagePath: options.storage.getIdentifier(),
       });
+    case "dir":
+      return dirCommand(args.slice(1));
     case "create":
     case "add":
       return await createCommand(args.slice(1), options);

@@ -228,6 +228,25 @@ dex init -y           # Accept all defaults`}
   </div>
 
   <div class="command-card">
+    <h3>dex dir</h3>
+    <div class="synopsis">dex dir [options]</div>
+    <p>Print the dex directory path. By default, prints the task storage directory for the current repository.</p>
+    <ul>
+      <li><code>-g, --global</code> — Print the global config directory instead</li>
+    </ul>
+    <Terminal title="Terminal">
+      <Code
+        code={`dex dir                # Print task storage path (e.g., /path/to/repo/.dex)
+dex dir --global       # Print global config path (~/.config/dex)
+cd $(dex dir)          # Navigate to task directory
+ls $(dex dir)          # List task directory contents`}
+        lang="bash"
+        theme="vitesse-black"
+      />
+    </Terminal>
+  </div>
+
+  <div class="command-card">
     <h3>dex config</h3>
     <div class="synopsis">dex config [options] &lt;key&gt;[=&lt;value&gt;]</div>
     <p>Get or set configuration values (similar to <code>git config</code>).</p>

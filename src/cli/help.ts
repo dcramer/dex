@@ -11,6 +11,8 @@ ${colors.bold}USAGE:${colors.reset}
 ${colors.bold}COMMANDS:${colors.reset}
   init                             Create config file (~/.config/dex/dex.toml)
   config <key>[=<value>]           Get or set config values
+  dir                              Print task storage directory
+  dir --global                     Print global dex config directory
   mcp                              Start MCP server (stdio)
   status                           Show dashboard overview (default)
   create "name" [--description "..."]  Create task
