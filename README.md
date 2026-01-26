@@ -1,17 +1,18 @@
 # dex
 
-Task tracking for Agents. Gives your agent persistent memory for complex, multi-session work.
+Task tracking for AI agents. Persistent memory for complex, multi-session work.
 
 ## Why dex?
 
-**Tickets, Not Todos.** Dex tasks are structured artifacts with full context:
+**Structured tasks, not simple todos.** Each task captures full context:
+
 - **Description**: One-line summary (like an issue title)
 - **Context**: Background, requirements, approach (like an issue body)
 - **Result**: Implementation summary, decisions, outcomes (like a PR description)
 
-**For Agent Coordination.** Agents can act as master coordinators on complex tasks—breaking down work, tracking progress, and recording comprehensive results that persist across sessions.
+**Built for agent coordination.** Agents break down work, track progress, and record results that persist across sessions.
 
-**Git-Friendly.** One task per file enables collaboration, versioning, and conflict-free workflows.
+**Git-friendly storage.** One task per file enables collaboration, versioning, and conflict-free workflows.
 
 ## Quick Start
 
@@ -22,7 +23,7 @@ claude plugin marketplace add dcramer/dex
 claude plugin install dex@dex
 ```
 
-Then use natural language or slash commands:
+Use natural language or slash commands:
 
 ```
 > Use Dex. Work on the next logical task. When done, run code-simplifier and commit.
@@ -54,7 +55,7 @@ pnpm dev       # Watch mode - auto-rebuild on changes
 
 ### Testing the Claude Code Plugin
 
-To test the plugin locally without installing from the marketplace:
+Test the plugin locally without installing from the marketplace:
 
 ```bash
 claude --plugin-dir plugins/dex
@@ -63,8 +64,6 @@ claude --plugin-dir plugins/dex
 This loads the plugin from the local directory. Restart Claude Code to pick up changes.
 
 ### Manual Build
-
-Or manually:
 
 ```bash
 # Make changes...
@@ -86,4 +85,4 @@ pnpm release major   # 0.1.0 → 1.0.0
 git push --follow-tags
 ```
 
-The workflow runs tests, and if they pass, publishes to npm with provenance.
+The workflow runs tests and publishes to npm with provenance.
