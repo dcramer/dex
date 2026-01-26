@@ -118,6 +118,7 @@ ${colors.bold}EXAMPLES:${colors.reset}
     const parentTask = await service.get(parentFilter);
     if (!parentTask) {
       // Fall back to treating as query if not a valid task ID
+      console.log(`${colors.dim}No task found with ID "${filterArg}", searching by text...${colors.reset}`);
       queryFilter = filterArg;
       parentFilter = undefined;
     }
