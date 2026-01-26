@@ -36,23 +36,25 @@ dex status --json      # Output as JSON`}
 
   <div class="command-card">
     <h3>dex create</h3>
-    <div class="synopsis">dex create -d &lt;description&gt; --context &lt;context&gt; [options]</div>
-    <p>Create a new task with description and context.</p>
+    <div class="synopsis">dex create &lt;description&gt; [--context &lt;context&gt;] [options]</div>
+    <p>Create a new task with description and optional context.</p>
     <ul>
-      <li><code>-d, --description</code> — One-line summary (required)</li>
-      <li><code>--context</code> — Full implementation details (required)</li>
+      <li><code>&lt;description&gt;</code> — One-line summary (required, positional)</li>
+      <li><code>--context</code> — Full implementation details (optional)</li>
       <li><code>-p, --priority &lt;n&gt;</code> — Lower = higher priority (default: 1)</li>
       <li><code>-b, --blocked-by &lt;ids&gt;</code> — Comma-separated task IDs that block this task</li>
       <li><code>--parent &lt;id&gt;</code> — Parent task ID (creates subtask)</li>
     </ul>
     <Terminal title="Terminal">
       <Code
-        code={`dex create -d "Add JWT authentication" \\
+        code={`dex create "Add JWT authentication" \\
   --context "Implement JWT middleware for route protection..."
 
-dex create -d "Deploy to production" --blocked-by abc123
+dex create "Fix login bug"
 
-dex create -d "Add token refresh" --parent abc123`}
+dex create "Deploy to production" --blocked-by abc123
+
+dex create "Add token refresh" --parent abc123`}
         lang="bash"
         theme="vitesse-black"
       />

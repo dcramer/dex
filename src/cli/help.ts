@@ -13,8 +13,8 @@ ${colors.bold}COMMANDS:${colors.reset}
   config <key>[=<value>]           Get or set config values
   mcp                              Start MCP server (stdio)
   status                           Show dashboard overview (default)
-  create -d "..." --context "..."  Create task
-  add                              Alias for create command
+  create "description" [--context "..."]  Create task
+  add                                     Alias for create command
   list, ls                         List all pending tasks (tree view)
   list --flat                      List without tree hierarchy
   list --all                       Include completed tasks
@@ -48,11 +48,14 @@ ${colors.bold}ENVIRONMENT:${colors.reset}
 
 ${colors.bold}EXAMPLES:${colors.reset}
   ${colors.dim}# Create with detailed context (requirements, approach, done criteria):${colors.reset}
-  dex create -d "Add user auth" --context "Requirements:
+  dex create "Add user auth" --context "Requirements:
     - JWT with refresh tokens
     - bcrypt for passwords
     Approach: /login, /register endpoints
     Done when: users can register/login, tests pass"
+
+  ${colors.dim}# Create simple task (context optional):${colors.reset}
+  dex create "Fix login bug"
 
   ${colors.dim}# Complete with detailed result (what, decisions, follow-ups):${colors.reset}
   dex complete abc123 --result "Added JWT auth:
@@ -66,6 +69,6 @@ ${colors.bold}EXAMPLES:${colors.reset}
 
   ${colors.dim}# Other common operations:${colors.reset}
   dex list --json | jq '.[] | .id'
-  dex create -d "Subtask" --context "..." --parent abc123
+  dex create "Subtask" --context "..." --parent abc123
 `);
 }

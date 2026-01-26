@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { FileStorage } from "../core/storage/index.js";
 import { runCli } from "./index.js";
-import { captureOutput, createTempStorage, CapturedOutput } from "./test-helpers.js";
+import {
+  captureOutput,
+  createTempStorage,
+  CapturedOutput,
+} from "./test-helpers.js";
 
 describe("create command", () => {
   let storage: FileStorage;
@@ -25,8 +29,28 @@ describe("create command", () => {
     mockExit.mockRestore();
   });
 
-  it("creates a task and displays confirmation", async () => {
-    await runCli(["create", "-d", "Test task", "--context", "Test context"], { storage });
+  it("creates a task with positional description", async () => {
+    await runCli(["create", "Test task"], { storage });
+
+    const out = output.stdout.join("\n");
+    expect(out).toContain("Created");
+    expect(out).toContain("Test task");
+  });
+
+  it("creates a task with positional description and context", async () => {
+    await runCli(["create", "Test task", "--context", "Test context"], {
+      storage,
+    });
+
+    const out = output.stdout.join("\n");
+    expect(out).toContain("Created");
+    expect(out).toContain("Test task");
+  });
+
+  it("creates a task with legacy -d flag (backward compatibility)", async () => {
+    await runCli(["create", "-d", "Test task", "--context", "Test context"], {
+      storage,
+    });
 
     const out = output.stdout.join("\n");
     expect(out).toContain("Created");
@@ -41,19 +65,19 @@ describe("create command", () => {
     expect(out).toContain("--description");
   });
 
-  it("requires --description", async () => {
-    await expect(
-      runCli(["create", "--context", "context"], { storage })
-    ).rejects.toThrow("process.exit");
+  it("requires description", async () => {
+    await expect(runCli(["create"], { storage })).rejects.toThrow(
+      "process.exit",
+    );
 
-    expect(output.stderr.join("\n")).toContain("--description");
+    expect(output.stderr.join("\n")).toContain("description is required");
   });
 
-  it("requires --context", async () => {
-    await expect(
-      runCli(["create", "-d", "desc"], { storage })
-    ).rejects.toThrow("process.exit");
+  it("accepts task without context", async () => {
+    await runCli(["create", "Task without context"], { storage });
 
-    expect(output.stderr.join("\n")).toContain("--context");
+    const out = output.stdout.join("\n");
+    expect(out).toContain("Created");
+    expect(out).toContain("Task without context");
   });
 });

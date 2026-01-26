@@ -36,7 +36,9 @@ function isStorageEngine(obj: unknown): obj is StorageEngine {
   );
 }
 
-function resolveStorage(storage: StorageEngine | string | undefined): StorageEngine {
+function resolveStorage(
+  storage: StorageEngine | string | undefined,
+): StorageEngine {
   if (typeof storage === "string" || storage === undefined) {
     return new FileStorage(storage);
   }
@@ -104,9 +106,14 @@ export class TaskService {
     try {
       const store = await this.storage.readAsync();
       await this.syncService.syncTask(task, store);
-      updateSyncState(this.storage.getIdentifier(), { lastSync: new Date().toISOString() });
+      updateSyncState(this.storage.getIdentifier(), {
+        lastSync: new Date().toISOString(),
+      });
     } catch (err) {
-      console.warn("GitHub sync failed:", err instanceof Error ? err.message : err);
+      console.warn(
+        "GitHub sync failed:",
+        err instanceof Error ? err.message : err,
+      );
     }
   }
 
@@ -123,7 +130,7 @@ export class TaskService {
       if (existing) {
         throw new ValidationError(
           `Task with ID '${input.id}' already exists`,
-          "Use a different ID or omit to auto-generate"
+          "Use a different ID or omit to auto-generate",
         );
       }
       taskId = input.id;
@@ -136,14 +143,18 @@ export class TaskService {
     if (input.parent_id) {
       const parent = store.tasks.find((t) => t.id === input.parent_id);
       if (!parent) {
-        throw new NotFoundError("Task", input.parent_id, "The specified parent task does not exist");
+        throw new NotFoundError(
+          "Task",
+          input.parent_id,
+          "The specified parent task does not exist",
+        );
       }
       // Validate depth: maximum 3 levels (epic → task → subtask)
       const newDepth = getDepthFromParent(store.tasks, input.parent_id) + 1;
       if (newDepth > 3) {
         throw new ValidationError(
           "Cannot create subtask: maximum depth (3 levels) reached",
-          "Tasks can only be nested 3 levels deep (epic → task → subtask)"
+          "Tasks can only be nested 3 levels deep (epic → task → subtask)",
         );
       }
       parentId = input.parent_id;
@@ -155,7 +166,11 @@ export class TaskService {
       for (const blockerId of input.blocked_by) {
         const blocker = store.tasks.find((t) => t.id === blockerId);
         if (!blocker) {
-          throw new NotFoundError("Task", blockerId, "The specified blocker task does not exist");
+          throw new NotFoundError(
+            "Task",
+            blockerId,
+            "The specified blocker task does not exist",
+          );
         }
         if (!blockedBy.includes(blockerId)) {
           blockedBy.push(blockerId);
@@ -167,7 +182,7 @@ export class TaskService {
       id: taskId,
       parent_id: parentId,
       description: input.description,
-      context: input.context,
+      context: input.context ?? "",
       priority: input.priority ?? 1,
       completed: input.completed ?? false,
       result: input.result ?? null,
@@ -224,18 +239,22 @@ export class TaskService {
         if (input.parent_id === input.id) {
           throw new ValidationError(
             "Task cannot be its own parent",
-            "Choose a different task as the parent"
+            "Choose a different task as the parent",
           );
         }
         const parent = store.tasks.find((t) => t.id === input.parent_id);
         if (!parent) {
-          throw new NotFoundError("Task", input.parent_id, "The specified parent task does not exist");
+          throw new NotFoundError(
+            "Task",
+            input.parent_id,
+            "The specified parent task does not exist",
+          );
         }
         // Check for cycles: new parent can't be a descendant
         if (isDescendant(store.tasks, input.parent_id, input.id)) {
           throw new ValidationError(
             "Cannot set parent: would create a cycle",
-            "The selected parent is already a subtask of this task"
+            "The selected parent is already a subtask of this task",
           );
         }
         // Validate depth: maximum 3 levels (epic → task → subtask)
@@ -245,7 +264,7 @@ export class TaskService {
         if (newDepth + maxDescendantDepth > 3) {
           throw new ValidationError(
             "Cannot move task: would exceed maximum depth (3 levels)",
-            "Tasks can only be nested 3 levels deep (epic → task → subtask)"
+            "Tasks can only be nested 3 levels deep (epic → task → subtask)",
           );
         }
       }
@@ -278,21 +297,25 @@ export class TaskService {
         if (blockerId === input.id) {
           throw new ValidationError(
             "Task cannot block itself",
-            "Remove the task's own ID from the add_blocked_by list"
+            "Remove the task's own ID from the add_blocked_by list",
           );
         }
 
         // Check blocker exists
         const blocker = store.tasks.find((t) => t.id === blockerId);
         if (!blocker) {
-          throw new NotFoundError("Task", blockerId, "The specified blocker task does not exist");
+          throw new NotFoundError(
+            "Task",
+            blockerId,
+            "The specified blocker task does not exist",
+          );
         }
 
         // Check for cycles
         if (wouldCreateBlockingCycle(store.tasks, blockerId, input.id)) {
           throw new ValidationError(
             `Cannot add blocker ${blockerId}: would create a cycle`,
-            "The specified task is already blocked by this task (directly or indirectly)"
+            "The specified task is already blocked by this task (directly or indirectly)",
           );
         }
 
@@ -391,7 +414,7 @@ export class TaskService {
       tasks = tasks.filter(
         (t) =>
           t.description.toLowerCase().includes(q) ||
-          t.context.toLowerCase().includes(q)
+          (t.context && t.context.toLowerCase().includes(q)),
       );
     }
 
@@ -408,7 +431,11 @@ export class TaskService {
     return tasks.toSorted((a, b) => a.priority - b.priority);
   }
 
-  async complete(id: string, result: string, metadata?: Task["metadata"]): Promise<Task> {
+  async complete(
+    id: string,
+    result: string,
+    metadata?: Task["metadata"],
+  ): Promise<Task> {
     const store = await this.storage.readAsync();
 
     // Collect all descendants, not just immediate children
@@ -416,13 +443,13 @@ export class TaskService {
     collectDescendantIds(store.tasks, id, descendants);
 
     const pendingDescendants = store.tasks.filter(
-      (t) => descendants.has(t.id) && !t.completed
+      (t) => descendants.has(t.id) && !t.completed,
     );
 
     if (pendingDescendants.length > 0) {
       throw new ValidationError(
         `Cannot complete: ${pendingDescendants.length} subtask${pendingDescendants.length > 1 ? "s" : ""} still pending`,
-        "Complete or delete all subtasks first"
+        "Complete or delete all subtasks first",
       );
     }
 
