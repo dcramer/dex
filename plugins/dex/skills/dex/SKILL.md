@@ -527,6 +527,54 @@ dex show def456             # Task details with breadcrumb path
 4. **Avoid deep nesting**: If you need L3, restructure your breakdown
 5. **Link context**: Reference parent in child task contexts
 
+## Starting Work on a Task
+
+When picking up a task to work on, **always check if the context is sufficient** before beginning implementation.
+
+### Evaluating Task Context Quality
+
+Read the task's context and ask yourself:
+- Do I know **what** needs to be done specifically?
+- Do I understand **why** this is needed?
+- Is the **approach** clear (files to modify, patterns to follow)?
+- Do I know when it's **done** (acceptance criteria)?
+
+If the answer to any of these is "no," the task needs more context before you start.
+
+### Insufficient Context → Enter Plan Mode
+
+When a task has thin or vague context, **suggest entering plan mode** to flesh out the details:
+
+```
+This task doesn't have enough context to start implementation confidently.
+I'd recommend entering plan mode to work through the requirements and approach.
+```
+
+**Examples of insufficient context:**
+- "Add authentication" — What type? How? To which routes?
+- "Fix the bug" — Which bug? What's the expected behavior?
+- "Improve performance" — Where? What's the target? How to measure?
+
+**When to proceed anyway:**
+- Task is genuinely trivial/atomic (e.g., "Add .gitignore entry for .env")
+- You have full context from the conversation that makes the task clear
+- The task description itself is complete even if context field is light
+
+### Fleshing Out Context
+
+In plan mode (or before starting), gather:
+1. **Specific requirements**: What exactly needs to happen?
+2. **Technical approach**: Which files, what patterns, what libraries?
+3. **Acceptance criteria**: How do we know it's done?
+4. **Edge cases**: What could go wrong? What needs handling?
+
+Then update the task with comprehensive context:
+```bash
+dex edit <id> --context "Full implementation details..."
+```
+
+This investment pays off: clear context → confident implementation → quality results.
+
 ## Coordinating Complex Work
 
 ### Decomposition Strategy
