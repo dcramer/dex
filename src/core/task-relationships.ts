@@ -167,13 +167,13 @@ export function isReady(tasks: Task[], task: Task): boolean {
 }
 
 /**
- * Collect all descendant IDs of a task recursively.
+ * Collect all descendant IDs of a task recursively into a Set.
  */
-export function collectDescendants(tasks: Task[], parentId: string, result: Set<string>): void {
+export function collectDescendantIds(tasks: Task[], parentId: string, result: Set<string>): void {
   for (const task of tasks) {
     if (task.parent_id === parentId && !result.has(task.id)) {
       result.add(task.id);
-      collectDescendants(tasks, task.id, result);
+      collectDescendantIds(tasks, task.id, result);
     }
   }
 }

@@ -19,9 +19,8 @@ import {
   cleanupTaskReferences,
   wouldCreateBlockingCycle,
   isBlocked,
-  hasIncompleteChildren,
   isReady,
-  collectDescendants,
+  collectDescendantIds,
   isDescendant,
   collectAncestors,
   getDepthFromParent,
@@ -338,7 +337,7 @@ export class TaskService {
 
     // Cascade delete all descendants
     const toDelete = new Set<string>([id]);
-    collectDescendants(store.tasks, id, toDelete);
+    collectDescendantIds(store.tasks, id, toDelete);
 
     // Clean up references to all deleted tasks
     for (const taskId of toDelete) {
@@ -415,7 +414,7 @@ export class TaskService {
 
     // Collect all descendants, not just immediate children
     const descendants = new Set<string>();
-    collectDescendants(store.tasks, id, descendants);
+    collectDescendantIds(store.tasks, id, descendants);
 
     const pendingDescendants = store.tasks.filter(
       (t) => descendants.has(t.id) && !t.completed
