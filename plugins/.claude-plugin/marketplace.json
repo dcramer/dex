@@ -1,0 +1,14 @@
+{
+  "name": "dex-local",
+  "owner": {
+    "name": "dcramer"
+  },
+  "plugins": [
+    {
+      "name": "dex",
+      "source": "./dex",
+      "version": "0.0.0",
+      "skills": ["dex", "dex-plan"]
+    }
+  ]
+}
