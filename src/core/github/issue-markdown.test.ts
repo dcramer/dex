@@ -14,7 +14,7 @@ import {
   renderHierarchicalIssueBody,
   collectDescendants,
   EmbeddedSubtask,
-} from "./index.js";
+} from "./issue-markdown.js";
 import { Task } from "../../types.js";
 
 const DEFAULT_TIMESTAMP = "2024-01-22T10:00:00Z";
