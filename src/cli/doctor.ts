@@ -10,6 +10,9 @@ import {
   loadConfig,
 } from "../core/config.js";
 import { getGitHubToken } from "../core/github/index.js";
+import { getDefaultStoragePath, findGitRoot } from "../core/storage/paths.js";
+import { getProjectKey } from "../core/project-key.js";
+import { getDexHome } from "../core/config.js";
 
 /**
  * Default auto-sync configuration to add when missing.
@@ -55,6 +58,10 @@ ${colors.bold}OPTIONS:${colors.reset}
   -h, --help            Show this help message
 
 ${colors.bold}CHECKS:${colors.reset}
+  Storage Location:
+    - Tilde expansion bug (v0.4.0)
+    - Orphaned tasks from storage mode changes (in-repo ↔ centralized)
+
   Config:
     - Config file validity (valid TOML)
     - Missing fields (new defaults not in config)
@@ -432,13 +439,16 @@ async function checkStorage(
 }
 
 /**
- * Check for tasks stored in wrong location due to tilde expansion bug (v0.4.0).
- * Tasks may be in literal "~/.dex/tasks/" instead of ".dex/tasks/".
+ * Check for tasks stored in wrong location.
+ * - Tilde expansion bug (v0.4.0): Tasks in literal "~/.dex/tasks/"
+ * - Storage mode change: Tasks in old location after switching modes
  */
 async function checkStorageLocation(
   options: CliOptions,
 ): Promise<DoctorIssue[]> {
   const issues: DoctorIssue[] = [];
+  const config = loadConfig();
+  const currentMode = config.storage.file?.mode ?? "in-repo";
 
   // Check for literal tilde directory in current working directory
   const literalTildePath = path.join(process.cwd(), "~", ".dex", "tasks");
@@ -460,7 +470,209 @@ async function checkStorageLocation(
     }
   }
 
+  // Check for orphaned tasks from storage mode changes
+  const orphanedIssues = await checkOrphanedStorageLocations(
+    options,
+    currentMode,
+  );
+  issues.push(...orphanedIssues);
+
   return issues;
+}
+
+/**
+ * Check for tasks left behind after changing storage.file.mode.
+ * When switching from in-repo to centralized (or vice versa), tasks don't auto-migrate.
+ */
+async function checkOrphanedStorageLocations(
+  options: CliOptions,
+  currentMode: "in-repo" | "centralized",
+): Promise<DoctorIssue[]> {
+  const issues: DoctorIssue[] = [];
+  const currentStoragePath = options.storage.getIdentifier();
+
+  // Determine the alternate storage path
+  let alternateStoragePath: string | null = null;
+  let alternateMode: string = "";
+
+  if (currentMode === "centralized") {
+    // Current mode is centralized, check for tasks in in-repo location
+    const gitRoot = findGitRoot(process.cwd());
+    if (gitRoot) {
+      alternateStoragePath = path.join(gitRoot, ".dex");
+      alternateMode = "in-repo (.dex/)";
+    }
+  } else {
+    // Current mode is in-repo, check for tasks in centralized location
+    const projectKey = getProjectKey();
+    alternateStoragePath = path.join(getDexHome(), "projects", projectKey);
+    alternateMode = `centralized (~/.dex/projects/${projectKey}/)`;
+  }
+
+  if (alternateStoragePath && alternateStoragePath !== currentStoragePath) {
+    const taskCount = countTasksInLocation(alternateStoragePath);
+
+    if (taskCount > 0) {
+      const targetPath = currentStoragePath;
+      issues.push({
+        type: "warning",
+        category: "migration",
+        message: `Found ${taskCount} task(s) in previous ${alternateMode} location. These were not migrated when storage mode changed.`,
+        fix: async () => {
+          await migrateStorageLocation(alternateStoragePath!, targetPath);
+        },
+      });
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * Count tasks in a storage location (checks both JSONL and individual file formats).
+ */
+function countTasksInLocation(storagePath: string): number {
+  // Check JSONL format
+  const jsonlPath = path.join(storagePath, "tasks.jsonl");
+  if (fs.existsSync(jsonlPath)) {
+    try {
+      const content = fs.readFileSync(jsonlPath, "utf-8");
+      const lines = content
+        .trim()
+        .split("\n")
+        .filter((line) => line.trim());
+      return lines.length;
+    } catch {
+      // Ignore read errors
+    }
+  }
+
+  // Check individual file format
+  const tasksDir = path.join(storagePath, "tasks");
+  if (fs.existsSync(tasksDir)) {
+    try {
+      const files = fs.readdirSync(tasksDir).filter((f) => f.endsWith(".json"));
+      return files.length;
+    } catch {
+      // Ignore read errors
+    }
+  }
+
+  return 0;
+}
+
+/**
+ * Migrate tasks from one storage location to another.
+ * Handles both JSONL and individual file formats.
+ */
+async function migrateStorageLocation(
+  sourcePath: string,
+  targetPath: string,
+): Promise<void> {
+  let migratedCount = 0;
+
+  // Ensure target directory exists
+  fs.mkdirSync(targetPath, { recursive: true });
+
+  // Migrate JSONL format
+  const sourceJsonl = path.join(sourcePath, "tasks.jsonl");
+  const targetJsonl = path.join(targetPath, "tasks.jsonl");
+
+  if (fs.existsSync(sourceJsonl)) {
+    // Read source tasks
+    const sourceContent = fs.readFileSync(sourceJsonl, "utf-8");
+    const sourceLines = sourceContent
+      .trim()
+      .split("\n")
+      .filter((line) => line.trim());
+
+    // If target exists, merge; otherwise just copy
+    if (fs.existsSync(targetJsonl)) {
+      const targetContent = fs.readFileSync(targetJsonl, "utf-8");
+      const targetLines = targetContent
+        .trim()
+        .split("\n")
+        .filter((line) => line.trim());
+
+      // Parse to get IDs and avoid duplicates
+      const targetIds = new Set<string>();
+      for (const line of targetLines) {
+        try {
+          const task = JSON.parse(line);
+          if (task.id) targetIds.add(task.id);
+        } catch {
+          // Skip invalid lines
+        }
+      }
+
+      // Append non-duplicate tasks
+      const newLines: string[] = [];
+      for (const line of sourceLines) {
+        try {
+          const task = JSON.parse(line);
+          if (task.id && !targetIds.has(task.id)) {
+            newLines.push(line);
+            migratedCount++;
+          }
+        } catch {
+          // Skip invalid lines
+        }
+      }
+
+      if (newLines.length > 0) {
+        fs.appendFileSync(targetJsonl, "\n" + newLines.join("\n"));
+      }
+    } else {
+      fs.copyFileSync(sourceJsonl, targetJsonl);
+      migratedCount = sourceLines.length;
+    }
+
+    // Remove source file after successful migration
+    fs.unlinkSync(sourceJsonl);
+  }
+
+  // Migrate individual file format
+  const sourceTasksDir = path.join(sourcePath, "tasks");
+  const targetTasksDir = path.join(targetPath, "tasks");
+
+  if (fs.existsSync(sourceTasksDir)) {
+    fs.mkdirSync(targetTasksDir, { recursive: true });
+
+    const taskFiles = fs
+      .readdirSync(sourceTasksDir)
+      .filter((f) => f.endsWith(".json"));
+    for (const file of taskFiles) {
+      const sourceFile = path.join(sourceTasksDir, file);
+      const targetFile = path.join(targetTasksDir, file);
+
+      // Only copy if target doesn't exist (avoid overwriting newer data)
+      if (!fs.existsSync(targetFile)) {
+        fs.copyFileSync(sourceFile, targetFile);
+        migratedCount++;
+      }
+
+      // Remove source file
+      fs.unlinkSync(sourceFile);
+    }
+
+    // Clean up empty directory
+    try {
+      fs.rmdirSync(sourceTasksDir);
+    } catch {
+      // Directory may not be empty
+    }
+  }
+
+  console.log(
+    `  Migrated ${migratedCount} task(s) from ${sourcePath} to ${targetPath}`,
+  );
+
+  // Clean up empty source directory
+  try {
+    fs.rmdirSync(sourcePath);
+  } catch {
+    // Directory may not be empty or may have other files
+  }
 }
 
 /**

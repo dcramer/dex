@@ -382,6 +382,24 @@ ${colors.bold}EXAMPLES:${colors.reset}
     try {
       const value = parseValue(key, rawValue, CONFIG_SCHEMA[key]);
 
+      // Check if changing storage mode - warn about potential orphaned tasks
+      if (key === "storage.file.mode") {
+        const currentConfig = readConfigFile(configPath);
+        const currentMode = getNestedValue(currentConfig, key);
+        if (currentMode && currentMode !== value) {
+          console.log(
+            `${colors.yellow}Warning:${colors.reset} Changing storage mode from '${currentMode}' to '${value}'.`,
+          );
+          console.log(
+            `${colors.dim}Existing tasks will NOT be automatically migrated.${colors.reset}`,
+          );
+          console.log(
+            `${colors.dim}Run 'dex doctor --fix' after this change to migrate tasks.${colors.reset}`,
+          );
+          console.log("");
+        }
+      }
+
       const config = readConfigFile(configPath);
       setNestedValue(config, key, value);
       writeConfigFile(configPath, config);
