@@ -1,5 +1,5 @@
 import { loadConfig, GitHubSyncConfig } from "./core/config.js";
-import { StorageEngine, FileStorage } from "./core/storage/index.js";
+import { StorageEngine, JsonlStorage } from "./core/storage/index.js";
 import {
   createGitHubSyncService,
   GitHubSyncService,
@@ -74,7 +74,7 @@ export function createStorageEngine(
   cliConfigPath?: string,
 ): StorageEngine {
   if (cliStoragePath) {
-    return new FileStorage(cliStoragePath);
+    return new JsonlStorage(cliStoragePath);
   }
 
   const config = loadConfig({ configPath: cliConfigPath });
@@ -86,7 +86,7 @@ export function createStorageEngine(
     );
   }
 
-  return new FileStorage({
+  return new JsonlStorage({
     path: config.storage.file?.path,
     mode: config.storage.file?.mode,
   });

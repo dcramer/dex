@@ -68,6 +68,10 @@ export class JsonlStorage implements StorageEngine {
     return path.join(this.storagePath, "tasks.jsonl");
   }
 
+  private get legacyTasksDir(): string {
+    return path.join(this.storagePath, "tasks");
+  }
+
   private ensureDirectory(): void {
     fs.mkdirSync(this.storagePath, { recursive: true });
   }
@@ -76,7 +80,67 @@ export class JsonlStorage implements StorageEngine {
     tasks.sort((a, b) => a.id.localeCompare(b.id));
   }
 
+  private formatAsJsonl(tasks: Task[]): string {
+    if (tasks.length === 0) return "";
+    return tasks.map((task) => JSON.stringify(task)).join("\n") + "\n";
+  }
+
+  /**
+   * Migrate from file-per-task format (tasks/*.json) to JSONL format.
+   * Only runs if tasks.jsonl doesn't exist and tasks/ directory does.
+   * Backs up the old tasks/ directory to tasks.bak.
+   */
+  private migrateFromFilePerTask(): void {
+    // Skip if JSONL file already exists or legacy directory doesn't exist
+    if (fs.existsSync(this.tasksFile) || !fs.existsSync(this.legacyTasksDir)) {
+      return;
+    }
+
+    // Skip if legacy path is not a directory
+    try {
+      if (!fs.statSync(this.legacyTasksDir).isDirectory()) return;
+    } catch {
+      return;
+    }
+
+    // Read all tasks from file-per-task format
+    const files = fs
+      .readdirSync(this.legacyTasksDir)
+      .filter((f) => f.endsWith(".json"));
+
+    const tasks: Task[] = [];
+    for (const file of files) {
+      const filePath = path.join(this.legacyTasksDir, file);
+      try {
+        const content = fs.readFileSync(filePath, "utf-8");
+        if (!content.trim()) continue;
+
+        const data = JSON.parse(content);
+        const result = TaskSchema.safeParse(data);
+        if (result.success) {
+          tasks.push(result.data);
+        }
+      } catch {
+        // Skip invalid files during migration
+      }
+    }
+
+    // Write to JSONL format
+    this.ensureDirectory();
+    this.sortTasksById(tasks);
+    fs.writeFileSync(this.tasksFile, this.formatAsJsonl(tasks), "utf-8");
+
+    // Backup the old tasks directory (use timestamp if tasks.bak exists)
+    const backupPath = fs.existsSync(path.join(this.storagePath, "tasks.bak"))
+      ? path.join(this.storagePath, `tasks.bak.${Date.now()}`)
+      : path.join(this.storagePath, "tasks.bak");
+    fs.renameSync(this.legacyTasksDir, backupPath);
+  }
+
   read(): TaskStore {
+    // Check for and perform migration from file-per-task format
+    this.migrateFromFilePerTask();
+
     if (!fs.existsSync(this.tasksFile)) {
       return { tasks: [] };
     }
@@ -139,12 +203,9 @@ export class JsonlStorage implements StorageEngine {
     const sortedTasks = [...store.tasks];
     this.sortTasksById(sortedTasks);
 
-    const lines = sortedTasks.map((task) => JSON.stringify(task));
-    const content = lines.join("\n") + (lines.length > 0 ? "\n" : "");
-
     const tempFile = `${this.tasksFile}.tmp`;
     try {
-      fs.writeFileSync(tempFile, content, "utf-8");
+      fs.writeFileSync(tempFile, this.formatAsJsonl(sortedTasks), "utf-8");
       fs.renameSync(tempFile, this.tasksFile);
     } catch (err) {
       this.cleanupTempFile(tempFile);

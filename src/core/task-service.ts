@@ -1,5 +1,5 @@
 import { customAlphabet } from "nanoid";
-import { StorageEngine, FileStorage } from "./storage/index.js";
+import { StorageEngine, JsonlStorage } from "./storage/index.js";
 import { GitHubSyncService } from "./github/index.js";
 import { GitHubSyncConfig } from "./config.js";
 import { isSyncStale, updateSyncState } from "./sync-state.js";
@@ -40,7 +40,7 @@ function resolveStorage(
   storage: StorageEngine | string | undefined,
 ): StorageEngine {
   if (typeof storage === "string" || storage === undefined) {
-    return new FileStorage(storage);
+    return new JsonlStorage(storage);
   }
   return storage;
 }
@@ -59,7 +59,7 @@ export class TaskService {
   constructor(options?: TaskServiceOptions | StorageEngine | string) {
     // Handle backward compatibility with old constructor signatures
     if (typeof options === "string" || options === undefined) {
-      this.storage = new FileStorage(options);
+      this.storage = new JsonlStorage(options);
       this.syncService = null;
       this.syncConfig = null;
     } else if (isStorageEngine(options)) {

@@ -5,6 +5,8 @@ coverage/
 .DS_Store
 .task/
 .dex/tasks/
+.dex/tasks.jsonl
+.dex/tasks.bak*
 .dex/sync-state.json
 .claude/settings.local.json
 dex.toml

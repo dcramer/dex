@@ -338,4 +338,209 @@ describe("JsonlStorage", () => {
       expect(customStorage.getIdentifier()).toBe(customPath);
     });
   });
+
+  describe("migration from file-per-task format", () => {
+    it("migrates tasks from tasks/ directory to tasks.jsonl", () => {
+      // Set up old file-per-task format
+      const tasksDir = path.join(tempDir, "tasks");
+      fs.mkdirSync(tasksDir, { recursive: true });
+
+      const task1 = createTask({ id: "abc12345", description: "Task 1" });
+      const task2 = createTask({ id: "def67890", description: "Task 2" });
+
+      fs.writeFileSync(
+        path.join(tasksDir, "abc12345.json"),
+        JSON.stringify(task1, null, 2),
+        "utf-8",
+      );
+      fs.writeFileSync(
+        path.join(tasksDir, "def67890.json"),
+        JSON.stringify(task2, null, 2),
+        "utf-8",
+      );
+
+      // Read should trigger migration
+      const store = storage.read();
+
+      expect(store.tasks).toHaveLength(2);
+      expect(store.tasks.map((t) => t.id).sort()).toEqual([
+        "abc12345",
+        "def67890",
+      ]);
+
+      // Verify JSONL file was created
+      const jsonlFile = path.join(tempDir, "tasks.jsonl");
+      expect(fs.existsSync(jsonlFile)).toBe(true);
+
+      // Verify old tasks directory was renamed to tasks.bak
+      expect(fs.existsSync(tasksDir)).toBe(false);
+      expect(fs.existsSync(path.join(tempDir, "tasks.bak"))).toBe(true);
+    });
+
+    it("preserves all task fields during migration", () => {
+      const tasksDir = path.join(tempDir, "tasks");
+      fs.mkdirSync(tasksDir, { recursive: true });
+
+      const task: Task = {
+        id: "abc12345",
+        description: "Test task",
+        context: "Full context here",
+        completed: true,
+        priority: 3,
+        created_at: "2024-01-01T00:00:00.000Z",
+        updated_at: "2024-01-02T00:00:00.000Z",
+        completed_at: "2024-01-02T00:00:00.000Z",
+        result: "Task was completed",
+        blocks: ["def67890"],
+        blockedBy: ["xyz00000"],
+        children: ["child123"],
+        parent_id: "parent99",
+        metadata: { commit: { sha: "abc123" } },
+      };
+
+      fs.writeFileSync(
+        path.join(tasksDir, "abc12345.json"),
+        JSON.stringify(task, null, 2),
+        "utf-8",
+      );
+
+      const store = storage.read();
+
+      expect(store.tasks).toHaveLength(1);
+      expect(store.tasks[0]).toEqual(task);
+    });
+
+    it("skips migration if tasks.jsonl already exists", () => {
+      // Create both old and new format
+      const tasksDir = path.join(tempDir, "tasks");
+      fs.mkdirSync(tasksDir, { recursive: true });
+
+      const oldTask = createTask({ id: "old00001", description: "Old task" });
+      const newTask = createTask({ id: "new00001", description: "New task" });
+
+      fs.writeFileSync(
+        path.join(tasksDir, "old00001.json"),
+        JSON.stringify(oldTask, null, 2),
+        "utf-8",
+      );
+      fs.writeFileSync(
+        path.join(tempDir, "tasks.jsonl"),
+        JSON.stringify(newTask) + "\n",
+        "utf-8",
+      );
+
+      // Read should use JSONL, not migrate
+      const store = storage.read();
+
+      expect(store.tasks).toHaveLength(1);
+      expect(store.tasks[0].id).toBe("new00001");
+
+      // Old tasks directory should still exist
+      expect(fs.existsSync(tasksDir)).toBe(true);
+    });
+
+    it("handles empty tasks directory", () => {
+      const tasksDir = path.join(tempDir, "tasks");
+      fs.mkdirSync(tasksDir, { recursive: true });
+
+      const store = storage.read();
+
+      expect(store.tasks).toHaveLength(0);
+
+      // Empty dir should still be backed up
+      expect(fs.existsSync(tasksDir)).toBe(false);
+      expect(fs.existsSync(path.join(tempDir, "tasks.bak"))).toBe(true);
+    });
+
+    it("handles non-JSON files in tasks directory", () => {
+      const tasksDir = path.join(tempDir, "tasks");
+      fs.mkdirSync(tasksDir, { recursive: true });
+
+      const task = createTask({ id: "abc12345" });
+      fs.writeFileSync(
+        path.join(tasksDir, "abc12345.json"),
+        JSON.stringify(task, null, 2),
+        "utf-8",
+      );
+      fs.writeFileSync(path.join(tasksDir, "readme.txt"), "ignore me", "utf-8");
+      fs.writeFileSync(path.join(tasksDir, ".gitkeep"), "", "utf-8");
+
+      const store = storage.read();
+
+      expect(store.tasks).toHaveLength(1);
+      expect(store.tasks[0].id).toBe("abc12345");
+    });
+
+    it("subsequent reads use JSONL without re-migrating", () => {
+      const tasksDir = path.join(tempDir, "tasks");
+      fs.mkdirSync(tasksDir, { recursive: true });
+
+      const task = createTask({ id: "abc12345" });
+      fs.writeFileSync(
+        path.join(tasksDir, "abc12345.json"),
+        JSON.stringify(task, null, 2),
+        "utf-8",
+      );
+
+      // First read triggers migration
+      storage.read();
+
+      // Verify backup exists
+      expect(fs.existsSync(path.join(tempDir, "tasks.bak"))).toBe(true);
+
+      // Modify the backup (to verify we're not re-reading from it)
+      const backupFile = path.join(tempDir, "tasks.bak", "abc12345.json");
+      const modifiedTask = createTask({
+        id: "abc12345",
+        description: "MODIFIED",
+      });
+      fs.writeFileSync(
+        backupFile,
+        JSON.stringify(modifiedTask, null, 2),
+        "utf-8",
+      );
+
+      // Second read should use JSONL
+      const store = storage.read();
+
+      expect(store.tasks[0].description).toBe("Test task"); // Original, not MODIFIED
+    });
+
+    it("handles backup directory name collision", () => {
+      const tasksDir = path.join(tempDir, "tasks");
+      fs.mkdirSync(tasksDir, { recursive: true });
+
+      // Create existing tasks.bak
+      const existingBackup = path.join(tempDir, "tasks.bak");
+      fs.mkdirSync(existingBackup, { recursive: true });
+      fs.writeFileSync(
+        path.join(existingBackup, "old.json"),
+        "old backup",
+        "utf-8",
+      );
+
+      const task = createTask({ id: "abc12345" });
+      fs.writeFileSync(
+        path.join(tasksDir, "abc12345.json"),
+        JSON.stringify(task, null, 2),
+        "utf-8",
+      );
+
+      // Migration should use timestamped backup name
+      storage.read();
+
+      // Original tasks dir should be gone
+      expect(fs.existsSync(tasksDir)).toBe(false);
+
+      // Original tasks.bak should still exist with old content
+      expect(fs.existsSync(existingBackup)).toBe(true);
+      expect(fs.existsSync(path.join(existingBackup, "old.json"))).toBe(true);
+
+      // Find the timestamped backup
+      const backupDirs = fs
+        .readdirSync(tempDir)
+        .filter((f) => f.startsWith("tasks.bak."));
+      expect(backupDirs.length).toBe(1);
+    });
+  });
 });
