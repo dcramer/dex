@@ -69,8 +69,8 @@ export class GitHubIssuesStorage implements StorageEngine {
    */
   async readAsync(): Promise<TaskStore> {
     try {
-      // Fetch all issues with dex label
-      const { data: issues } = await this.octokit.issues.listForRepo({
+      // Fetch all issues with dex label using pagination
+      const issues = await this.octokit.paginate(this.octokit.issues.listForRepo, {
         owner: this.owner,
         repo: this.repo,
         labels: this.labelPrefix,
@@ -111,7 +111,7 @@ export class GitHubIssuesStorage implements StorageEngine {
   async writeAsync(store: TaskStore): Promise<void> {
     try {
       // Fetch existing issues to determine what needs to be created/updated/deleted
-      const { data: existingIssues } = await this.octokit.issues.listForRepo({
+      const existingIssues = await this.octokit.paginate(this.octokit.issues.listForRepo, {
         owner: this.owner,
         repo: this.repo,
         labels: this.labelPrefix,

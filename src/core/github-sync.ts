@@ -556,10 +556,11 @@ export class GitHubSyncService {
   /**
    * Look up a task by its local ID in GitHub issues.
    * Used to find existing issues for tasks that don't have metadata yet.
+   * Uses pagination to handle repos with >100 dex issues.
    */
   async findIssueByTaskId(taskId: string): Promise<number | null> {
     try {
-      const { data: issues } = await this.octokit.issues.listForRepo({
+      const issues = await this.octokit.paginate(this.octokit.issues.listForRepo, {
         owner: this.owner,
         repo: this.repo,
         labels: this.labelPrefix,
@@ -584,42 +585,34 @@ export class GitHubSyncService {
    * Returns a Map keyed by task ID containing all data needed for change detection.
    */
   async fetchAllDexIssues(): Promise<Map<string, CachedIssue>> {
-    const issues = new Map<string, CachedIssue>();
-    let page = 1;
+    const result = new Map<string, CachedIssue>();
 
-    while (true) {
-      const { data } = await this.octokit.issues.listForRepo({
-        owner: this.owner,
-        repo: this.repo,
-        labels: this.labelPrefix,
-        state: "all",
-        per_page: 100,
-        page,
-      });
+    const issues = await this.octokit.paginate(this.octokit.issues.listForRepo, {
+      owner: this.owner,
+      repo: this.repo,
+      labels: this.labelPrefix,
+      state: "all",
+      per_page: 100,
+    });
 
-      if (data.length === 0) break;
+    for (const issue of issues) {
+      if (issue.pull_request) continue;
 
-      for (const issue of data) {
-        if (issue.pull_request) continue;
-
-        const taskId = this.extractTaskIdFromBody(issue.body || "");
-        if (taskId) {
-          issues.set(taskId, {
-            number: issue.number,
-            title: issue.title,
-            body: issue.body || "",
-            state: issue.state as "open" | "closed",
-            labels: (issue.labels || [])
-              .map((l) => (typeof l === "string" ? l : l.name || ""))
-              .filter((l) => l.startsWith(this.labelPrefix)),
-          });
-        }
+      const taskId = this.extractTaskIdFromBody(issue.body || "");
+      if (taskId) {
+        result.set(taskId, {
+          number: issue.number,
+          title: issue.title,
+          body: issue.body || "",
+          state: issue.state as "open" | "closed",
+          labels: (issue.labels || [])
+            .map((l) => (typeof l === "string" ? l : l.name || ""))
+            .filter((l) => l.startsWith(this.labelPrefix)),
+        });
       }
-
-      page++;
     }
 
-    return issues;
+    return result;
   }
 
   /**
