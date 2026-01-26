@@ -3,13 +3,11 @@ import { TaskStore } from "../../types.js";
 /**
  * Storage engine interface for persisting tasks.
  *
- * Implementations can store tasks in various backends:
- * - File system (FileStorage) - synchronous
- * - GitHub Issues (GitHubIssuesStorage) - asynchronous
- * - GitHub Projects v2 (GitHubProjectsStorage) - asynchronous
+ * Current implementation:
+ * - File system (FileStorage) - supports both sync and async operations
  *
- * Note: Some storage backends (GitHub) require async operations.
- * For these, use readAsync() and writeAsync() methods.
+ * Note: All storage backends must implement both sync and async methods.
+ * The async methods are used by the MCP server and CLI async operations.
  */
 export interface StorageEngine {
   /**
@@ -50,7 +48,6 @@ export interface StorageEngine {
   /**
    * Get a human-readable identifier for this storage backend.
    * For file storage: returns the directory path
-   * For GitHub storage: returns "owner/repo" or "owner/project#N"
    * @returns Storage identifier string
    */
   getIdentifier(): string;

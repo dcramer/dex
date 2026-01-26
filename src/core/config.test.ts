@@ -37,7 +37,9 @@ describe("Config", () => {
       originalXdg = process.env.XDG_CONFIG_HOME;
 
       // Create temp config directory structure: /tmp/xxx/dex/dex.toml
-      const tempBaseDir = fs.mkdtempSync(path.join(os.tmpdir(), "dex-config-test-"));
+      const tempBaseDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), "dex-config-test-"),
+      );
       const tempDexDir = path.join(tempBaseDir, "dex");
       fs.mkdirSync(tempDexDir, { recursive: true });
       tempConfigPath = path.join(tempDexDir, "dex.toml");
@@ -83,63 +85,13 @@ engine = "file"
 
 [storage.file]
 path = "/custom/path/.dex"
-`
+`,
       );
 
       const config = loadConfig();
 
       expect(config.storage.engine).toBe("file");
       expect(config.storage.file?.path).toBe("/custom/path/.dex");
-    });
-
-    it("loads github-issues storage config", () => {
-      fs.writeFileSync(
-        tempConfigPath,
-        `[storage]
-engine = "github-issues"
-
-[storage.github-issues]
-owner = "zeeg"
-repo = "dex-tasks"
-token_env = "GITHUB_TOKEN"
-label_prefix = "dex"
-`
-      );
-
-      const config = loadConfig();
-
-      expect(config.storage.engine).toBe("github-issues");
-      expect(config.storage["github-issues"]?.owner).toBe("zeeg");
-      expect(config.storage["github-issues"]?.repo).toBe("dex-tasks");
-      expect(config.storage["github-issues"]?.token_env).toBe("GITHUB_TOKEN");
-      expect(config.storage["github-issues"]?.label_prefix).toBe("dex");
-    });
-
-    it("loads github-projects storage config", () => {
-      fs.writeFileSync(
-        tempConfigPath,
-        `[storage]
-engine = "github-projects"
-
-[storage.github-projects]
-owner = "zeeg"
-project_number = 1
-token_env = "GITHUB_TOKEN"
-
-[storage.github-projects.field_names]
-status = "Status"
-priority = "Priority"
-result = "Result"
-`
-      );
-
-      const config = loadConfig();
-
-      expect(config.storage.engine).toBe("github-projects");
-      expect(config.storage["github-projects"]?.owner).toBe("zeeg");
-      expect(config.storage["github-projects"]?.project_number).toBe(1);
-      expect(config.storage["github-projects"]?.field_names?.status).toBe("Status");
-      expect(config.storage["github-projects"]?.field_names?.priority).toBe("Priority");
     });
 
     it("throws error on malformed TOML", () => {
@@ -156,5 +108,4 @@ result = "Result"
       expect(config.storage.engine).toBe("file");
     });
   });
-
 });

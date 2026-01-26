@@ -51,7 +51,7 @@ export function levenshtein(a: string, b: string): number {
         matrix[i][j] = Math.min(
           matrix[i - 1][j - 1] + 1,
           matrix[i][j - 1] + 1,
-          matrix[i - 1][j] + 1
+          matrix[i - 1][j] + 1,
         );
       }
     }
@@ -76,7 +76,7 @@ export function getSuggestion(input: string): string | null {
 
 export function getStringFlag(
   flags: ParsedArgs["flags"],
-  name: string
+  name: string,
 ): string | undefined {
   const value = flags[name];
   // Treat empty strings as missing values (can happen when flag is at end of args)
@@ -88,14 +88,14 @@ export function getStringFlag(
 
 export function getBooleanFlag(
   flags: ParsedArgs["flags"],
-  name: string
+  name: string,
 ): boolean {
   return flags[name] === true;
 }
 
 export function parseIntFlag(
   flags: ParsedArgs["flags"],
-  name: string
+  name: string,
 ): number | undefined {
   const value = getStringFlag(flags, name);
   if (value === undefined) return undefined;
@@ -103,7 +103,7 @@ export function parseIntFlag(
   const parsed = parseInt(value, 10);
   if (isNaN(parsed)) {
     console.error(
-      `${colors.red}Error:${colors.reset} Invalid value for --${name}: expected a number, got "${value}"`
+      `${colors.red}Error:${colors.reset} Invalid value for --${name}: expected a number, got "${value}"`,
     );
     process.exit(1);
   }
@@ -115,7 +115,7 @@ export function parseIntFlag(
  */
 function getFlagSuggestion(
   input: string,
-  flagDefs: Record<string, FlagConfig>
+  flagDefs: Record<string, FlagConfig>,
 ): string | null {
   const flagNames = Object.keys(flagDefs);
   let bestMatch: string | null = null;
@@ -135,7 +135,7 @@ function getFlagSuggestion(
 export function parseArgs(
   args: string[],
   flagDefs: Record<string, FlagConfig>,
-  commandName?: string
+  commandName?: string,
 ): ParsedArgs {
   const positional: string[] = [];
   const flags: Record<string, string | boolean> = {};
@@ -148,39 +148,45 @@ export function parseArgs(
       const flagName = arg.slice(2);
       const flagConfig = flagDefs[flagName];
 
-      if (flagConfig) {
-        if (flagConfig.hasValue) {
-          flags[flagName] = args[++i] || "";
-        } else {
-          flags[flagName] = true;
-        }
-      } else {
-        // Unknown long flag
+      if (!flagConfig) {
         unknownFlags.push(arg);
+        continue;
       }
-    } else if (arg.startsWith("-") && arg.length === 2) {
+
+      if (flagConfig.hasValue) {
+        flags[flagName] = args[++i] || "";
+      } else {
+        flags[flagName] = true;
+      }
+      continue;
+    }
+
+    if (arg.startsWith("-") && arg.length === 2) {
       const shortFlag = arg.slice(1);
       const flagEntry = Object.entries(flagDefs).find(
-        ([, config]) => config.short === shortFlag
+        ([, config]) => config.short === shortFlag,
       );
 
-      if (flagEntry) {
-        const [flagName, flagConfig] = flagEntry;
-        if (flagConfig.hasValue) {
-          flags[flagName] = args[++i] || "";
-        } else {
-          flags[flagName] = true;
-        }
-      } else {
-        // Unknown short flag
+      if (!flagEntry) {
         unknownFlags.push(arg);
+        continue;
       }
-    } else if (arg.startsWith("-") && arg.length > 2) {
-      // Unknown flag like -abc or --flag=value style not supported
-      unknownFlags.push(arg);
-    } else {
-      positional.push(arg);
+
+      const [flagName, flagConfig] = flagEntry;
+      if (flagConfig.hasValue) {
+        flags[flagName] = args[++i] || "";
+      } else {
+        flags[flagName] = true;
+      }
+      continue;
     }
+
+    if (arg.startsWith("-") && arg.length > 2) {
+      unknownFlags.push(arg);
+      continue;
+    }
+
+    positional.push(arg);
   }
 
   // Report unknown flags

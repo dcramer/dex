@@ -25,10 +25,10 @@ export function formatAge(isoDate: string): string {
 export function formatBreadcrumb(
   ancestors: Task[],
   current: Task,
-  maxDescLength: number = 30
+  maxDescLength: number = 30,
 ): string {
   const items = [...ancestors, current].map((t) =>
-    truncateText(t.description, maxDescLength)
+    truncateText(t.description, maxDescLength),
   );
   return items.join(` ${colors.dim}>${colors.reset} `);
 }
@@ -40,22 +40,20 @@ export function formatBreadcrumb(
 export function wrapText(
   text: string,
   width: number,
-  indent: string = ""
+  indent: string = "",
 ): string {
   if (!text) return "";
 
   const effectiveWidth = width - indent.length;
   if (effectiveWidth <= 10) {
-    // Too narrow, just return with indent
     return indent + text;
   }
 
   const lines: string[] = [];
-  // Split on existing newlines first
   const paragraphs = text.split(/\n/);
 
   for (const paragraph of paragraphs) {
-    if (paragraph.length === 0) {
+    if (!paragraph) {
       lines.push("");
       continue;
     }
@@ -68,22 +66,22 @@ export function wrapText(
       if (!word) continue;
 
       const wordVisibleLength = stripAnsi(word).length;
-      const separator = currentLine ? " " : "";
-      const separatorLength = separator.length;
+      const needsSpace = currentLine.length > 0;
+      const spaceLength = needsSpace ? 1 : 0;
 
-      if (
-        currentVisibleLength + separatorLength + wordVisibleLength <=
-        effectiveWidth
-      ) {
-        currentLine += separator + word;
-        currentVisibleLength += separatorLength + wordVisibleLength;
+      const fitsOnCurrentLine =
+        currentVisibleLength + spaceLength + wordVisibleLength <=
+        effectiveWidth;
+
+      if (fitsOnCurrentLine) {
+        currentLine += (needsSpace ? " " : "") + word;
+        currentVisibleLength += spaceLength + wordVisibleLength;
       } else {
         if (currentLine) {
           lines.push(currentLine);
         }
-        // Handle very long words that exceed line width
+
         if (wordVisibleLength > effectiveWidth) {
-          // Just add the word as-is, it will overflow but that's acceptable
           lines.push(word);
           currentLine = "";
           currentVisibleLength = 0;
@@ -115,7 +113,7 @@ export function truncateText(text: string, maxLength: number): string {
 
 export function formatTask(
   task: Task,
-  options: FormatTaskOptions = {}
+  options: FormatTaskOptions = {},
 ): string {
   const {
     verbose = false,
@@ -127,7 +125,9 @@ export function formatTask(
   const statusIcon = task.completed ? "[x]" : "[ ]";
   const statusColor = task.completed ? colors.green : colors.yellow;
   const priority =
-    task.priority !== 1 ? ` ${colors.cyan}[p${task.priority}]${colors.reset}` : "";
+    task.priority !== 1
+      ? ` ${colors.cyan}[p${task.priority}]${colors.reset}`
+      : "";
   const completionAge =
     task.completed && task.completed_at
       ? ` ${colors.dim}(${formatAge(task.completed_at)})${colors.reset}`
@@ -136,11 +136,9 @@ export function formatTask(
   // Show blocked indicator if task has incomplete blockers
   let blockedIndicator = "";
   if (blockedByIds && blockedByIds.length > 0) {
-    if (blockedByIds.length === 1) {
-      blockedIndicator = ` ${colors.red}[B: ${blockedByIds[0]}]${colors.reset}`;
-    } else {
-      blockedIndicator = ` ${colors.red}[B: ${blockedByIds.length}]${colors.reset}`;
-    }
+    const blockedInfo =
+      blockedByIds.length === 1 ? blockedByIds[0] : blockedByIds.length;
+    blockedIndicator = ` ${colors.red}[B: ${blockedInfo}]${colors.reset}`;
   }
 
   const description = truncateDescription
@@ -178,7 +176,7 @@ export function formatTask(
 export function pluralize(
   count: number,
   singular: string,
-  plural?: string
+  plural?: string,
 ): string {
   return count === 1 ? singular : (plural ?? singular + "s");
 }

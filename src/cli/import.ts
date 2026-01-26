@@ -8,6 +8,7 @@ import {
   GitHubRepo,
   parseHierarchicalIssueBody,
   parseRootTaskMetadata,
+  getGitHubToken,
 } from "../core/github/index.js";
 import { loadConfig } from "../core/config.js";
 import { Task } from "../types.js";
@@ -15,7 +16,7 @@ import { Octokit } from "@octokit/rest";
 
 export async function importCommand(
   args: string[],
-  options: CliOptions
+  options: CliOptions,
 ): Promise<void> {
   const { positional, flags } = parseArgs(
     args,
@@ -25,7 +26,7 @@ export async function importCommand(
       update: { hasValue: false },
       help: { short: "h", hasValue: false },
     },
-    "import"
+    "import",
   );
 
   if (getBooleanFlag(flags, "help")) {
@@ -49,7 +50,7 @@ ${colors.bold}OPTIONS:${colors.reset}
 
 ${colors.bold}REQUIREMENTS:${colors.reset}
   - Git repository with GitHub remote (for #N syntax)
-  - GITHUB_TOKEN environment variable
+  - GitHub authentication (GITHUB_TOKEN env var or 'gh auth login')
 
 ${colors.bold}EXAMPLE:${colors.reset}
   dex import #42                              # Import issue from current repo
@@ -68,7 +69,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
 
   if (!issueRef && !importAll) {
     console.error(
-      `${colors.red}Error:${colors.reset} Issue reference or --all required`
+      `${colors.red}Error:${colors.reset} Issue reference or --all required`,
     );
     console.error(`Usage: dex import #123 or dex import --all`);
     process.exit(1);
@@ -76,12 +77,13 @@ ${colors.bold}EXAMPLE:${colors.reset}
 
   const config = loadConfig({ storagePath: options.storage.getIdentifier() });
   const tokenEnv = config.sync?.github?.token_env || "GITHUB_TOKEN";
-  const token = process.env[tokenEnv];
+  const token = getGitHubToken(tokenEnv);
 
   if (!token) {
     console.error(
       `${colors.red}Error:${colors.reset} GitHub token not found.\n` +
-        `Set the ${tokenEnv} environment variable: export ${tokenEnv}=ghp_...`
+        `Set the ${tokenEnv} environment variable: export ${tokenEnv}=ghp_...\n` +
+        `Or authenticate with: gh auth login`,
     );
     process.exit(1);
   }
@@ -92,21 +94,9 @@ ${colors.bold}EXAMPLE:${colors.reset}
 
   try {
     if (importAll) {
-      await importAllIssues(
-        octokit,
-        service,
-        labelPrefix,
-        dryRun,
-        update
-      );
+      await importAllIssues(octokit, service, labelPrefix, dryRun, update);
     } else {
-      await importSingleIssue(
-        octokit,
-        service,
-        issueRef,
-        dryRun,
-        update
-      );
+      await importSingleIssue(octokit, service, issueRef, dryRun, update);
     }
   } catch (err) {
     console.error(formatCliError(err));
@@ -119,14 +109,14 @@ async function importSingleIssue(
   service: ReturnType<typeof createService>,
   issueRef: string,
   dryRun: boolean,
-  update: boolean
+  update: boolean,
 ): Promise<void> {
   const defaultRepo = getGitHubRepo();
   const parsed = parseGitHubIssueRef(issueRef, defaultRepo ?? undefined);
 
   if (!parsed) {
     console.error(
-      `${colors.red}Error:${colors.reset} Invalid issue reference: ${issueRef}`
+      `${colors.red}Error:${colors.reset} Invalid issue reference: ${issueRef}`,
     );
     console.error(`Expected: #123, owner/repo#123, or full GitHub URL`);
     process.exit(1);
@@ -135,7 +125,7 @@ async function importSingleIssue(
   // Check if already imported
   const existingTasks = await service.list({ all: true });
   const alreadyImported = existingTasks.find(
-    (t) => getGitHubIssueNumber(t) === parsed.number
+    (t) => getGitHubIssueNumber(t) === parsed.number,
   );
 
   // Fetch the issue
@@ -150,7 +140,7 @@ async function importSingleIssue(
       if (dryRun) {
         console.log(
           `Would update task ${colors.bold}${alreadyImported.id}${colors.reset} ` +
-            `from issue #${parsed.number}`
+            `from issue #${parsed.number}`,
         );
         return;
       }
@@ -159,11 +149,11 @@ async function importSingleIssue(
         service,
         alreadyImported,
         issue,
-        parsed
+        parsed,
       );
       console.log(
         `${colors.green}Updated${colors.reset} task ${colors.bold}${updatedTask.id}${colors.reset} ` +
-          `from issue #${parsed.number}`
+          `from issue #${parsed.number}`,
       );
       return;
     }
@@ -171,7 +161,7 @@ async function importSingleIssue(
     console.log(
       `${colors.yellow}Skipped${colors.reset} issue #${parsed.number}: ` +
         `already imported as task ${colors.bold}${alreadyImported.id}${colors.reset}\n` +
-        `  Use --update to refresh from GitHub`
+        `  Use --update to refresh from GitHub`,
     );
     return;
   }
@@ -180,7 +170,9 @@ async function importSingleIssue(
   const { subtasks } = parseHierarchicalIssueBody(body);
 
   if (dryRun) {
-    console.log(`Would import from ${colors.cyan}${parsed.owner}/${parsed.repo}${colors.reset}:`);
+    console.log(
+      `Would import from ${colors.cyan}${parsed.owner}/${parsed.repo}${colors.reset}:`,
+    );
     console.log(`  #${issue.number}: ${issue.title}`);
     if (subtasks.length > 0) {
       console.log(`  (${subtasks.length} subtasks)`);
@@ -191,7 +183,7 @@ async function importSingleIssue(
   const task = await importIssueAsTask(service, issue, parsed);
   console.log(
     `${colors.green}Imported${colors.reset} issue #${parsed.number} as task ` +
-      `${colors.bold}${task.id}${colors.reset}: "${task.description}"`
+      `${colors.bold}${task.id}${colors.reset}: "${task.description}"`,
   );
 
   if (subtasks.length > 0) {
@@ -228,13 +220,13 @@ async function importAllIssues(
   service: ReturnType<typeof createService>,
   labelPrefix: string,
   dryRun: boolean,
-  update: boolean
+  update: boolean,
 ): Promise<void> {
   const repo = getGitHubRepo();
   if (!repo) {
     console.error(
       `${colors.red}Error:${colors.reset} Cannot determine GitHub repository.\n` +
-        `This directory is not in a git repository with a GitHub remote.`
+        `This directory is not in a git repository with a GitHub remote.`,
     );
     process.exit(1);
   }
@@ -252,7 +244,9 @@ async function importAllIssues(
   const realIssues = issues.filter((i) => !i.pull_request);
 
   if (realIssues.length === 0) {
-    console.log(`No issues with "${labelPrefix}" label found in ${repo.owner}/${repo.repo}.`);
+    console.log(
+      `No issues with "${labelPrefix}" label found in ${repo.owner}/${repo.repo}.`,
+    );
     return;
   }
 
@@ -261,7 +255,7 @@ async function importAllIssues(
   const importedByNumber = new Map(
     existingTasks
       .map((t) => [getGitHubIssueNumber(t), t] as const)
-      .filter((pair): pair is [number, Task] => pair[0] !== null)
+      .filter((pair): pair is [number, Task] => pair[0] !== null),
   );
 
   const toImport = realIssues.filter((i) => !importedByNumber.has(i.number));
@@ -273,7 +267,7 @@ async function importAllIssues(
   if (dryRun) {
     if (toImport.length > 0) {
       console.log(
-        `Would import ${toImport.length} issue(s) from ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}:`
+        `Would import ${toImport.length} issue(s) from ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}:`,
       );
       for (const issue of toImport) {
         console.log(`  #${issue.number}: ${issue.title}`);
@@ -281,7 +275,7 @@ async function importAllIssues(
     }
     if (toUpdate.length > 0) {
       console.log(
-        `Would update ${toUpdate.length} task(s) from ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}:`
+        `Would update ${toUpdate.length} task(s) from ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}:`,
       );
       for (const issue of toUpdate) {
         const existingTask = importedByNumber.get(issue.number)!;
@@ -300,7 +294,7 @@ async function importAllIssues(
   for (const issue of toImport) {
     const task = await importIssueAsTask(service, issue, repo);
     console.log(
-      `${colors.green}Imported${colors.reset} #${issue.number} as ${colors.bold}${task.id}${colors.reset}`
+      `${colors.green}Imported${colors.reset} #${issue.number} as ${colors.bold}${task.id}${colors.reset}`,
     );
     imported++;
   }
@@ -309,16 +303,18 @@ async function importAllIssues(
     const existingTask = importedByNumber.get(issue.number)!;
     await updateTaskFromIssue(service, existingTask, issue, repo);
     console.log(
-      `${colors.green}Updated${colors.reset} #${issue.number} → ${colors.bold}${existingTask.id}${colors.reset}`
+      `${colors.green}Updated${colors.reset} #${issue.number} → ${colors.bold}${existingTask.id}${colors.reset}`,
     );
     updated++;
   }
 
   console.log(
-    `\nImported ${imported}, updated ${updated} issue(s) from ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}`
+    `\nImported ${imported}, updated ${updated} issue(s) from ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}`,
   );
   if (skipped > 0) {
-    console.log(`Skipped ${skipped} already imported (use --update to refresh)`);
+    console.log(
+      `Skipped ${skipped} already imported (use --update to refresh)`,
+    );
   }
 }
 
@@ -365,15 +361,15 @@ function parseIssueData(issue: GitHubIssue, repo: GitHubRepo): ParsedIssueData {
 async function importIssueAsTask(
   service: ReturnType<typeof createService>,
   issue: GitHubIssue,
-  repo: GitHubRepo
+  repo: GitHubRepo,
 ): Promise<Task> {
   const { cleanContext, rootMetadata, githubMetadata } = parseIssueData(
     issue,
-    repo
+    repo,
   );
 
   // Determine completion status: prefer metadata, fall back to issue state
-  const completed = rootMetadata?.completed ?? (issue.state === "closed");
+  const completed = rootMetadata?.completed ?? issue.state === "closed";
 
   const metadata = {
     github: githubMetadata,
@@ -386,7 +382,9 @@ async function importIssueAsTask(
     context: cleanContext || `Imported from GitHub issue #${issue.number}`,
     priority: rootMetadata?.priority,
     completed,
-    result: rootMetadata?.result ?? (completed ? "Imported as completed from GitHub" : null),
+    result:
+      rootMetadata?.result ??
+      (completed ? "Imported as completed from GitHub" : null),
     metadata,
     created_at: rootMetadata?.created_at,
     updated_at: rootMetadata?.updated_at,
@@ -398,11 +396,11 @@ async function updateTaskFromIssue(
   service: ReturnType<typeof createService>,
   existingTask: Task,
   issue: GitHubIssue,
-  repo: GitHubRepo
+  repo: GitHubRepo,
 ): Promise<Task> {
   const { cleanContext, rootMetadata, githubMetadata } = parseIssueData(
     issue,
-    repo
+    repo,
   );
 
   const isClosed = issue.state === "closed";
@@ -419,8 +417,9 @@ async function updateTaskFromIssue(
     },
     completed: isClosed,
     result: isClosed
-      ? (rootMetadata?.result || existingTask.result || "Updated from closed GitHub issue")
+      ? rootMetadata?.result ||
+        existingTask.result ||
+        "Updated from closed GitHub issue"
       : undefined,
   });
 }
-

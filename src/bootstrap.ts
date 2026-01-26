@@ -1,9 +1,5 @@
 import { loadConfig, GitHubSyncConfig } from "./core/config.js";
-import {
-  StorageEngine,
-  FileStorage,
-  GitHubIssuesStorage,
-} from "./core/storage/index.js";
+import { StorageEngine, FileStorage } from "./core/storage/index.js";
 import {
   createGitHubSyncService,
   GitHubSyncService,
@@ -21,7 +17,7 @@ export interface ParsedGlobalOptions {
 function parseGlobalOption(
   args: string[],
   index: number,
-  flagName: string
+  flagName: string,
 ): { value: string; skip: number } | null {
   const arg = args[index];
   const flagWithEquals = `--${flagName}=`;
@@ -75,64 +71,24 @@ export function parseGlobalOptions(args: string[]): ParsedGlobalOptions {
 
 export function createStorageEngine(
   cliStoragePath?: string,
-  cliConfigPath?: string
+  cliConfigPath?: string,
 ): StorageEngine {
-  const config = loadConfig({ configPath: cliConfigPath });
-
   if (cliStoragePath) {
     return new FileStorage(cliStoragePath);
   }
 
-  switch (config.storage.engine) {
-    case "file":
-      return new FileStorage({
-        path: config.storage.file?.path,
-        mode: config.storage.file?.mode,
-      });
+  const config = loadConfig({ configPath: cliConfigPath });
 
-    case "github-issues":
-      return createGitHubIssuesStorage(config);
-
-    case "github-projects":
-      throw new Error("GitHub Projects storage not yet implemented");
-
-    default:
-      throw new Error(`Unknown storage engine: ${config.storage.engine}`);
-  }
-}
-
-function createGitHubIssuesStorage(
-  config: ReturnType<typeof loadConfig>
-): GitHubIssuesStorage {
-  console.warn(
-    "Warning: storage.engine = 'github-issues' is deprecated.\n" +
-      "GitHub Issues is now an auto-sync enhancement. Use file storage with sync.github instead:\n\n" +
-      "  [storage]\n" +
-      '  engine = "file"\n\n' +
-      "  [sync.github]\n" +
-      "  enabled = true\n" +
-      '  owner = "your-owner"\n' +
-      '  repo = "your-repo"\n'
-  );
-
-  const ghConfig = config.storage["github-issues"];
-  if (!ghConfig) {
-    throw new Error("GitHub Issues storage selected but not configured");
-  }
-
-  const tokenEnv = ghConfig.token_env || "GITHUB_TOKEN";
-  const token = process.env[tokenEnv];
-  if (!token) {
+  if (config.storage.engine !== "file") {
     throw new Error(
-      `GitHub token not found in environment variable ${tokenEnv}`
+      `Unsupported storage engine: ${config.storage.engine}.\n` +
+        `Only "file" storage is supported. Use sync.github for GitHub integration.`,
     );
   }
 
-  return new GitHubIssuesStorage({
-    owner: ghConfig.owner,
-    repo: ghConfig.repo,
-    token,
-    labelPrefix: ghConfig.label_prefix,
+  return new FileStorage({
+    path: config.storage.file?.path,
+    mode: config.storage.file?.mode,
   });
 }
 
@@ -143,7 +99,7 @@ export interface SyncServiceResult {
 
 export function createSyncService(
   storagePath: string,
-  cliConfigPath?: string
+  cliConfigPath?: string,
 ): SyncServiceResult {
   const config = loadConfig({ storagePath, configPath: cliConfigPath });
   const githubConfig = config.sync?.github ?? null;

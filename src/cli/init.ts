@@ -50,7 +50,8 @@ function configureShellCompletion(shell: ShellConfig): boolean {
   const content = fs.readFileSync(shell.configFile, "utf-8");
 
   // Always append at end - ensures PATH is set up and dex is available
-  const newContent = content.trimEnd() + `\n\n# dex completions\n${shell.completionLine}\n`;
+  const newContent =
+    content.trimEnd() + `\n\n# dex completions\n${shell.completionLine}\n`;
 
   fs.writeFileSync(shell.configFile, newContent, "utf-8");
   return true;
@@ -72,11 +73,15 @@ async function promptYesNo(question: string): Promise<boolean> {
 }
 
 export async function initCommand(args: string[]): Promise<void> {
-  const { flags } = parseArgs(args, {
-    yes: { short: "y", hasValue: false },
-    help: { short: "h", hasValue: false },
-    "config-dir": { hasValue: true },
-  }, "init");
+  const { flags } = parseArgs(
+    args,
+    {
+      yes: { short: "y", hasValue: false },
+      help: { short: "h", hasValue: false },
+      "config-dir": { hasValue: true },
+    },
+    "init",
+  );
 
   if (getBooleanFlag(flags, "help")) {
     console.log(`${colors.bold}dex init${colors.reset} - Initialize dex configuration
@@ -98,12 +103,16 @@ ${colors.bold}DESCRIPTION:${colors.reset}
 
   const autoYes = getBooleanFlag(flags, "yes");
   const configDir = flags["config-dir"] as string | undefined;
-  const configPath = configDir ? path.join(configDir, "dex.toml") : getConfigPath();
+  const configPath = configDir
+    ? path.join(configDir, "dex.toml")
+    : getConfigPath();
   const dexConfigDir = path.dirname(configPath);
 
   // Check if config already exists
   if (fs.existsSync(configPath)) {
-    console.error(`${colors.red}Error${colors.reset}: Config file already exists at ${configPath}`);
+    console.error(
+      `${colors.red}Error${colors.reset}: Config file already exists at ${configPath}`,
+    );
     console.error(`Edit the file directly or delete it to reinitialize.`);
     process.exit(1);
   }
@@ -113,69 +122,58 @@ ${colors.bold}DESCRIPTION:${colors.reset}
 
   // Write default config
   const defaultConfig = `# dex configuration file
-# Storage engine: "file", "github-issues", or "github-projects"
 
 [storage]
 engine = "file"
 
-# File storage settings (default)
+# File storage settings
 [storage.file]
 # path = "/custom/path"  # Uncomment to set custom storage path
 
-# GitHub Issues storage (alternative)
-# [storage]
-# engine = "github-issues"
-#
-# [storage.github-issues]
-# owner = "your-username"
-# repo = "dex-tasks"
-# token_env = "GITHUB_TOKEN"    # Environment variable containing GitHub token
+# GitHub sync (optional - sync tasks with GitHub Issues)
+# Note: owner/repo are automatically inferred from your git remote
+# [sync.github]
+# enabled = true
+# token_env = "GITHUB_TOKEN"    # Environment variable containing GitHub token (or use gh CLI)
 # label_prefix = "dex"           # Prefix for dex-related labels
-
-# GitHub Projects v2 storage (alternative)
-# [storage]
-# engine = "github-projects"
-#
-# [storage.github-projects]
-# owner = "your-username"
-# project_number = 1             # Project number (e.g., #1)
-# # OR use project_id directly:
-# # project_id = "PVT_kwDOABcD1234"
-# token_env = "GITHUB_TOKEN"     # Environment variable containing GitHub token
-#
-# # Custom field name mappings (must be pre-configured in project)
-# [storage.github-projects.field_names]
-# status = "Status"
-# priority = "Priority"
-# result = "Result"
-# parent = "Parent ID"
-# completed_at = "Completed"
 `;
 
   fs.writeFileSync(configPath, defaultConfig, "utf-8");
 
-  console.log(`${colors.green}✓${colors.reset} Created config file at ${colors.cyan}${configPath}${colors.reset}`);
+  console.log(
+    `${colors.green}✓${colors.reset} Created config file at ${colors.cyan}${configPath}${colors.reset}`,
+  );
 
   // Detect and configure shell completions
   const detectedShells = detectShells();
-  const unconfiguredShells = detectedShells.filter((s) => !isCompletionConfigured(s));
+  const unconfiguredShells = detectedShells.filter(
+    (s) => !isCompletionConfigured(s),
+  );
 
   if (unconfiguredShells.length > 0) {
     console.log();
     console.log(`${colors.bold}Shell Completions${colors.reset}`);
-    console.log(`Detected shells: ${detectedShells.map((s) => s.name).join(", ")}`);
+    console.log(
+      `Detected shells: ${detectedShells.map((s) => s.name).join(", ")}`,
+    );
     console.log();
 
     for (const shell of unconfiguredShells) {
-      const shouldConfigure = autoYes || await promptYesNo(
-        `Configure completions for ${colors.cyan}${shell.name}${colors.reset}? [Y/n] `
-      );
+      const shouldConfigure =
+        autoYes ||
+        (await promptYesNo(
+          `Configure completions for ${colors.cyan}${shell.name}${colors.reset}? [Y/n] `,
+        ));
 
       if (shouldConfigure) {
         if (configureShellCompletion(shell)) {
-          console.log(`${colors.green}✓${colors.reset} Added completions to ${colors.dim}${shell.configFile}${colors.reset}`);
+          console.log(
+            `${colors.green}✓${colors.reset} Added completions to ${colors.dim}${shell.configFile}${colors.reset}`,
+          );
         } else {
-          console.log(`${colors.yellow}!${colors.reset} Could not configure ${shell.name} completions`);
+          console.log(
+            `${colors.yellow}!${colors.reset} Could not configure ${shell.name} completions`,
+          );
         }
       } else {
         console.log(`${colors.dim}Skipped ${shell.name}${colors.reset}`);
@@ -183,12 +181,14 @@ engine = "file"
     }
 
     console.log();
-    console.log(`${colors.dim}Restart your shell or run 'source <config-file>' to enable completions.${colors.reset}`);
+    console.log(
+      `${colors.dim}Restart your shell or run 'source <config-file>' to enable completions.${colors.reset}`,
+    );
   }
 
   console.log();
   console.log("Edit the config file to customize your storage engine.");
   console.log(
-    `See ${colors.cyan}https://github.com/dcramer/dex${colors.reset} for documentation.`
+    `See ${colors.cyan}https://github.com/dcramer/dex${colors.reset} for documentation.`,
   );
 }

@@ -223,8 +223,11 @@ export class GitHubSyncService {
     let issueNumber = getGitHubIssueNumber(parent);
     if (!issueNumber && issueCache) {
       const cached = issueCache.get(parent.id);
-      if (cached) issueNumber = cached.number;
-    } else if (!issueNumber) {
+      if (cached) {
+        issueNumber = cached.number;
+      }
+    }
+    if (!issueNumber) {
       // Fallback for single-task sync (no cache)
       issueNumber = await this.findIssueByTaskId(parent.id);
     }
@@ -332,16 +335,15 @@ export class GitHubSyncService {
     expectedLabels: string[],
     shouldClose: boolean,
   ): boolean {
+    if (issue.title !== expectedTitle) return true;
+    if (issue.body.trim() !== expectedBody.trim()) return true;
+
     const expectedState = shouldClose ? "closed" : "open";
+    if (issue.state !== expectedState) return true;
+
     const sortedLabels = [...issue.labels].sort();
     const sortedExpected = [...expectedLabels].sort();
-
-    return (
-      issue.title !== expectedTitle ||
-      issue.body.trim() !== expectedBody.trim() ||
-      issue.state !== expectedState ||
-      JSON.stringify(sortedLabels) !== JSON.stringify(sortedExpected)
-    );
+    return JSON.stringify(sortedLabels) !== JSON.stringify(sortedExpected);
   }
 
   /**

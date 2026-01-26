@@ -20,7 +20,7 @@ interface ConfigKeySchema {
 const CONFIG_SCHEMA: Record<string, ConfigKeySchema> = {
   "storage.engine": {
     type: "string",
-    enum: ["file", "github-issues", "github-projects"],
+    enum: ["file"],
     description: "Storage engine type",
   },
   "storage.file.path": {
@@ -57,12 +57,18 @@ const CONFIG_SCHEMA: Record<string, ConfigKeySchema> = {
 /**
  * Parse and validate a string value into the appropriate type
  */
-function parseValue(key: string, value: string, schema: ConfigKeySchema): string | boolean | number {
+function parseValue(
+  key: string,
+  value: string,
+  schema: ConfigKeySchema,
+): string | boolean | number {
   switch (schema.type) {
     case "boolean":
       if (value === "true" || value === "1" || value === "yes") return true;
       if (value === "false" || value === "0" || value === "no") return false;
-      throw new Error(`Invalid boolean value: "${value}". Use true/false, 1/0, or yes/no.`);
+      throw new Error(
+        `Invalid boolean value: "${value}". Use true/false, 1/0, or yes/no.`,
+      );
     case "number": {
       const num = Number(value);
       if (isNaN(num)) throw new Error(`Invalid number value: "${value}"`);
@@ -70,7 +76,9 @@ function parseValue(key: string, value: string, schema: ConfigKeySchema): string
     }
     default:
       if (schema.enum && !schema.enum.includes(value)) {
-        throw new Error(`Invalid value "${value}" for ${key}. Valid options: ${schema.enum.join(", ")}`);
+        throw new Error(
+          `Invalid value "${value}" for ${key}. Valid options: ${schema.enum.join(", ")}`,
+        );
       }
       return value;
   }
@@ -80,8 +88,12 @@ function parseValue(key: string, value: string, schema: ConfigKeySchema): string
  * Report an unknown config key error and exit
  */
 function exitUnknownKey(key: string): never {
-  console.error(`${colors.red}Error:${colors.reset} Unknown config key: ${key}`);
-  console.error(`Run "${colors.dim}dex config --help${colors.reset}" for available keys.`);
+  console.error(
+    `${colors.red}Error:${colors.reset} Unknown config key: ${key}`,
+  );
+  console.error(
+    `Run "${colors.dim}dex config --help${colors.reset}" for available keys.`,
+  );
   process.exit(1);
 }
 
@@ -153,7 +165,10 @@ function readConfigFile(configPath: string): Record<string, any> {
 /**
  * Write a config object to a TOML file
  */
-function writeConfigFile(configPath: string, config: Record<string, any>): void {
+function writeConfigFile(
+  configPath: string,
+  config: Record<string, any>,
+): void {
   // Ensure directory exists
   const dir = path.dirname(configPath);
   if (!fs.existsSync(dir)) {
@@ -178,14 +193,21 @@ export interface ConfigCommandOptions {
   storagePath?: string;
 }
 
-export async function configCommand(args: string[], options: ConfigCommandOptions = {}): Promise<void> {
-  const { positional, flags } = parseArgs(args, {
-    global: { short: "g", hasValue: false },
-    local: { short: "l", hasValue: false },
-    unset: { hasValue: false },
-    list: { hasValue: false },
-    help: { short: "h", hasValue: false },
-  }, "config");
+export async function configCommand(
+  args: string[],
+  options: ConfigCommandOptions = {},
+): Promise<void> {
+  const { positional, flags } = parseArgs(
+    args,
+    {
+      global: { short: "g", hasValue: false },
+      local: { short: "l", hasValue: false },
+      unset: { hasValue: false },
+      list: { hasValue: false },
+      help: { short: "h", hasValue: false },
+    },
+    "config",
+  );
 
   if (getBooleanFlag(flags, "help")) {
     console.log(`${colors.bold}dex config${colors.reset} - Get and set configuration options
@@ -204,10 +226,12 @@ ${colors.bold}OPTIONS:${colors.reset}
   -h, --help         Show this help message
 
 ${colors.bold}CONFIG KEYS:${colors.reset}
-${Object.entries(CONFIG_SCHEMA).map(([key, schema]) => {
-  const typeInfo = schema.enum ? schema.enum.join("|") : schema.type;
-  return `  ${key.padEnd(30)} ${colors.dim}(${typeInfo})${colors.reset}`;
-}).join("\n")}
+${Object.entries(CONFIG_SCHEMA)
+  .map(([key, schema]) => {
+    const typeInfo = schema.enum ? schema.enum.join("|") : schema.type;
+    return `  ${key.padEnd(30)} ${colors.dim}(${typeInfo})${colors.reset}`;
+  })
+  .join("\n")}
 
 ${colors.bold}EXAMPLES:${colors.reset}
   dex config sync.github.enabled              # Get value
@@ -230,14 +254,20 @@ ${colors.bold}EXAMPLES:${colors.reset}
   let configLabel: string;
 
   if (useGlobal && useLocal) {
-    console.error(`${colors.red}Error:${colors.reset} Cannot use both --global and --local`);
+    console.error(
+      `${colors.red}Error:${colors.reset} Cannot use both --global and --local`,
+    );
     process.exit(1);
   }
 
   if (useLocal) {
     if (!options.storagePath) {
-      console.error(`${colors.red}Error:${colors.reset} --local requires being in a dex project`);
-      console.error(`${colors.dim}Run "dex init" to initialize a project or use --global${colors.reset}`);
+      console.error(
+        `${colors.red}Error:${colors.reset} --local requires being in a dex project`,
+      );
+      console.error(
+        `${colors.dim}Run "dex init" to initialize a project or use --global${colors.reset}`,
+      );
       process.exit(1);
     }
     configPath = getProjectConfigPath(options.storagePath);
@@ -251,7 +281,9 @@ ${colors.bold}EXAMPLES:${colors.reset}
   // Handle --list
   if (listAll) {
     const globalConfig = readConfigFile(getConfigPath());
-    const localConfig = options.storagePath ? readConfigFile(getProjectConfigPath(options.storagePath)) : {};
+    const localConfig = options.storagePath
+      ? readConfigFile(getProjectConfigPath(options.storagePath))
+      : {};
 
     console.log(`${colors.bold}Configuration:${colors.reset}`);
     console.log();
@@ -259,10 +291,14 @@ ${colors.bold}EXAMPLES:${colors.reset}
     for (const key of Object.keys(CONFIG_SCHEMA)) {
       const globalValue = getNestedValue(globalConfig, key);
       const localValue = getNestedValue(localConfig, key);
-      const effectiveValue = localValue !== undefined ? localValue : globalValue;
+      const effectiveValue =
+        localValue !== undefined ? localValue : globalValue;
 
       if (effectiveValue !== undefined) {
-        const source = localValue !== undefined ? colors.cyan + "[local]" + colors.reset : colors.dim + "[global]" + colors.reset;
+        const source =
+          localValue !== undefined
+            ? colors.cyan + "[local]" + colors.reset
+            : colors.dim + "[global]" + colors.reset;
         console.log(`${key} = ${formatValue(effectiveValue)} ${source}`);
       }
     }
@@ -275,14 +311,18 @@ ${colors.bold}EXAMPLES:${colors.reset}
   if (!input && !unset) {
     console.error(`${colors.red}Error:${colors.reset} Missing config key`);
     console.error(`Usage: dex config <key>[=<value>]`);
-    console.error(`Run "${colors.dim}dex config --help${colors.reset}" for available keys.`);
+    console.error(
+      `Run "${colors.dim}dex config --help${colors.reset}" for available keys.`,
+    );
     process.exit(1);
   }
 
   // Handle --unset
   if (unset) {
     if (!input) {
-      console.error(`${colors.red}Error:${colors.reset} --unset requires a key`);
+      console.error(
+        `${colors.red}Error:${colors.reset} --unset requires a key`,
+      );
       process.exit(1);
     }
     if (!CONFIG_SCHEMA[input]) {
@@ -294,9 +334,13 @@ ${colors.bold}EXAMPLES:${colors.reset}
 
     if (deleted) {
       writeConfigFile(configPath, config);
-      console.log(`${colors.green}Unset${colors.reset} ${input} in ${configLabel} config`);
+      console.log(
+        `${colors.green}Unset${colors.reset} ${input} in ${configLabel} config`,
+      );
     } else {
-      console.log(`${colors.dim}Key ${input} was not set in ${configLabel} config${colors.reset}`);
+      console.log(
+        `${colors.dim}Key ${input} was not set in ${configLabel} config${colors.reset}`,
+      );
     }
     return;
   }
@@ -312,7 +356,9 @@ ${colors.bold}EXAMPLES:${colors.reset}
 
     // Read from both configs and show effective value
     const globalConfig = readConfigFile(getConfigPath());
-    const localConfig = options.storagePath ? readConfigFile(getProjectConfigPath(options.storagePath)) : {};
+    const localConfig = options.storagePath
+      ? readConfigFile(getProjectConfigPath(options.storagePath))
+      : {};
 
     const globalValue = getNestedValue(globalConfig, input);
     const localValue = getNestedValue(localConfig, input);
@@ -335,9 +381,13 @@ ${colors.bold}EXAMPLES:${colors.reset}
       setNestedValue(config, key, value);
       writeConfigFile(configPath, config);
 
-      console.log(`${colors.green}Set${colors.reset} ${key} = ${formatValue(value)} in ${configLabel} config`);
+      console.log(
+        `${colors.green}Set${colors.reset} ${key} = ${formatValue(value)} in ${configLabel} config`,
+      );
     } catch (err) {
-      console.error(`${colors.red}Error:${colors.reset} ${(err as Error).message}`);
+      console.error(
+        `${colors.red}Error:${colors.reset} ${(err as Error).message}`,
+      );
       process.exit(1);
     }
   }

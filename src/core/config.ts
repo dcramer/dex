@@ -45,8 +45,8 @@ export interface SyncConfig {
  * Storage engine configuration
  */
 export interface StorageConfig {
-  /** Storage engine type (github-issues and github-projects are deprecated, use sync.github instead) */
-  engine: "file" | "github-issues" | "github-projects";
+  /** Storage engine type */
+  engine: "file";
 
   /** File storage settings */
   file?: {
@@ -54,38 +54,6 @@ export interface StorageConfig {
     path?: string;
     /** Storage mode: "in-repo" (default) or "centralized" */
     mode?: StorageMode;
-  };
-
-  /** GitHub Issues storage settings */
-  "github-issues"?: {
-    /** Repository owner */
-    owner: string;
-    /** Repository name */
-    repo: string;
-    /** Environment variable containing GitHub token */
-    token_env?: string;
-    /** Label prefix for dex tasks */
-    label_prefix?: string;
-  };
-
-  /** GitHub Projects v2 storage settings */
-  "github-projects"?: {
-    /** Repository/organization owner */
-    owner: string;
-    /** Project number (e.g., #3) */
-    project_number?: number;
-    /** Project ID (alternative to project_number) */
-    project_id?: string;
-    /** Environment variable containing GitHub token */
-    token_env?: string;
-    /** Custom field name mappings */
-    field_names?: {
-      status?: string;
-      priority?: string;
-      result?: string;
-      parent?: string;
-      completed_at?: string;
-    };
   };
 }
 
@@ -120,7 +88,8 @@ export function getDexHome(): string {
   if (process.env.DEX_HOME) {
     return process.env.DEX_HOME;
   }
-  const configDir = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
+  const configDir =
+    process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
   return path.join(configDir, "dex");
 }
 
@@ -167,13 +136,14 @@ function parseConfigFile(configPath: string): Partial<Config> | null {
  */
 function mergeSyncConfig(
   a: SyncConfig | undefined,
-  b: SyncConfig | undefined
+  b: SyncConfig | undefined,
 ): SyncConfig | undefined {
   if (b === undefined) return a;
 
-  const mergedAuto = b.github?.auto !== undefined
-    ? { ...a?.github?.auto, ...b.github.auto }
-    : a?.github?.auto;
+  const mergedAuto =
+    b.github?.auto !== undefined
+      ? { ...a?.github?.auto, ...b.github.auto }
+      : a?.github?.auto;
 
   return {
     github: {
@@ -194,8 +164,6 @@ function mergeConfig(a: Config, b: Partial<Config> | null): Config {
     storage: {
       engine: b.storage?.engine ?? a.storage.engine,
       file: b.storage?.file ?? a.storage.file,
-      "github-issues": b.storage?.["github-issues"] ?? a.storage["github-issues"],
-      "github-projects": b.storage?.["github-projects"] ?? a.storage["github-projects"],
     },
     sync: mergeSyncConfig(a.sync, b.sync),
   };
@@ -236,4 +204,3 @@ export function loadConfig(options?: LoadConfigOptions): Config {
 
   return config;
 }
-

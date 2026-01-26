@@ -32,7 +32,7 @@ export interface DoctorResult {
 
 export async function doctorCommand(
   args: string[],
-  options: CliOptions
+  options: CliOptions,
 ): Promise<void> {
   const { flags } = parseArgs(
     args,
@@ -40,7 +40,7 @@ export async function doctorCommand(
       fix: { hasValue: false },
       help: { short: "h", hasValue: false },
     },
-    "doctor"
+    "doctor",
   );
 
   if (getBooleanFlag(flags, "help")) {
@@ -89,7 +89,8 @@ ${colors.bold}EXAMPLES:${colors.reset}
     console.log(`  ${colors.green}✓${colors.reset} Config valid`);
   } else {
     for (const issue of configIssues) {
-      const icon = issue.type === "error" ? colors.red + "✗" : colors.yellow + "⚠";
+      const icon =
+        issue.type === "error" ? colors.red + "✗" : colors.yellow + "⚠";
       console.log(`  ${icon}${colors.reset} ${issue.message}`);
     }
   }
@@ -101,10 +102,13 @@ ${colors.bold}EXAMPLES:${colors.reset}
   result.tasksChecked = storageResult.tasksChecked;
 
   if (storageResult.issues.length === 0) {
-    console.log(`  ${colors.green}✓${colors.reset} ${result.tasksChecked} task(s) validated`);
+    console.log(
+      `  ${colors.green}✓${colors.reset} ${result.tasksChecked} task(s) validated`,
+    );
   } else {
     for (const issue of storageResult.issues) {
-      const icon = issue.type === "error" ? colors.red + "✗" : colors.yellow + "⚠";
+      const icon =
+        issue.type === "error" ? colors.red + "✗" : colors.yellow + "⚠";
       console.log(`  ${icon}${colors.reset} ${issue.message}`);
     }
   }
@@ -130,16 +134,22 @@ ${colors.bold}EXAMPLES:${colors.reset}
         if (issue.fix) {
           try {
             await issue.fix();
-            console.log(`  ${colors.green}✓${colors.reset} Fixed: ${issue.message}`);
+            console.log(
+              `  ${colors.green}✓${colors.reset} Fixed: ${issue.message}`,
+            );
             fixed++;
           } catch (err) {
-            console.log(`  ${colors.red}✗${colors.reset} Failed to fix: ${issue.message}`);
+            console.log(
+              `  ${colors.red}✗${colors.reset} Failed to fix: ${issue.message}`,
+            );
           }
         }
       }
       console.log(`\nFixed ${fixed} issue(s).`);
     } else if (fixable > 0 && !shouldFix) {
-      console.log(`\n${colors.dim}Run 'dex doctor --fix' to fix ${fixable} issue(s).${colors.reset}`);
+      console.log(
+        `\n${colors.dim}Run 'dex doctor --fix' to fix ${fixable} issue(s).${colors.reset}`,
+      );
     }
   }
 }
@@ -183,19 +193,12 @@ async function checkConfig(options: CliOptions): Promise<DoctorIssue[]> {
   // Load merged config to check for deprecated settings
   const config = loadConfig({ storagePath });
 
-  // Check for deprecated storage engines
-  if (config.storage.engine === "github-issues") {
+  // Check for unsupported storage engines
+  if (config.storage.engine !== "file") {
     issues.push({
-      type: "warning",
+      type: "error",
       category: "config",
-      message: `Deprecated storage engine 'github-issues'. Use 'file' with sync.github instead.`,
-    });
-  }
-  if (config.storage.engine === "github-projects") {
-    issues.push({
-      type: "warning",
-      category: "config",
-      message: `Deprecated storage engine 'github-projects'. Use 'file' with sync.github instead.`,
+      message: `Unsupported storage engine '${config.storage.engine}'. Only 'file' is supported. Use sync.github for GitHub integration.`,
     });
   }
 
@@ -218,16 +221,24 @@ async function checkConfig(options: CliOptions): Promise<DoctorIssue[]> {
     // Check global config
     if (fs.existsSync(globalConfigPath)) {
       const globalParsed = parseConfigFileRaw(globalConfigPath);
-      if (globalParsed?.sync?.github?.enabled && !globalParsed?.sync?.github?.auto) {
+      if (
+        globalParsed?.sync?.github?.enabled &&
+        !globalParsed?.sync?.github?.auto
+      ) {
         configsToCheck.push({ path: globalConfigPath, label: "global" });
       }
     }
 
     // Check project config
-    const projectConfigPath = storagePath ? getProjectConfigPath(storagePath) : null;
+    const projectConfigPath = storagePath
+      ? getProjectConfigPath(storagePath)
+      : null;
     if (projectConfigPath && fs.existsSync(projectConfigPath)) {
       const projectParsed = parseConfigFileRaw(projectConfigPath);
-      if (projectParsed?.sync?.github?.enabled && !projectParsed?.sync?.github?.auto) {
+      if (
+        projectParsed?.sync?.github?.enabled &&
+        !projectParsed?.sync?.github?.auto
+      ) {
         configsToCheck.push({ path: projectConfigPath, label: "project" });
       }
     }
@@ -288,7 +299,7 @@ async function addAutoSyncConfig(configPath: string): Promise<void> {
 
 async function checkStorage(
   options: CliOptions,
-  service: ReturnType<typeof createService>
+  service: ReturnType<typeof createService>,
 ): Promise<{ issues: DoctorIssue[]; tasksChecked: number }> {
   const issues: DoctorIssue[] = [];
 
@@ -345,7 +356,10 @@ async function checkStorage(
           category: "storage",
           message: `Task ${task.id}: blockedBy '${blockerId}' does not exist (dangling reference)`,
           fix: async () => {
-            await service.update({ id: task.id, remove_blocked_by: [blockerId] });
+            await service.update({
+              id: task.id,
+              remove_blocked_by: [blockerId],
+            });
           },
         });
       }

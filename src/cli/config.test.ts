@@ -13,7 +13,9 @@ describe("config command", () => {
 
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "dex-config-test-"));
-    tempStorageDir = fs.mkdtempSync(path.join(os.tmpdir(), "dex-config-storage-"));
+    tempStorageDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "dex-config-storage-"),
+    );
     output = captureOutput();
     mockExit = vi.spyOn(process, "exit").mockImplementation((() => {
       throw new Error("process.exit called");
@@ -55,7 +57,7 @@ describe("config command", () => {
       // Create config file with a value
       fs.writeFileSync(
         path.join(tempDir, "dex.toml"),
-        '[sync.github]\nenabled = true\n'
+        "[sync.github]\nenabled = true\n",
       );
 
       await configCommand(["sync.github.enabled"]);
@@ -64,7 +66,9 @@ describe("config command", () => {
     });
 
     it("fails for unknown key", async () => {
-      await expect(configCommand(["invalid.key"])).rejects.toThrow("process.exit");
+      await expect(configCommand(["invalid.key"])).rejects.toThrow(
+        "process.exit",
+      );
       const err = output.stderr.join("\n");
       expect(err).toContain("Unknown config key");
     });
@@ -118,18 +122,18 @@ describe("config command", () => {
     });
 
     it("validates enum values", async () => {
-      await expect(
-        configCommand(["storage.engine=invalid"])
-      ).rejects.toThrow("process.exit");
+      await expect(configCommand(["storage.engine=invalid"])).rejects.toThrow(
+        "process.exit",
+      );
       const err = output.stderr.join("\n");
       expect(err).toContain("Invalid value");
       expect(err).toContain("file");
-      expect(err).toContain("github-issues");
+      expect(err).toContain("file");
     });
 
     it("rejects invalid boolean values", async () => {
       await expect(
-        configCommand(["sync.github.enabled=maybe"])
+        configCommand(["sync.github.enabled=maybe"]),
       ).rejects.toThrow("process.exit");
       const err = output.stderr.join("\n");
       expect(err).toContain("Invalid boolean value");
@@ -141,7 +145,7 @@ describe("config command", () => {
       // First set a value
       fs.writeFileSync(
         path.join(tempDir, "dex.toml"),
-        '[sync.github]\nenabled = true\nlabel_prefix = "dex"\n'
+        '[sync.github]\nenabled = true\nlabel_prefix = "dex"\n',
       );
 
       await configCommand(["--unset", "sync.github.label_prefix"]);
@@ -155,7 +159,7 @@ describe("config command", () => {
     });
 
     it("reports when key was not set", async () => {
-      fs.writeFileSync(path.join(tempDir, "dex.toml"), '[sync.github]\n');
+      fs.writeFileSync(path.join(tempDir, "dex.toml"), "[sync.github]\n");
 
       await configCommand(["--unset", "sync.github.label_prefix"]);
       const out = output.stdout.join("\n");
@@ -167,7 +171,7 @@ describe("config command", () => {
     it("lists all set config values", async () => {
       fs.writeFileSync(
         path.join(tempDir, "dex.toml"),
-        '[storage]\nengine = "file"\n\n[sync.github]\nenabled = true\n'
+        '[storage]\nengine = "file"\n\n[sync.github]\nenabled = true\n',
       );
 
       await configCommand(["--list"]);
@@ -181,11 +185,11 @@ describe("config command", () => {
     it("shows local config values with source", async () => {
       fs.writeFileSync(
         path.join(tempDir, "dex.toml"),
-        '[sync.github]\nenabled = false\n'
+        "[sync.github]\nenabled = false\n",
       );
       fs.writeFileSync(
         path.join(tempStorageDir, "config.toml"),
-        '[sync.github]\nenabled = true\n'
+        "[sync.github]\nenabled = true\n",
       );
 
       await configCommand(["--list"], { storagePath: tempStorageDir });
@@ -213,7 +217,7 @@ describe("config command", () => {
 
     it("fails without storage path", async () => {
       await expect(
-        configCommand(["--local", "sync.github.enabled=true"])
+        configCommand(["--local", "sync.github.enabled=true"]),
       ).rejects.toThrow("process.exit");
       const err = output.stderr.join("\n");
       expect(err).toContain("--local requires being in a dex project");
@@ -225,7 +229,7 @@ describe("config command", () => {
       await expect(
         configCommand(["--global", "--local", "sync.github.enabled=true"], {
           storagePath: tempStorageDir,
-        })
+        }),
       ).rejects.toThrow("process.exit");
       const err = output.stderr.join("\n");
       expect(err).toContain("Cannot use both --global and --local");
@@ -236,14 +240,16 @@ describe("config command", () => {
     it("local config overrides global config", async () => {
       fs.writeFileSync(
         path.join(tempDir, "dex.toml"),
-        '[sync.github]\nenabled = false\n'
+        "[sync.github]\nenabled = false\n",
       );
       fs.writeFileSync(
         path.join(tempStorageDir, "config.toml"),
-        '[sync.github]\nenabled = true\n'
+        "[sync.github]\nenabled = true\n",
       );
 
-      await configCommand(["sync.github.enabled"], { storagePath: tempStorageDir });
+      await configCommand(["sync.github.enabled"], {
+        storagePath: tempStorageDir,
+      });
       const out = output.stdout.join("\n");
       expect(out).toBe("true");
     });
@@ -251,14 +257,16 @@ describe("config command", () => {
     it("falls back to global when local is not set", async () => {
       fs.writeFileSync(
         path.join(tempDir, "dex.toml"),
-        '[sync.github]\nlabel_prefix = "global-prefix"\n'
+        '[sync.github]\nlabel_prefix = "global-prefix"\n',
       );
       fs.writeFileSync(
         path.join(tempStorageDir, "config.toml"),
-        '[sync.github]\nenabled = true\n'
+        "[sync.github]\nenabled = true\n",
       );
 
-      await configCommand(["sync.github.label_prefix"], { storagePath: tempStorageDir });
+      await configCommand(["sync.github.label_prefix"], {
+        storagePath: tempStorageDir,
+      });
       const out = output.stdout.join("\n");
       expect(out).toBe("global-prefix");
     });
