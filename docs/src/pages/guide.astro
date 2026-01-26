@@ -28,6 +28,7 @@ import Terminal from '../components/Terminal.astro';
     <li>You need to break down a complex feature into steps</li>
     <li>You want to preserve decisions and context for later</li>
     <li>Work might be handed off or revisited</li>
+    <li>You want to build up a backlog of work before executing it</li>
   </ul>
 
   <p><strong>Skip dex when:</strong></p>
@@ -144,15 +145,72 @@ All 24 tests passing."</pre>
 
   <p>This result becomes part of the permanent record—useful for understanding what happened later.</p>
 
+  <h2>Building a Backlog</h2>
+
+  <p>One of the most powerful uses of dex is <strong>building up a backlog of work</strong> before executing it. This separates planning from doing, letting you think through multiple work items in a focused planning session.</p>
+
+  <h3>Planning Session Workflow</h3>
+
+  <p>Start by brainstorming with Claude about what needs to be done:</p>
+
+  <Terminal>
+    <pre class="cli-output"><span class="cli-dim">&gt;</span> Let's plan out what we need to do for the v2 API migration.
+    I want to capture all the work items but not start any of them yet.</pre>
+  </Terminal>
+
+  <p>Claude can help you think through the work, identify dependencies, and break things down. As you discuss each item, tell Claude to add it to dex:</p>
+
+  <Terminal>
+    <pre class="cli-output"><span class="cli-dim">&gt;</span> Add that as a dex task.
+
+<span class="cli-dim">&gt;</span> Create a task for the database migration piece we just discussed.
+
+<span class="cli-dim">&gt;</span> That should be three separate tasks - add them all to dex.</pre>
+  </Terminal>
+
+  <p>This creates a queue of well-defined work that you can execute later—in this session, in future sessions, or delegate to other agents.</p>
+
   <h3>From Plans to Tasks</h3>
 
-  <p>After using Claude's plan mode, convert the plan to tracked tasks:</p>
+  <p>If you've already written a plan (in Claude's plan mode or as a markdown doc), convert it directly to tasks:</p>
 
   <Terminal>
     <pre class="cli-output"><span class="cli-dim">&gt;</span> /dex-plan</pre>
   </Terminal>
 
   <p>Claude reads the plan file and creates tasks with appropriate breakdown—simple plans become single tasks, complex plans become hierarchies with subtasks.</p>
+
+  <h3>Quick Backlog Building</h3>
+
+  <p>For rapid capture, you can also use the CLI directly:</p>
+
+  <Terminal>
+    <pre class="cli-output"><span class="cli-dim">$</span> dex create -d "Migrate users table to v2 schema" --context "..."
+<span class="cli-dim">$</span> dex create -d "Update API serializers for v2 format" --context "..."
+<span class="cli-dim">$</span> dex create -d "Add v2 authentication endpoints" --context "..."
+<span class="cli-dim">$</span> dex create -d "Write migration guide for API consumers" --context "..."</pre>
+  </Terminal>
+
+  <p>Then review your backlog and start working:</p>
+
+  <Terminal>
+    <pre class="cli-output"><span class="cli-dim">$</span> dex list
+<span class="cli-yellow">[ ]</span> <span class="cli-bold">abc123</span>: Migrate users table to v2 schema
+<span class="cli-yellow">[ ]</span> <span class="cli-bold">def456</span>: Update API serializers for v2 format
+<span class="cli-yellow">[ ]</span> <span class="cli-bold">ghi789</span>: Add v2 authentication endpoints
+<span class="cli-yellow">[ ]</span> <span class="cli-bold">jkl012</span>: Write migration guide for API consumers
+
+<span class="cli-dim">&gt;</span> Work on the next task.</pre>
+  </Terminal>
+
+  <h3>Why Separate Planning from Execution?</h3>
+
+  <ul>
+    <li><strong>Better task quality</strong>: When you're not context-switching to implementation, you can think more clearly about scope and requirements</li>
+    <li><strong>Visible scope</strong>: See all the work before committing to any of it</li>
+    <li><strong>Flexible execution</strong>: Work the backlog in any order, across sessions, or hand off to others</li>
+    <li><strong>Interruptible</strong>: Stop planning anytime—your backlog is saved</li>
+  </ul>
 
   <h2>What Good Looks Like</h2>
 
