@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import { loadConfig, getConfigPath } from "./config.js";
+import { execSync } from "node:child_process";
+import { loadConfig, getConfigPath, getProjectConfigPath } from "./config.js";
 
 describe("Config", () => {
   describe("getConfigPath", () => {
@@ -106,6 +107,96 @@ path = "/custom/path/.dex"
       const config = loadConfig();
 
       expect(config.storage.engine).toBe("file");
+    });
+  });
+
+  describe("getProjectConfigPath", () => {
+    let tempGitDir: string;
+    let originalCwd: string;
+
+    beforeEach(() => {
+      originalCwd = process.cwd();
+
+      // Create temp git repo
+      tempGitDir = fs.mkdtempSync(path.join(os.tmpdir(), "dex-git-test-"));
+      process.chdir(tempGitDir);
+      execSync("git init", { cwd: tempGitDir, stdio: "ignore" });
+    });
+
+    afterEach(() => {
+      process.chdir(originalCwd);
+      // Clean up temp directory
+      fs.rmSync(tempGitDir, { recursive: true, force: true });
+    });
+
+    it("returns .dex/config.toml at git root", () => {
+      const projectConfigPath = getProjectConfigPath();
+
+      // Normalize paths for macOS /private prefix
+      const expectedDir = fs.realpathSync(tempGitDir);
+      const expectedPath = path.join(expectedDir, ".dex", "config.toml");
+      expect(projectConfigPath).toBe(expectedPath);
+    });
+
+    it("finds git root from subdirectory", () => {
+      // Create nested directory
+      const subdir = path.join(tempGitDir, "src", "cli");
+      fs.mkdirSync(subdir, { recursive: true });
+      process.chdir(subdir);
+
+      const projectConfigPath = getProjectConfigPath();
+
+      // Should still point to git root (normalize paths for macOS)
+      const expectedDir = fs.realpathSync(tempGitDir);
+      const expectedPath = path.join(expectedDir, ".dex", "config.toml");
+      expect(projectConfigPath).toBe(expectedPath);
+    });
+
+    it("returns null when not in a git repo", () => {
+      // Change to temp dir without git
+      const nonGitDir = fs.mkdtempSync(path.join(os.tmpdir(), "dex-non-git-"));
+      try {
+        process.chdir(nonGitDir);
+
+        const projectConfigPath = getProjectConfigPath();
+
+        expect(projectConfigPath).toBeNull();
+      } finally {
+        process.chdir(originalCwd);
+        fs.rmSync(nonGitDir, { recursive: true, force: true });
+      }
+    });
+
+    it("project config has precedence over global config", () => {
+      // Write global config
+      fs.writeFileSync(
+        getConfigPath(),
+        `[sync.github]
+enabled = false
+`,
+        { flag: "w" },
+      );
+
+      // Write project config
+      const projectConfigPath = path.join(tempGitDir, ".dex", "config.toml");
+      fs.mkdirSync(path.dirname(projectConfigPath), { recursive: true });
+      fs.writeFileSync(
+        projectConfigPath,
+        `[sync.github]
+enabled = true
+`,
+      );
+
+      try {
+        const config = loadConfig();
+
+        // Project config should override global
+        expect(config.sync?.github?.enabled).toBe(true);
+      } finally {
+        // Clean up
+        fs.unlinkSync(getConfigPath());
+        fs.unlinkSync(projectConfigPath);
+      }
     });
   });
 });

@@ -1,3 +1,5 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { CliOptions } from "./utils.js";
 import { colors } from "./colors.js";
 import { getSuggestion } from "./args.js";
@@ -19,14 +21,49 @@ import { configCommand } from "./config.js";
 
 export type { CliOptions } from "./utils.js";
 
-export async function runCli(args: string[], options: CliOptions): Promise<void> {
+/**
+ * Check for misplaced tasks from v0.4.0 tilde expansion bug.
+ * Warn user to run `dex doctor --fix` if found.
+ */
+function checkForMisplacedTasks(): void {
+  const literalTildePath = path.join(process.cwd(), "~", ".dex", "tasks");
+
+  try {
+    if (fs.existsSync(literalTildePath)) {
+      const taskFiles = fs
+        .readdirSync(literalTildePath)
+        .filter((f) => f.endsWith(".json"));
+
+      if (taskFiles.length > 0) {
+        console.error(
+          `${colors.yellow}Warning:${colors.reset} Found ${taskFiles.length} task(s) in wrong location (tilde expansion bug).\n` +
+            `Run ${colors.bold}dex doctor --fix${colors.reset} to migrate them to the correct location.\n`,
+        );
+      }
+    }
+  } catch (err) {
+    // Ignore errors checking for misplaced tasks
+  }
+}
+
+export async function runCli(
+  args: string[],
+  options: CliOptions,
+): Promise<void> {
   const command = args[0];
+
+  // Check for misplaced tasks on every command except doctor (to avoid double-warning)
+  if (command !== "doctor") {
+    checkForMisplacedTasks();
+  }
 
   switch (command) {
     case "init":
       return await initCommand(args.slice(1));
     case "config":
-      return await configCommand(args.slice(1), { storagePath: options.storage.getIdentifier() });
+      return await configCommand(args.slice(1), {
+        storagePath: options.storage.getIdentifier(),
+      });
     case "create":
     case "add":
       return await createCommand(args.slice(1), options);
@@ -65,12 +102,18 @@ export async function runCli(args: string[], options: CliOptions): Promise<void>
       if (!command) {
         return await statusCommand([], options);
       }
-      console.error(`${colors.red}Error:${colors.reset} Unknown command: ${command}`);
+      console.error(
+        `${colors.red}Error:${colors.reset} Unknown command: ${command}`,
+      );
       const suggestion = getSuggestion(command);
       if (suggestion) {
-        console.error(`Did you mean "${colors.cyan}${suggestion}${colors.reset}"?`);
+        console.error(
+          `Did you mean "${colors.cyan}${suggestion}${colors.reset}"?`,
+        );
       }
-      console.error(`Run "${colors.dim}dex help${colors.reset}" for usage information.`);
+      console.error(
+        `Run "${colors.dim}dex help${colors.reset}" for usage information.`,
+      );
       process.exit(1);
   }
 }

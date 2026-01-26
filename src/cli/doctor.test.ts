@@ -3,17 +3,23 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { FileStorage } from "../core/storage/index.js";
 import { runCli } from "./index.js";
-import { captureOutput, createTempStorage, CapturedOutput } from "./test-helpers.js";
+import {
+  captureOutput,
+  createTempGitStorage,
+  CapturedOutput,
+} from "./test-helpers.js";
 
 describe("doctor command", () => {
   let storage: FileStorage;
+  let gitRoot: string;
   let cleanup: () => void;
   let output: CapturedOutput;
   let mockExit: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    const temp = createTempStorage();
+    const temp = createTempGitStorage();
     storage = temp.storage;
+    gitRoot = temp.gitRoot;
     cleanup = temp.cleanup;
     output = captureOutput();
     mockExit = vi.spyOn(process, "exit").mockImplementation((() => {
@@ -53,21 +59,24 @@ describe("doctor command", () => {
     const taskPath = path.join(storagePath, "tasks", `${taskId}.json`);
 
     fs.mkdirSync(path.dirname(taskPath), { recursive: true });
-    fs.writeFileSync(taskPath, JSON.stringify({
-      id: taskId,
-      parent_id: "nonexistent",
-      description: "Test task",
-      context: "ctx",
-      priority: 1,
-      completed: false,
-      result: null,
-      blockedBy: [],
-      blocks: [],
-      children: [],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      completed_at: null,
-    }));
+    fs.writeFileSync(
+      taskPath,
+      JSON.stringify({
+        id: taskId,
+        parent_id: "nonexistent",
+        description: "Test task",
+        context: "ctx",
+        priority: 1,
+        completed: false,
+        result: null,
+        blockedBy: [],
+        blocks: [],
+        children: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        completed_at: null,
+      }),
+    );
 
     await runCli(["doctor"], { storage });
 
@@ -78,12 +87,14 @@ describe("doctor command", () => {
 
   it("detects missing auto-sync config when github sync is enabled", async () => {
     // Create a config file with github sync enabled but no auto section
-    const storagePath = storage.getIdentifier();
-    const configPath = path.join(storagePath, "config.toml");
+    const configPath = path.join(gitRoot, ".dex", "config.toml");
 
-    fs.writeFileSync(configPath, `[sync.github]
+    fs.writeFileSync(
+      configPath,
+      `[sync.github]
 enabled = true
-`);
+`,
+    );
 
     await runCli(["doctor"], { storage });
 
@@ -94,12 +105,14 @@ enabled = true
 
   it("fixes missing auto-sync config with --fix", async () => {
     // Create a config file with github sync enabled but no auto section
-    const storagePath = storage.getIdentifier();
-    const configPath = path.join(storagePath, "config.toml");
+    const configPath = path.join(gitRoot, ".dex", "config.toml");
 
-    fs.writeFileSync(configPath, `[sync.github]
+    fs.writeFileSync(
+      configPath,
+      `[sync.github]
 enabled = true
-`);
+`,
+    );
 
     await runCli(["doctor", "--fix"], { storage });
 
@@ -114,15 +127,17 @@ enabled = true
 
   it("does not warn about auto-sync when it's already present", async () => {
     // Create a config file with github sync and auto section
-    const storagePath = storage.getIdentifier();
-    const configPath = path.join(storagePath, "config.toml");
+    const configPath = path.join(gitRoot, ".dex", "config.toml");
 
-    fs.writeFileSync(configPath, `[sync.github]
+    fs.writeFileSync(
+      configPath,
+      `[sync.github]
 enabled = true
 
 [sync.github.auto]
 on_change = false
-`);
+`,
+    );
 
     await runCli(["doctor"], { storage });
 

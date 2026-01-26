@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
+import { execSync } from "node:child_process";
 import { configCommand } from "./config.js";
 import { captureOutput, CapturedOutput } from "./test-helpers.js";
 
@@ -9,13 +10,25 @@ describe("config command", () => {
   let output: CapturedOutput;
   let mockExit: ReturnType<typeof vi.spyOn>;
   let tempDir: string;
-  let tempStorageDir: string;
+  let tempGitDir: string;
+  let originalCwd: string;
 
   beforeEach(() => {
+    originalCwd = process.cwd();
+
+    // Create temp dir for global config
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "dex-config-test-"));
-    tempStorageDir = fs.mkdtempSync(
-      path.join(os.tmpdir(), "dex-config-storage-"),
-    );
+
+    // Create temp git repo for project config tests
+    tempGitDir = fs.mkdtempSync(path.join(os.tmpdir(), "dex-config-git-"));
+    execSync("git init", { cwd: tempGitDir, stdio: "ignore" });
+
+    // Create .dex directory in git repo
+    fs.mkdirSync(path.join(tempGitDir, ".dex"), { recursive: true });
+
+    // Change to git repo for tests that need it
+    process.chdir(tempGitDir);
+
     output = captureOutput();
     mockExit = vi.spyOn(process, "exit").mockImplementation((() => {
       throw new Error("process.exit called");
@@ -26,12 +39,13 @@ describe("config command", () => {
   });
 
   afterEach(() => {
+    process.chdir(originalCwd);
     output.restore();
     mockExit.mockRestore();
     delete process.env.DEX_HOME;
 
     fs.rmSync(tempDir, { recursive: true, force: true });
-    fs.rmSync(tempStorageDir, { recursive: true, force: true });
+    fs.rmSync(tempGitDir, { recursive: true, force: true });
   });
 
   describe("--help", () => {
@@ -188,11 +202,11 @@ describe("config command", () => {
         "[sync.github]\nenabled = false\n",
       );
       fs.writeFileSync(
-        path.join(tempStorageDir, "config.toml"),
+        path.join(tempGitDir, ".dex", "config.toml"),
         "[sync.github]\nenabled = true\n",
       );
 
-      await configCommand(["--list"], { storagePath: tempStorageDir });
+      await configCommand(["--list"], { storagePath: tempGitDir });
       const out = output.stdout.join("\n");
       expect(out).toContain("sync.github.enabled = true");
       expect(out).toContain("[local]");
@@ -200,12 +214,12 @@ describe("config command", () => {
   });
 
   describe("--local", () => {
-    it("writes to project config file", async () => {
+    it("writes to project config file in git root", async () => {
       await configCommand(["--local", "sync.github.enabled=true"], {
-        storagePath: tempStorageDir,
+        storagePath: tempGitDir,
       });
 
-      const projectConfig = path.join(tempStorageDir, "config.toml");
+      const projectConfig = path.join(tempGitDir, ".dex", "config.toml");
       expect(fs.existsSync(projectConfig)).toBe(true);
       const content = fs.readFileSync(projectConfig, "utf-8");
       expect(content).toContain("enabled = true");
@@ -228,7 +242,7 @@ describe("config command", () => {
     it("fails when both are specified", async () => {
       await expect(
         configCommand(["--global", "--local", "sync.github.enabled=true"], {
-          storagePath: tempStorageDir,
+          storagePath: tempGitDir,
         }),
       ).rejects.toThrow("process.exit");
       const err = output.stderr.join("\n");
@@ -243,12 +257,12 @@ describe("config command", () => {
         "[sync.github]\nenabled = false\n",
       );
       fs.writeFileSync(
-        path.join(tempStorageDir, "config.toml"),
+        path.join(tempGitDir, ".dex", "config.toml"),
         "[sync.github]\nenabled = true\n",
       );
 
       await configCommand(["sync.github.enabled"], {
-        storagePath: tempStorageDir,
+        storagePath: tempGitDir,
       });
       const out = output.stdout.join("\n");
       expect(out).toBe("true");
@@ -260,12 +274,12 @@ describe("config command", () => {
         '[sync.github]\nlabel_prefix = "global-prefix"\n',
       );
       fs.writeFileSync(
-        path.join(tempStorageDir, "config.toml"),
+        path.join(tempGitDir, "config.toml"),
         "[sync.github]\nenabled = true\n",
       );
 
       await configCommand(["sync.github.label_prefix"], {
-        storagePath: tempStorageDir,
+        storagePath: tempGitDir,
       });
       const out = output.stdout.join("\n");
       expect(out).toBe("global-prefix");

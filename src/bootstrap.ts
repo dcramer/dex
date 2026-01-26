@@ -104,7 +104,10 @@ export function createSyncService(
   const config = loadConfig({ storagePath, configPath: cliConfigPath });
   const githubConfig = config.sync?.github ?? null;
   return {
-    syncService: createGitHubSyncService(githubConfig ?? undefined),
+    syncService: createGitHubSyncService(
+      githubConfig ?? undefined,
+      storagePath,
+    ),
     syncConfig: githubConfig,
   };
 }

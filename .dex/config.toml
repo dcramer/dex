@@ -1,2 +1,5 @@
 [sync.github]
 enabled = true
+
+[sync.github.auto]
+on_change = true

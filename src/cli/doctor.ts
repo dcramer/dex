@@ -20,7 +20,7 @@ const DEFAULT_AUTO_SYNC_CONFIG = {
 
 export interface DoctorIssue {
   type: "error" | "warning";
-  category: "config" | "storage";
+  category: "config" | "storage" | "migration";
   message: string;
   fix?: () => Promise<void>;
 }
@@ -79,6 +79,21 @@ ${colors.bold}EXAMPLES:${colors.reset}
     issues: [],
     tasksChecked: 0,
   };
+
+  // Check for misplaced storage first (0.4.0 bug)
+  console.log(`\n${colors.bold}Checking storage location...${colors.reset}`);
+  const storageIssues = await checkStorageLocation(options);
+  result.issues.push(...storageIssues);
+
+  if (storageIssues.length === 0) {
+    console.log(`  ${colors.green}✓${colors.reset} Storage location correct`);
+  } else {
+    for (const issue of storageIssues) {
+      const icon =
+        issue.type === "error" ? colors.red + "✗" : colors.yellow + "⚠";
+      console.log(`  ${icon}${colors.reset} ${issue.message}`);
+    }
+  }
 
   // Check config
   console.log(`\n${colors.bold}Checking config...${colors.reset}`);
@@ -173,25 +188,22 @@ async function checkConfig(options: CliOptions): Promise<DoctorIssue[]> {
   }
 
   // Check project config file
-  const storagePath = options.storage.getIdentifier();
-  if (storagePath) {
-    const projectConfigPath = getProjectConfigPath(storagePath);
-    if (fs.existsSync(projectConfigPath)) {
-      try {
-        const content = fs.readFileSync(projectConfigPath, "utf-8");
-        parseToml(content);
-      } catch (err) {
-        issues.push({
-          type: "error",
-          category: "config",
-          message: `Project config invalid TOML: ${projectConfigPath}`,
-        });
-      }
+  const projectConfigPath = getProjectConfigPath();
+  if (projectConfigPath && fs.existsSync(projectConfigPath)) {
+    try {
+      const content = fs.readFileSync(projectConfigPath, "utf-8");
+      parseToml(content);
+    } catch (err) {
+      issues.push({
+        type: "error",
+        category: "config",
+        message: `Project config invalid TOML: ${projectConfigPath}`,
+      });
     }
   }
 
   // Load merged config to check for deprecated settings
-  const config = loadConfig({ storagePath });
+  const config = loadConfig();
 
   // Check for unsupported storage engines
   if (config.storage.engine !== "file") {
@@ -230,9 +242,7 @@ async function checkConfig(options: CliOptions): Promise<DoctorIssue[]> {
     }
 
     // Check project config
-    const projectConfigPath = storagePath
-      ? getProjectConfigPath(storagePath)
-      : null;
+    const projectConfigPath = getProjectConfigPath();
     if (projectConfigPath && fs.existsSync(projectConfigPath)) {
       const projectParsed = parseConfigFileRaw(projectConfigPath);
       if (
@@ -419,4 +429,76 @@ async function checkStorage(
   }
 
   return { issues, tasksChecked: tasks.length };
+}
+
+/**
+ * Check for tasks stored in wrong location due to tilde expansion bug (v0.4.0).
+ * Tasks may be in literal "~/.dex/tasks/" instead of ".dex/tasks/".
+ */
+async function checkStorageLocation(
+  options: CliOptions,
+): Promise<DoctorIssue[]> {
+  const issues: DoctorIssue[] = [];
+
+  // Check for literal tilde directory in current working directory
+  const literalTildePath = path.join(process.cwd(), "~", ".dex", "tasks");
+
+  if (fs.existsSync(literalTildePath)) {
+    const taskFiles = fs
+      .readdirSync(literalTildePath)
+      .filter((f) => f.endsWith(".json"));
+
+    if (taskFiles.length > 0) {
+      issues.push({
+        type: "error",
+        category: "migration",
+        message: `Found ${taskFiles.length} task(s) in wrong location: ~/. dex/tasks/ (tilde expansion bug from v0.4.0)`,
+        fix: async () => {
+          await migrateMisplacedTasks(literalTildePath, options);
+        },
+      });
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * Migrate tasks from wrong location to correct location.
+ */
+async function migrateMisplacedTasks(
+  sourceTasksPath: string,
+  options: CliOptions,
+): Promise<void> {
+  const targetStoragePath = options.storage.getIdentifier();
+  const targetTasksPath = path.join(targetStoragePath, "tasks");
+
+  // Ensure target directory exists
+  fs.mkdirSync(targetTasksPath, { recursive: true });
+
+  const taskFiles = fs
+    .readdirSync(sourceTasksPath)
+    .filter((f) => f.endsWith(".json"));
+
+  for (const file of taskFiles) {
+    const sourceFile = path.join(sourceTasksPath, file);
+    const targetFile = path.join(targetTasksPath, file);
+
+    // Copy file to correct location
+    fs.copyFileSync(sourceFile, targetFile);
+
+    // Delete old file
+    fs.unlinkSync(sourceFile);
+  }
+
+  console.log(`Migrated ${taskFiles.length} task(s) to ${targetTasksPath}`);
+
+  // Clean up empty directories
+  try {
+    fs.rmdirSync(sourceTasksPath);
+    fs.rmdirSync(path.dirname(sourceTasksPath)); // ~/.dex
+    fs.rmdirSync(path.dirname(path.dirname(sourceTasksPath))); // ~/
+  } catch (err) {
+    // Ignore errors removing directories (may not be empty)
+  }
 }

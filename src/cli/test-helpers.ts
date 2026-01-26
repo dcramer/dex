@@ -5,6 +5,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
+import { execSync } from "node:child_process";
 import { FileStorage } from "../core/storage/index.js";
 
 // Re-export shared test utilities from test-utils
@@ -37,7 +38,8 @@ export function captureOutput(): CapturedOutput {
   const originalError = console.error;
 
   console.log = (...args: unknown[]) => stdout.push(args.map(String).join(" "));
-  console.error = (...args: unknown[]) => stderr.push(args.map(String).join(" "));
+  console.error = (...args: unknown[]) =>
+    stderr.push(args.map(String).join(" "));
 
   return {
     stdout,
@@ -49,7 +51,10 @@ export function captureOutput(): CapturedOutput {
   };
 }
 
-export function createTempStorage(): { storage: FileStorage; cleanup: () => void } {
+export function createTempStorage(): {
+  storage: FileStorage;
+  cleanup: () => void;
+} {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "dex-cli-test-"));
   const storage = new FileStorage(tempDir);
 
@@ -57,6 +62,45 @@ export function createTempStorage(): { storage: FileStorage; cleanup: () => void
     storage,
     cleanup: () => fs.rmSync(tempDir, { recursive: true, force: true }),
   };
+}
+
+/**
+ * Create a temporary git repository with dex storage for testing.
+ * Returns storage pointing to .dex in the git repo.
+ */
+export function createTempGitStorage(): {
+  storage: FileStorage;
+  gitRoot: string;
+  cleanup: () => void;
+} {
+  const gitRoot = fs.mkdtempSync(path.join(os.tmpdir(), "dex-git-test-"));
+  const originalCwd = process.cwd();
+
+  try {
+    // Initialize git repo
+    execSync("git init", { cwd: gitRoot, stdio: "ignore" });
+
+    // Create .dex directory
+    const dexPath = path.join(gitRoot, ".dex");
+    fs.mkdirSync(dexPath, { recursive: true });
+
+    // Change to git root so getProjectConfigPath() works
+    process.chdir(gitRoot);
+
+    const storage = new FileStorage(dexPath);
+
+    return {
+      storage,
+      gitRoot,
+      cleanup: () => {
+        process.chdir(originalCwd);
+        fs.rmSync(gitRoot, { recursive: true, force: true });
+      },
+    };
+  } catch (err) {
+    process.chdir(originalCwd);
+    throw err;
+  }
 }
 
 // ============ Issue Body Builders for Import Testing ============
@@ -107,7 +151,11 @@ function formatCheckbox(completed?: boolean): string {
  * Base64 encodes if it contains newlines or special characters.
  */
 function encodeValue(value: string): string {
-  if (value.includes("\n") || value.includes("-->") || value.startsWith("base64:")) {
+  if (
+    value.includes("\n") ||
+    value.includes("-->") ||
+    value.startsWith("base64:")
+  ) {
     return `base64:${Buffer.from(value, "utf-8").toString("base64")}`;
   }
   return value;
@@ -127,10 +175,14 @@ export function createFullDexIssueBody(options: {
   if (options.rootMetadata) {
     const rm = options.rootMetadata;
     if (rm.id) lines.push(`<!-- dex:task:id:${rm.id} -->`);
-    if (rm.priority !== undefined) lines.push(`<!-- dex:task:priority:${rm.priority} -->`);
-    if (rm.completed !== undefined) lines.push(`<!-- dex:task:completed:${rm.completed} -->`);
-    if (rm.created_at) lines.push(`<!-- dex:task:created_at:${rm.created_at} -->`);
-    if (rm.updated_at) lines.push(`<!-- dex:task:updated_at:${rm.updated_at} -->`);
+    if (rm.priority !== undefined)
+      lines.push(`<!-- dex:task:priority:${rm.priority} -->`);
+    if (rm.completed !== undefined)
+      lines.push(`<!-- dex:task:completed:${rm.completed} -->`);
+    if (rm.created_at)
+      lines.push(`<!-- dex:task:created_at:${rm.created_at} -->`);
+    if (rm.updated_at)
+      lines.push(`<!-- dex:task:updated_at:${rm.updated_at} -->`);
     if (rm.completed_at !== undefined) {
       lines.push(`<!-- dex:task:completed_at:${rm.completed_at ?? "null"} -->`);
     }
@@ -139,10 +191,16 @@ export function createFullDexIssueBody(options: {
     }
     if (rm.commit) {
       lines.push(`<!-- dex:task:commit_sha:${rm.commit.sha} -->`);
-      if (rm.commit.message) lines.push(`<!-- dex:task:commit_message:${encodeValue(rm.commit.message)} -->`);
-      if (rm.commit.branch) lines.push(`<!-- dex:task:commit_branch:${rm.commit.branch} -->`);
-      if (rm.commit.url) lines.push(`<!-- dex:task:commit_url:${rm.commit.url} -->`);
-      if (rm.commit.timestamp) lines.push(`<!-- dex:task:commit_timestamp:${rm.commit.timestamp} -->`);
+      if (rm.commit.message)
+        lines.push(
+          `<!-- dex:task:commit_message:${encodeValue(rm.commit.message)} -->`,
+        );
+      if (rm.commit.branch)
+        lines.push(`<!-- dex:task:commit_branch:${rm.commit.branch} -->`);
+      if (rm.commit.url)
+        lines.push(`<!-- dex:task:commit_url:${rm.commit.url} -->`);
+      if (rm.commit.timestamp)
+        lines.push(`<!-- dex:task:commit_timestamp:${rm.commit.timestamp} -->`);
     }
   }
 
@@ -160,7 +218,9 @@ export function createFullDexIssueBody(options: {
     for (const st of options.subtasks) {
       const depth = st.parentId ? 1 : 0; // Simple depth for testing
       const indent = "  ".repeat(depth);
-      lines.push(`${indent}- [${formatCheckbox(st.completed)}] **${st.description}** \`${st.id}\``);
+      lines.push(
+        `${indent}- [${formatCheckbox(st.completed)}] **${st.description}** \`${st.id}\``,
+      );
     }
     lines.push("");
     lines.push("## Task Details");
@@ -169,22 +229,36 @@ export function createFullDexIssueBody(options: {
       const checkbox = formatCheckbox(st.completed);
       const depthArrow = st.parentId ? "↳ " : "";
       lines.push("<details>");
-      lines.push(`<summary>[${checkbox}] ${depthArrow}<b>${st.description}</b> <code>${st.id}</code></summary>`);
+      lines.push(
+        `<summary>[${checkbox}] ${depthArrow}<b>${st.description}</b> <code>${st.id}</code></summary>`,
+      );
       lines.push(`<!-- dex:subtask:id:${st.id} -->`);
       if (st.parentId) lines.push(`<!-- dex:subtask:parent:${st.parentId} -->`);
       lines.push(`<!-- dex:subtask:priority:${st.priority ?? 1} -->`);
       lines.push(`<!-- dex:subtask:completed:${st.completed ?? false} -->`);
-      if (st.created_at) lines.push(`<!-- dex:subtask:created_at:${st.created_at} -->`);
-      if (st.updated_at) lines.push(`<!-- dex:subtask:updated_at:${st.updated_at} -->`);
+      if (st.created_at)
+        lines.push(`<!-- dex:subtask:created_at:${st.created_at} -->`);
+      if (st.updated_at)
+        lines.push(`<!-- dex:subtask:updated_at:${st.updated_at} -->`);
       if (st.completed_at !== undefined) {
-        lines.push(`<!-- dex:subtask:completed_at:${st.completed_at ?? "null"} -->`);
+        lines.push(
+          `<!-- dex:subtask:completed_at:${st.completed_at ?? "null"} -->`,
+        );
       }
       if (st.commit) {
         lines.push(`<!-- dex:subtask:commit_sha:${st.commit.sha} -->`);
-        if (st.commit.message) lines.push(`<!-- dex:subtask:commit_message:${encodeValue(st.commit.message)} -->`);
-        if (st.commit.branch) lines.push(`<!-- dex:subtask:commit_branch:${st.commit.branch} -->`);
-        if (st.commit.url) lines.push(`<!-- dex:subtask:commit_url:${st.commit.url} -->`);
-        if (st.commit.timestamp) lines.push(`<!-- dex:subtask:commit_timestamp:${st.commit.timestamp} -->`);
+        if (st.commit.message)
+          lines.push(
+            `<!-- dex:subtask:commit_message:${encodeValue(st.commit.message)} -->`,
+          );
+        if (st.commit.branch)
+          lines.push(`<!-- dex:subtask:commit_branch:${st.commit.branch} -->`);
+        if (st.commit.url)
+          lines.push(`<!-- dex:subtask:commit_url:${st.commit.url} -->`);
+        if (st.commit.timestamp)
+          lines.push(
+            `<!-- dex:subtask:commit_timestamp:${st.commit.timestamp} -->`,
+          );
       }
       lines.push("");
       if (st.context) {

@@ -102,12 +102,27 @@ export function getConfigPath(): string {
 }
 
 /**
- * Get the per-project config file path
- * @param storagePath The .dex storage directory
- * @returns Path to project config file (.dex/config.toml)
+ * Get the per-project config file path in the current git repository.
+ * Always looks in .dex/ at the git root, regardless of storage path configuration.
+ * @returns Path to project config file (.dex/config.toml) or null if not in a git repo
  */
-export function getProjectConfigPath(storagePath: string): string {
-  return path.join(storagePath, "config.toml");
+export function getProjectConfigPath(): string | null {
+  let currentDir = process.cwd();
+
+  // Walk up to find git root
+  while (currentDir !== path.dirname(currentDir)) {
+    const gitPath = path.join(currentDir, ".git");
+    try {
+      fs.statSync(gitPath);
+      // Found git root, return .dex/config.toml path
+      return path.join(currentDir, ".dex", "config.toml");
+    } catch {
+      // .git doesn't exist, continue up
+    }
+    currentDir = path.dirname(currentDir);
+  }
+
+  return null;
 }
 
 /**
@@ -185,7 +200,7 @@ export interface LoadConfigOptions {
  * @returns Merged configuration object
  */
 export function loadConfig(options?: LoadConfigOptions): Config {
-  const { storagePath, configPath } = options ?? {};
+  const { configPath } = options ?? {};
 
   // Start with defaults
   let config = { ...DEFAULT_CONFIG };
@@ -196,9 +211,10 @@ export function loadConfig(options?: LoadConfigOptions): Config {
   const baseConfig = parseConfigFile(baseConfigPath);
   config = mergeConfig(config, baseConfig);
 
-  // Layer per-project config if storage path provided
-  if (storagePath) {
-    const projectConfig = parseConfigFile(getProjectConfigPath(storagePath));
+  // Layer per-project config from git root (if in a git repo)
+  const projectConfigPath = getProjectConfigPath();
+  if (projectConfigPath) {
+    const projectConfig = parseConfigFile(projectConfigPath);
     config = mergeConfig(config, projectConfig);
   }
 

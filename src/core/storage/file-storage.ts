@@ -1,11 +1,22 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as os from "node:os";
 import { Task, TaskStore, TaskSchema } from "../../types.js";
 import { DataCorruptionError, StorageError } from "../../errors.js";
 import { StorageEngine } from "./engine.js";
 import { getProjectKey } from "../project-key.js";
 import { getDexHome, type StorageMode } from "../config.js";
 import { migrateFromSingleFile } from "./migrations.js";
+
+/**
+ * Expand ~ to home directory in a path.
+ */
+function expandTilde(filepath: string): string {
+  if (filepath.startsWith("~/") || filepath === "~") {
+    return path.join(os.homedir(), filepath.slice(1));
+  }
+  return filepath;
+}
 
 function findGitRoot(startDir: string): string | null {
   let currentDir: string;
@@ -61,9 +72,9 @@ export class FileStorage implements StorageEngine {
   constructor(options?: string | FileStorageOptions) {
     if (typeof options === "string") {
       // Backward compatibility: accept path as string
-      this.storagePath = options;
+      this.storagePath = expandTilde(options);
     } else if (options?.path) {
-      this.storagePath = options.path;
+      this.storagePath = expandTilde(options.path);
     } else {
       this.storagePath = getStoragePath(options?.mode);
     }
@@ -103,11 +114,7 @@ export class FileStorage implements StorageEngine {
       }
 
       if (!content.trim()) {
-        throw new DataCorruptionError(
-          filePath,
-          undefined,
-          "File is empty"
-        );
+        throw new DataCorruptionError(filePath, undefined, "File is empty");
       }
 
       let data: unknown;
@@ -119,7 +126,7 @@ export class FileStorage implements StorageEngine {
         throw new DataCorruptionError(
           filePath,
           parseErr instanceof Error ? parseErr : undefined,
-          `Invalid JSON: ${errorMessage}`
+          `Invalid JSON: ${errorMessage}`,
         );
       }
 
@@ -128,7 +135,7 @@ export class FileStorage implements StorageEngine {
         throw new DataCorruptionError(
           filePath,
           undefined,
-          `Invalid schema: ${result.error.message}`
+          `Invalid schema: ${result.error.message}`,
         );
       }
 
@@ -145,7 +152,9 @@ export class FileStorage implements StorageEngine {
     const existingFiles = fs.existsSync(this.tasksDir)
       ? fs.readdirSync(this.tasksDir).filter((f) => f.endsWith(".json"))
       : [];
-    const existingIds = new Set(existingFiles.map((f) => f.replace(".json", "")));
+    const existingIds = new Set(
+      existingFiles.map((f) => f.replace(".json", "")),
+    );
 
     // Write/update tasks
     const currentIds = new Set<string>();
@@ -159,7 +168,7 @@ export class FileStorage implements StorageEngine {
         throw new StorageError(
           `Failed to write task "${task.id}" to "${taskPath}"`,
           originalError,
-          "Check file permissions and available disk space"
+          "Check file permissions and available disk space",
         );
       }
     }

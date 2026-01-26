@@ -270,7 +270,14 @@ ${colors.bold}EXAMPLES:${colors.reset}
       );
       process.exit(1);
     }
-    configPath = getProjectConfigPath(options.storagePath);
+    const projectPath = getProjectConfigPath();
+    if (!projectPath) {
+      console.error(
+        `${colors.dim}Run "dex init" to initialize a git repository or use --global${colors.reset}`,
+      );
+      process.exit(1);
+    }
+    configPath = projectPath;
     configLabel = "local";
   } else {
     // Default to global
@@ -281,9 +288,8 @@ ${colors.bold}EXAMPLES:${colors.reset}
   // Handle --list
   if (listAll) {
     const globalConfig = readConfigFile(getConfigPath());
-    const localConfig = options.storagePath
-      ? readConfigFile(getProjectConfigPath(options.storagePath))
-      : {};
+    const projectPath = getProjectConfigPath();
+    const localConfig = projectPath ? readConfigFile(projectPath) : {};
 
     console.log(`${colors.bold}Configuration:${colors.reset}`);
     console.log();
@@ -356,9 +362,8 @@ ${colors.bold}EXAMPLES:${colors.reset}
 
     // Read from both configs and show effective value
     const globalConfig = readConfigFile(getConfigPath());
-    const localConfig = options.storagePath
-      ? readConfigFile(getProjectConfigPath(options.storagePath))
-      : {};
+    const projectPath = getProjectConfigPath();
+    const localConfig = projectPath ? readConfigFile(projectPath) : {};
 
     const globalValue = getNestedValue(globalConfig, input);
     const localValue = getNestedValue(localConfig, input);
