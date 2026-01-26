@@ -13,7 +13,7 @@ import {
   createTask,
   createStore,
   GitHubMock,
-} from "../cli/test-helpers.js";
+} from "../test-utils/github-mock.js";
 
 // Mock git remote detection
 vi.mock("./git-remote.js", async (importOriginal) => {

@@ -8,7 +8,7 @@ import {
   createIssueFixture,
   createTask,
   GitHubMock,
-} from "../cli/test-helpers.js";
+} from "../test-utils/github-mock.js";
 
 describe("GitHubIssuesStorage", () => {
   let storage: GitHubIssuesStorage;
