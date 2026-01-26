@@ -149,16 +149,16 @@ function parseConfigFile(configPath: string): Partial<Config> | null {
     return null;
   }
 
+  const content = fs.readFileSync(configPath, "utf-8");
   try {
-    const content = fs.readFileSync(configPath, "utf-8");
     const parsed = parseToml(content) as any;
     return {
       storage: parsed.storage,
       sync: parsed.sync,
     };
   } catch (err) {
-    console.warn(`Warning: Failed to parse config file at ${configPath}: ${err}`);
-    return null;
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`Failed to parse config file at ${configPath}: ${message}`);
   }
 }
 
