@@ -94,15 +94,22 @@ dex list --issue 42`}
 
   <div class="command-card">
     <h3>dex show</h3>
-    <div class="synopsis">dex show &lt;id&gt;</div>
-    <p>View full task details including context, result, blocking relationships, GitHub issue links, and subtasks.</p>
+    <div class="synopsis">dex show &lt;id&gt;... [options]</div>
+    <p>View full task details including context, result, blocking relationships, GitHub issue links, and subtasks. Supports multiple task IDs.</p>
     <ul>
-      <li><code>--full</code> — Show full description and result (no truncation)</li>
+      <li><code>-e, --expand</code> — Show descriptions for ancestor tasks in the tree view</li>
+      <li><code>-f, --full</code> — Show full description and result (no truncation)</li>
       <li><code>--json</code> — Output as JSON for scripting</li>
     </ul>
     <p>If the task is linked to a GitHub issue (directly or via parent), the issue number, repo, and URL are displayed. Subtasks show "(via parent)" to indicate the link is inherited.</p>
     <Terminal title="Terminal">
-      <Code code="dex show abc123" lang="bash" theme="vitesse-black" />
+      <Code
+        code={`dex show abc123                # Show task details
+dex show abc123 def456         # Show multiple tasks
+dex show abc123 --expand       # Show ancestor descriptions`}
+        lang="bash"
+        theme="vitesse-black"
+      />
     </Terminal>
   </div>
 

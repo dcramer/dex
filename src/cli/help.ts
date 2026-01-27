@@ -23,7 +23,8 @@ ${colors.bold}COMMANDS:${colors.reset}
   list --archived                  List archived tasks
   list --query "login"             Search name/description
   list --json                      Output as JSON (for scripts)
-  show <id>                        View task details (truncated)
+  show <id>...                     View task details (truncated)
+  show <id> --expand               Show ancestor descriptions in tree
   show <id> --full                 View full description and result
   show <id> --json                 Output as JSON (for scripts)
   edit <id> [-n "..."]             Edit task

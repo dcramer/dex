@@ -15,6 +15,7 @@ interface FormatTaskShowOptions {
   children?: Task[];
   grandchildren?: Task[];
   full?: boolean;
+  expand?: boolean; // Show descriptions for ancestor tasks in tree
   blockedByTasks?: Task[]; // Tasks that block this one
   blocksTasks?: Task[]; // Tasks this one blocks
   ancestorGithub?: GithubMetadata; // GitHub metadata from first ancestor that has it
@@ -75,27 +76,35 @@ function formatHierarchyTree(
   ancestors: Task[],
   children: Task[],
   grandchildren: Task[],
+  options: { expand?: boolean } = {},
 ): string[] {
+  const { expand = false } = options;
   const lines: string[] = [];
 
   // Build the tree from root to current task
   // Each ancestor gets progressively deeper indentation
-  let currentIndent = "";
-
   for (let i = 0; i < ancestors.length; i++) {
     const ancestor = ancestors[i];
-    const connector = i === 0 ? "" : "└── ";
-    lines.push(formatTreeTask(ancestor, { prefix: currentIndent + connector }));
+    const isFirst = i === 0;
+    const indent = isFirst ? "" : "    ".repeat(i - 1);
+    const connector = isFirst ? "" : "└── ";
 
-    // Update indent for next level
-    if (i === 0) {
-      currentIndent = "";
-    } else {
-      currentIndent += "    ";
+    lines.push(formatTreeTask(ancestor, { prefix: indent + connector }));
+
+    // If expand mode, show truncated description below the task line
+    if (expand && ancestor.description) {
+      const descIndent = indent + (isFirst ? "" : "    ") + "      ";
+      const truncatedDesc = truncateText(
+        ancestor.description,
+        SHOW_TEXT_MAX_LENGTH,
+      );
+      lines.push(`${descIndent}${colors.dim}${truncatedDesc}${colors.reset}`);
     }
   }
 
   // Current task - highlighted
+  const currentIndent =
+    ancestors.length > 1 ? "    ".repeat(ancestors.length - 1) : "";
   const currentConnector = ancestors.length > 0 ? "└── " : "";
   const currentPrefix = currentIndent + currentConnector;
   lines.push(
@@ -148,6 +157,7 @@ export function formatTaskShow(
     children = [],
     grandchildren = [],
     full = false,
+    expand = false,
     blockedByTasks = [],
     blocksTasks = [],
     ancestorGithub,
@@ -163,7 +173,9 @@ export function formatTaskShow(
   // Hierarchy tree (if this task has ancestors or children)
   if (ancestors.length > 0 || children.length > 0) {
     lines.push(
-      ...formatHierarchyTree(task, ancestors, children, grandchildren),
+      ...formatHierarchyTree(task, ancestors, children, grandchildren, {
+        expand,
+      }),
     );
     lines.push(""); // Blank line after tree
   } else {
@@ -305,6 +317,7 @@ export async function showCommand(
     {
       json: { hasValue: false },
       full: { short: "f", hasValue: false },
+      expand: { short: "e", hasValue: false },
       help: { short: "h", hasValue: false },
     },
     "show",
@@ -314,133 +327,154 @@ export async function showCommand(
     console.log(`${colors.bold}dex show${colors.reset} - Show task details
 
 ${colors.bold}USAGE:${colors.reset}
-  dex show <task-id> [options]
+  dex show <task-id>... [options]
 
 ${colors.bold}ARGUMENTS:${colors.reset}
-  <task-id>                  Task ID to display (required)
+  <task-id>...               One or more task IDs to display (required)
 
 ${colors.bold}OPTIONS:${colors.reset}
+  -e, --expand               Show descriptions for ancestor tasks in tree
   -f, --full                 Show full description and result (no truncation)
   --json                     Output as JSON
   -h, --help                 Show this help message
 
-${colors.bold}EXAMPLE:${colors.reset}
+${colors.bold}EXAMPLES:${colors.reset}
   dex show abc123            # Show task details
+  dex show abc123 def456     # Show multiple tasks
+  dex show abc123 --expand   # Show ancestor descriptions
   dex show abc123 --json     # Output as JSON for scripting
 `);
     return;
   }
 
-  const id = positional[0];
+  const ids = positional;
 
-  if (!id) {
+  if (ids.length === 0) {
     console.error(`${colors.red}Error:${colors.reset} Task ID is required`);
-    console.error(`Usage: dex show <task-id>`);
+    console.error(`Usage: dex show <task-id>...`);
     process.exit(1);
   }
 
   const service = createService(options);
+  const full = getBooleanFlag(flags, "full");
+  const expand = getBooleanFlag(flags, "expand");
+  const jsonOutput = getBooleanFlag(flags, "json");
 
-  // Check both active tasks and archive
-  const taskOrArchived = await service.getWithArchive(id);
+  // Process each task ID
+  const results: unknown[] = [];
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i];
 
-  // If not found anywhere
-  if (!taskOrArchived) {
-    await exitIfTaskNotFound(null, id, service);
-    return;
-  }
+    // Add separator between tasks (for non-JSON output)
+    if (i > 0 && !jsonOutput) {
+      console.log("");
+      console.log(`${colors.dim}${"─".repeat(60)}${colors.reset}`);
+      console.log("");
+    }
 
-  // Handle archived task
-  if (isArchivedTask(taskOrArchived)) {
-    const full = getBooleanFlag(flags, "full");
+    // Check both active tasks and archive
+    const taskOrArchived = await service.getWithArchive(id);
 
-    if (getBooleanFlag(flags, "json")) {
-      console.log(
-        JSON.stringify({ ...taskOrArchived, archived: true }, null, 2),
-      );
+    // If not found anywhere
+    if (!taskOrArchived) {
+      await exitIfTaskNotFound(null, id, service);
       return;
     }
 
-    console.log(formatArchivedTaskShow(taskOrArchived, { full }));
-    return;
-  }
+    // Handle archived task
+    if (isArchivedTask(taskOrArchived)) {
+      if (jsonOutput) {
+        results.push({ ...taskOrArchived, archived: true });
+        continue;
+      }
 
-  // Active task
-  const task = taskOrArchived;
-
-  const children = await service.getChildren(id);
-  const ancestors = await service.getAncestors(id);
-
-  // Collect grandchildren (children of children)
-  const grandchildren: Task[] = [];
-  for (const child of children) {
-    const childChildren = await service.getChildren(child.id);
-    grandchildren.push(...childChildren);
-  }
-
-  // Get blocking relationship info
-  const blockedByTasks = await service.getIncompleteBlockers(id);
-  const blocksTasks = await service.getBlockedTasks(id);
-
-  // JSON output mode
-  if (getBooleanFlag(flags, "json")) {
-    const pending = children.filter((c) => !c.completed);
-    const pendingGrandchildren = grandchildren.filter((c) => !c.completed);
-    const jsonOutput = {
-      ...task,
-      ancestors: ancestors.map((a) => ({ id: a.id, name: a.name })),
-      depth: ancestors.length,
-      subtasks: {
-        pending: pending.length,
-        completed: children.length - pending.length,
-        children,
-      },
-      grandchildren:
-        grandchildren.length > 0
-          ? {
-              pending: pendingGrandchildren.length,
-              completed: grandchildren.length - pendingGrandchildren.length,
-              tasks: grandchildren,
-            }
-          : null,
-      blockedBy: blockedByTasks.map((t) => ({
-        id: t.id,
-        name: t.name,
-        completed: t.completed,
-      })),
-      blocks: blocksTasks.map((t) => ({
-        id: t.id,
-        name: t.name,
-        completed: t.completed,
-      })),
-      isBlocked: blockedByTasks.some((t) => !t.completed),
-    };
-    console.log(JSON.stringify(jsonOutput, null, 2));
-    return;
-  }
-
-  // Extract GitHub metadata from ancestors (first one found walking up from closest parent)
-  let ancestorGithub: GithubMetadata | undefined;
-  for (let i = ancestors.length - 1; i >= 0; i--) {
-    const github = ancestors[i].metadata?.github;
-    if (github) {
-      ancestorGithub = github;
-      break;
+      console.log(formatArchivedTaskShow(taskOrArchived, { full }));
+      continue;
     }
+
+    // Active task
+    const task = taskOrArchived;
+
+    const children = await service.getChildren(id);
+    const ancestors = await service.getAncestors(id);
+
+    // Collect grandchildren (children of children)
+    const grandchildren: Task[] = [];
+    for (const child of children) {
+      const childChildren = await service.getChildren(child.id);
+      grandchildren.push(...childChildren);
+    }
+
+    // Get blocking relationship info
+    const blockedByTasks = await service.getIncompleteBlockers(id);
+    const blocksTasks = await service.getBlockedTasks(id);
+
+    // JSON output mode - collect results
+    if (jsonOutput) {
+      const pending = children.filter((c) => !c.completed);
+      const pendingGrandchildren = grandchildren.filter((c) => !c.completed);
+      const taskJson = {
+        ...task,
+        ancestors: ancestors.map((a) =>
+          expand
+            ? { id: a.id, name: a.name, description: a.description }
+            : { id: a.id, name: a.name },
+        ),
+        depth: ancestors.length,
+        subtasks: {
+          pending: pending.length,
+          completed: children.length - pending.length,
+          children,
+        },
+        grandchildren:
+          grandchildren.length > 0
+            ? {
+                pending: pendingGrandchildren.length,
+                completed: grandchildren.length - pendingGrandchildren.length,
+                tasks: grandchildren,
+              }
+            : null,
+        blockedBy: blockedByTasks.map((t) => ({
+          id: t.id,
+          name: t.name,
+          completed: t.completed,
+        })),
+        blocks: blocksTasks.map((t) => ({
+          id: t.id,
+          name: t.name,
+          completed: t.completed,
+        })),
+        isBlocked: blockedByTasks.some((t) => !t.completed),
+      };
+      results.push(taskJson);
+      continue;
+    }
+
+    // Extract GitHub metadata from ancestors (first one found walking up from closest parent)
+    const ancestorGithub = [...ancestors]
+      .reverse()
+      .find((a) => a.metadata?.github)?.metadata?.github;
+
+    console.log(
+      formatTaskShow(task, {
+        ancestors,
+        children,
+        grandchildren,
+        full,
+        expand,
+        blockedByTasks,
+        blocksTasks,
+        ancestorGithub,
+      }),
+    );
   }
 
-  const full = getBooleanFlag(flags, "full");
-  console.log(
-    formatTaskShow(task, {
-      ancestors,
-      children,
-      grandchildren,
-      full,
-      blockedByTasks,
-      blocksTasks,
-      ancestorGithub,
-    }),
-  );
+  // Output JSON results
+  if (jsonOutput) {
+    // Output as array if multiple tasks, single object if one task
+    const output = results.length === 1 ? results[0] : results;
+    console.log(JSON.stringify(output, null, 2));
+  }
 }
 
 /**
