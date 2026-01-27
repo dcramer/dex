@@ -1,0 +1,35 @@
+# Dex - Task Tracking for AI Agents
+
+Dex is a lightweight task management tool designed for AI agents. It provides persistent memory across sessions, enabling agents to track progress on complex multi-step implementations.
+
+## Installation
+
+Two steps are required:
+
+1. Install the CLI globally:
+   ```
+   npm install -g @zeeg/dex
+   ```
+
+2. Add skills to your agent:
+   ```
+   npx skills dcramer/dex
+   ```
+
+## Project Configuration
+
+Add to your `AGENTS.md` or `CLAUDE.md`:
+
+```
+## Task Management
+Use `/dex` to break down complex work, track progress across sessions, and coordinate multi-step implementations.
+```
+
+## Usage
+
+- `/dex` - Natural language task management (create, update, list tasks)
+- `/dex-plan` - Convert planning documents (specs, roadmaps) into tasks
+
+## Documentation
+
+Full documentation: https://dcramer.github.io/dex/
