@@ -64,12 +64,11 @@ describe("TaskService", () => {
 
     it("throws when parent task does not exist", async () => {
       await expect(
-        async () =>
-          await service.create({
-            name: "Orphan task",
-            description: "Description",
-            parent_id: "nonexistent",
-          }),
+        service.create({
+          name: "Orphan task",
+          description: "Description",
+          parent_id: "nonexistent",
+        }),
       ).rejects.toThrow('Task "nonexistent" not found');
     });
   });
@@ -127,11 +126,10 @@ describe("TaskService", () => {
 
     it("throws when task does not exist", async () => {
       await expect(
-        async () =>
-          await service.update({
-            id: "nonexistent",
-            name: "Updated",
-          }),
+        service.update({
+          id: "nonexistent",
+          name: "Updated",
+        }),
       ).rejects.toThrow('Task "nonexistent" not found');
     });
 
@@ -194,11 +192,10 @@ describe("TaskService", () => {
       });
 
       await expect(
-        async () =>
-          await service.update({
-            id: task.id,
-            parent_id: task.id,
-          }),
+        service.update({
+          id: task.id,
+          parent_id: task.id,
+        }),
       ).rejects.toThrow("Task cannot be its own parent");
     });
 
@@ -220,11 +217,10 @@ describe("TaskService", () => {
 
       // Try to make grandparent a child of its descendant
       await expect(
-        async () =>
-          await service.update({
-            id: grandparent.id,
-            parent_id: child.id,
-          }),
+        service.update({
+          id: grandparent.id,
+          parent_id: child.id,
+        }),
       ).rejects.toThrow("Cannot set parent: would create a cycle");
     });
 
@@ -235,11 +231,10 @@ describe("TaskService", () => {
       });
 
       await expect(
-        async () =>
-          await service.update({
-            id: task.id,
-            parent_id: "nonexistent",
-          }),
+        service.update({
+          id: task.id,
+          parent_id: "nonexistent",
+        }),
       ).rejects.toThrow('Task "nonexistent" not found');
     });
   });
@@ -258,9 +253,9 @@ describe("TaskService", () => {
     });
 
     it("throws for nonexistent task", async () => {
-      await expect(
-        async () => await service.delete("nonexistent"),
-      ).rejects.toThrow('Task "nonexistent" not found');
+      await expect(service.delete("nonexistent")).rejects.toThrow(
+        'Task "nonexistent" not found',
+      );
     });
 
     it("cascade deletes all descendants", async () => {
@@ -477,9 +472,9 @@ describe("TaskService", () => {
         parent_id: parent.id,
       });
 
-      await expect(
-        async () => await service.complete(parent.id, "Done"),
-      ).rejects.toThrow("Cannot complete: 1 subtask still pending");
+      await expect(service.complete(parent.id, "Done")).rejects.toThrow(
+        "Cannot complete: 1 subtask still pending",
+      );
     });
 
     it("throws when task has multiple pending children", async () => {
@@ -498,9 +493,9 @@ describe("TaskService", () => {
         parent_id: parent.id,
       });
 
-      await expect(
-        async () => await service.complete(parent.id, "Done"),
-      ).rejects.toThrow("Cannot complete: 2 subtasks still pending");
+      await expect(service.complete(parent.id, "Done")).rejects.toThrow(
+        "Cannot complete: 2 subtasks still pending",
+      );
     });
 
     it("throws when task has pending grandchildren", async () => {
@@ -521,9 +516,9 @@ describe("TaskService", () => {
         parent_id: parent.id,
       });
 
-      await expect(
-        async () => await service.complete(grandparent.id, "Done"),
-      ).rejects.toThrow("Cannot complete: 1 subtask still pending");
+      await expect(service.complete(grandparent.id, "Done")).rejects.toThrow(
+        "Cannot complete: 1 subtask still pending",
+      );
     });
 
     it("allows completion when all descendants are completed", async () => {
@@ -569,11 +564,10 @@ describe("TaskService", () => {
 
       // Try to make C block A (would create cycle: A -> B -> C -> A)
       await expect(
-        async () =>
-          await service.update({
-            id: taskA.id,
-            add_blocked_by: [taskC.id],
-          }),
+        service.update({
+          id: taskA.id,
+          add_blocked_by: [taskC.id],
+        }),
       ).rejects.toThrow("would create a cycle");
     });
 
@@ -584,11 +578,10 @@ describe("TaskService", () => {
       });
 
       await expect(
-        async () =>
-          await service.update({
-            id: task.id,
-            add_blocked_by: [task.id],
-          }),
+        service.update({
+          id: task.id,
+          add_blocked_by: [task.id],
+        }),
       ).rejects.toThrow("Task cannot block itself");
     });
 
@@ -599,11 +592,10 @@ describe("TaskService", () => {
       });
 
       await expect(
-        async () =>
-          await service.update({
-            id: task.id,
-            add_blocked_by: ["nonexistent"],
-          }),
+        service.update({
+          id: task.id,
+          add_blocked_by: ["nonexistent"],
+        }),
       ).rejects.toThrow('Task "nonexistent" not found');
     });
   });
