@@ -74,3 +74,21 @@ export function promptConfirm(question: string): Promise<boolean> {
     });
   });
 }
+
+/**
+ * Find the root task (no parent) for a given task.
+ * Traverses up the parent chain until reaching a task with no parent_id.
+ */
+export async function findRootTask(
+  service: TaskService,
+  task: Task,
+): Promise<Task> {
+  if (!task.parent_id) {
+    return task;
+  }
+  const parent = await service.get(task.parent_id);
+  if (!parent) {
+    return task; // Orphaned subtask, treat as root
+  }
+  return findRootTask(service, parent);
+}

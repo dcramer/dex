@@ -216,6 +216,26 @@ dex plan feature.md --parent abc123`}
     </Terminal>
   </div>
 
+  <div class="command-card">
+    <h3>dex export</h3>
+    <div class="synopsis">dex export &lt;task-id&gt;... [options]</div>
+    <p>Export tasks to GitHub Issues without enabling sync. Unlike <code>dex sync</code>, this creates issues but does not save the issue metadata back to the task.</p>
+    <ul>
+      <li><code>&lt;task-id&gt;...</code> — One or more task IDs to export (required)</li>
+      <li><code>--dry-run</code> — Preview without creating issues</li>
+    </ul>
+    <p>Tasks that are already synced to GitHub are skipped with a warning.</p>
+    <Terminal title="Terminal">
+      <Code
+        code={`dex export abc123                 # Export single task
+dex export abc123 def456          # Export multiple tasks
+dex export abc123 --dry-run       # Preview export`}
+        lang="bash"
+        theme="vitesse-black"
+      />
+    </Terminal>
+  </div>
+
   <h2>Diagnostics</h2>
 
   <div class="command-card">

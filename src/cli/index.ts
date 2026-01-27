@@ -15,6 +15,7 @@ import { planCommand } from "./plan.js";
 import { completionCommand } from "./completion.js";
 import { syncCommand } from "./sync.js";
 import { importCommand } from "./import.js";
+import { exportCommand } from "./export.js";
 import { doctorCommand } from "./doctor.js";
 import { statusCommand } from "./status.js";
 import { configCommand } from "./config.js";
@@ -92,6 +93,8 @@ export async function runCli(
       return await syncCommand(args.slice(1), options);
     case "import":
       return await importCommand(args.slice(1), options);
+    case "export":
+      return await exportCommand(args.slice(1), options);
     case "doctor":
       return await doctorCommand(args.slice(1), options);
     case "archive":

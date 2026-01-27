@@ -1,4 +1,9 @@
-import { CliOptions, createService, formatCliError } from "./utils.js";
+import {
+  CliOptions,
+  createService,
+  findRootTask,
+  formatCliError,
+} from "./utils.js";
 import { colors } from "./colors.js";
 import { getBooleanFlag, parseArgs } from "./args.js";
 import { truncateText } from "./formatting.js";
@@ -11,7 +16,6 @@ import {
 } from "../core/github/index.js";
 import { loadConfig } from "../core/config.js";
 import { updateSyncState } from "../core/sync-state.js";
-import { Task } from "../types.js";
 
 export async function syncCommand(
   args: string[],
@@ -252,21 +256,4 @@ async function saveGithubMetadata(
     id: result.taskId,
     metadata,
   });
-}
-
-/**
- * Find the root task (no parent) for a given task.
- */
-async function findRootTask(
-  service: ReturnType<typeof createService>,
-  task: Task,
-): Promise<Task> {
-  if (!task.parent_id) {
-    return task;
-  }
-  const parent = await service.get(task.parent_id);
-  if (!parent) {
-    return task; // Orphaned subtask, treat as root
-  }
-  return findRootTask(service, parent);
 }

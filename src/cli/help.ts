@@ -38,6 +38,9 @@ ${colors.bold}COMMANDS:${colors.reset}
   archive --older-than 60d         Archive tasks completed >60 days ago
   archive --completed              Archive ALL completed tasks
   plan <file>                      Create task from plan markdown file
+  sync [id]                        Push tasks to GitHub Issues
+  import <ref>                     Import GitHub Issue as task
+  export <id>...                   Export tasks to GitHub (no sync back)
   completion <shell>               Generate shell completion script
 
 ${colors.bold}GLOBAL OPTIONS:${colors.reset}
