@@ -2,19 +2,15 @@
 // Internal utilities should be imported directly from their source files
 
 export { getGitHubToken } from "./token.js";
+export type { GitHubRepo } from "./remote.js";
 export {
-  GitHubRepo,
   getGitRemoteUrl,
   parseGitHubUrl,
   getGitHubRepo,
   parseGitHubIssueRef,
 } from "./remote.js";
-export {
-  GitHubSyncService,
-  SyncResult,
-  SyncProgress,
-  getGitHubIssueNumber,
-} from "./sync.js";
+export type { SyncResult, SyncProgress } from "./sync.js";
+export { GitHubSyncService, getGitHubIssueNumber } from "./sync.js";
 export {
   createGitHubSyncService,
   createGitHubSyncServiceOrThrow,

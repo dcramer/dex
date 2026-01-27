@@ -54,6 +54,19 @@ When adding or modifying CLI commands, update:
 - `src/cli/help.ts` — Built-in help text
 - `docs/src/pages/cli.astro` — CLI reference documentation
 
+## TypeScript Exports
+
+Use `export type` for type-only exports (interfaces, type aliases). Bun requires explicit type exports:
+
+```ts
+// Good
+export type { GitHubRepo } from "./remote.js";
+export { getGitHubRepo } from "./remote.js";
+
+// Bad - fails in Bun
+export { GitHubRepo, getGitHubRepo } from "./remote.js";
+```
+
 ## Testing
 
 When adding new behavior or modifying existing functionality, review `TESTING.md` to determine if tests are needed. Key points:
