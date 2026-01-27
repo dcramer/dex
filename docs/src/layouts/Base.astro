@@ -103,6 +103,63 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
           setTimeout(() => target.scrollIntoView(), 0);
         }
       }
+
+      // Package manager preference (shared across all pages)
+      const PM_STORAGE_KEY = 'dex-docs-pm';
+
+      function setPackageManager(pm: string) {
+        document.querySelectorAll('.pm-tabs').forEach((container) => {
+          const buttons = container.querySelectorAll('.tab-btn');
+          const contents = container.querySelectorAll('.tab-content');
+
+          buttons.forEach((btn) => {
+            btn.classList.toggle('active', btn.getAttribute('data-pm') === pm);
+          });
+
+          contents.forEach((content) => {
+            content.classList.toggle('hidden', content.getAttribute('data-pm') !== pm);
+          });
+        });
+      }
+
+      function initPackageManagerTabs() {
+        const savedPm = localStorage.getItem(PM_STORAGE_KEY);
+        if (savedPm) {
+          setPackageManager(savedPm);
+        }
+
+        document.querySelectorAll('.pm-tabs').forEach((container) => {
+          container.querySelectorAll('.tab-btn').forEach((btn) => {
+            btn.addEventListener('click', () => {
+              const pm = btn.getAttribute('data-pm');
+              if (!pm) return;
+              localStorage.setItem(PM_STORAGE_KEY, pm);
+              setPackageManager(pm);
+            });
+          });
+
+          const copyButton = container.querySelector('.copy-button');
+          if (copyButton) {
+            copyButton.addEventListener('click', async () => {
+              const activeContent = container.querySelector('.tab-content:not(.hidden)');
+              if (!activeContent) return;
+
+              const textToCopy = (activeContent.textContent || '').replace(/^\s*[$>]\s*/, '').trim();
+
+              try {
+                await navigator.clipboard.writeText(textToCopy);
+                copyButton.classList.add('copied');
+                setTimeout(() => copyButton.classList.remove('copied'), 2000);
+              } catch (err) {
+                console.error('Failed to copy:', err);
+              }
+            });
+          }
+        });
+      }
+
+      initPackageManagerTabs();
+      document.addEventListener('astro:page-load', initPackageManagerTabs);
     </script>
     <main class="container">
       <slot />

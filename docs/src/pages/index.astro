@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import Terminal from '../components/Terminal.astro';
+import PackageManagerTabs from '../components/PackageManagerTabs.astro';
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
@@ -25,13 +26,17 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   <section class="section">
     <h2>Quick Start</h2>
     <p>Install dex globally:</p>
-    <Terminal title="Terminal" showCopy={true}>
-      <pre class="cli-output"><span class="cli-dim">$</span> npm install -g @zeeg/dex</pre>
-    </Terminal>
+    <PackageManagerTabs
+      npm="npm install -g @zeeg/dex"
+      pnpm="pnpm add -g @zeeg/dex"
+      bun="bun add -g @zeeg/dex"
+    />
     <p>Or use the skills installer for Claude Code, OpenCode, Codex, or Cursor:</p>
-    <Terminal title="Terminal" showCopy={true}>
-      <pre class="cli-output"><span class="cli-dim">$</span> npx skills dcramer/dex</pre>
-    </Terminal>
+    <PackageManagerTabs
+      npm="npx skills dcramer/dex"
+      pnpm="pnpm dlx skills dcramer/dex"
+      bun="bunx skills dcramer/dex"
+    />
     <p>Then use <code>/dex</code> to manage tasks. See the <a href={`${base}/install`}>install guide</a> for other installation methods.</p>
   </section>
 
@@ -201,39 +206,4 @@ but index.ts uses loadConfig() with no argument."
     margin: 0;
   }
 
-  /* CLI output colors */
-  .cli-output {
-    font-family: var(--font-mono);
-    font-size: 0.875rem;
-    line-height: 1.6;
-    color: #e5e5e5;
-    margin: 0;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-
-  .cli-green {
-    color: #4ade80;
-  }
-
-  .cli-yellow {
-    color: #facc15;
-  }
-
-  .cli-cyan {
-    color: #22d3ee;
-  }
-
-  .cli-red {
-    color: #f87171;
-  }
-
-  .cli-bold {
-    font-weight: 600;
-    color: #fff;
-  }
-
-  .cli-dim {
-    color: #737373;
-  }
 </style>

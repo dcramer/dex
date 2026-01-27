@@ -8,12 +8,26 @@ Two steps are required:
 
 1. Install the CLI globally:
    ```
+   # npm
    npm install -g @zeeg/dex
+
+   # pnpm
+   pnpm add -g @zeeg/dex
+
+   # bun
+   bun add -g @zeeg/dex
    ```
 
 2. Add skills to your agent:
    ```
+   # npm
    npx skills dcramer/dex
+
+   # pnpm
+   pnpm dlx skills dcramer/dex
+
+   # bun
+   bunx skills dcramer/dex
    ```
 
 ## Project Configuration

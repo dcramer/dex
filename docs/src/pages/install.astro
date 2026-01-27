@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import Terminal from '../components/Terminal.astro';
+import PackageManagerTabs from '../components/PackageManagerTabs.astro';
 ---
 
 <Base title="Install" description="Install dex for Claude Code and CLI">
@@ -8,13 +9,17 @@ import Terminal from '../components/Terminal.astro';
 
   <h2>Quick Start</h2>
   <p>Install dex globally:</p>
-  <Terminal title="Terminal" showCopy={true}>
-    <pre class="cli-output"><span class="cli-dim">$</span> npm install -g @zeeg/dex</pre>
-  </Terminal>
+  <PackageManagerTabs
+    npm="npm install -g @zeeg/dex"
+    pnpm="pnpm add -g @zeeg/dex"
+    bun="bun add -g @zeeg/dex"
+  />
   <p>Or use the skills installer for Claude Code, OpenCode, Codex, or Cursor:</p>
-  <Terminal title="Terminal" showCopy={true}>
-    <pre class="cli-output"><span class="cli-dim">$</span> npx skills dcramer/dex</pre>
-  </Terminal>
+  <PackageManagerTabs
+    npm="npx skills dcramer/dex"
+    pnpm="pnpm dlx skills dcramer/dex"
+    bun="bunx skills dcramer/dex"
+  />
 
   <h2>Configure Your Project</h2>
   <p>Add dex instructions to your project's <code>AGENTS.md</code> or <code>CLAUDE.md</code> file so Claude and other AI agents know to use it for task management:</p>
@@ -56,19 +61,3 @@ Use `/dex` to break down complex work, track progress across sessions, and coord
   </Terminal>
 
 </Base>
-
-<style>
-  .cli-output {
-    font-family: var(--font-mono);
-    font-size: 0.875rem;
-    line-height: 1.6;
-    color: #e5e5e5;
-    margin: 0;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-
-  .cli-dim {
-    color: #737373;
-  }
-</style>

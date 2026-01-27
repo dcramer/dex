@@ -472,6 +472,42 @@ hr {
   color: #000 !important;
 }
 
+/* CLI output colors (used across Terminal and PackageManagerTabs) */
+.cli-output {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #e5e5e5;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.cli-green {
+  color: #4ade80;
+}
+
+.cli-yellow {
+  color: #facc15;
+}
+
+.cli-cyan {
+  color: #22d3ee;
+}
+
+.cli-red {
+  color: #f87171;
+}
+
+.cli-bold {
+  font-weight: 600;
+  color: #fff;
+}
+
+.cli-dim {
+  color: #737373;
+}
+
 /* Responsive */
 @media (max-width: 640px) {
   .hero {
