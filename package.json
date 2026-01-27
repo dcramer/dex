@@ -29,8 +29,6 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "link": "pnpm build && pnpm link --global",
-    "unlink": "pnpm unlink --global",
     "release": "pnpm test && pnpm build && npm version",
     "prepare": "simple-git-hooks"
   },

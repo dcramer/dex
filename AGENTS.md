@@ -41,10 +41,10 @@ Use `dex-plan` skill for creating tasks from planning docs. See `plugins/dex/ski
 ## Local Development
 
 ```bash
-pnpm install && pnpm run link  # Setup (builds + links globally)
-pnpm build                      # Rebuild after changes
-pnpm dev                        # Watch mode
-pnpm run unlink                 # Cleanup
+pnpm install && pnpm build && pnpm link  # Setup
+pnpm build                               # Rebuild after changes
+pnpm dev                                 # Watch mode
+pnpm unlink                              # Cleanup
 ```
 
 ## Documentation

@@ -42,15 +42,14 @@ Use natural language or slash commands:
 ```bash
 git clone git@github.com:dcramer/dex.git
 cd dex
-pnpm install
-pnpm run link  # Makes 'dex' command available globally
+pnpm install && pnpm build
+pnpm link      # Makes 'dex' command available globally
 ```
 
 ### Development Cycle
 
 ```bash
 pnpm dev       # Watch mode - auto-rebuild on changes
-# In another terminal: test with dex commands
 ```
 
 ### Testing the Claude Code Plugin
