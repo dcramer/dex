@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <rect width="1200" height="630" fill="#0a0a0a"/>
+  <text x="600" y="280" font-family="monospace" font-size="120" font-weight="bold" fill="#ffffff" text-anchor="middle">dex</text>
+  <text x="600" y="380" font-family="system-ui, sans-serif" font-size="36" fill="#888888" text-anchor="middle">Task tracking for Agents</text>
+</svg>
