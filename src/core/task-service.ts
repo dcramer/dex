@@ -134,7 +134,25 @@ export class TaskService {
 
     try {
       const store = await this.storage.readAsync();
-      await this.syncService.syncTask(task, store);
+      const result = await this.syncService.syncTask(task, store);
+
+      // Save GitHub metadata to task (skip if sync was skipped or no result)
+      if (result && !result.skipped) {
+        const taskIndex = store.tasks.findIndex((t) => t.id === result.taskId);
+        if (taskIndex !== -1) {
+          const targetTask = store.tasks[taskIndex];
+          store.tasks[taskIndex] = {
+            ...targetTask,
+            metadata: {
+              ...targetTask.metadata,
+              github: result.github,
+            },
+            updated_at: new Date().toISOString(),
+          };
+          await this.storage.writeAsync(store);
+        }
+      }
+
       updateSyncState(this.storage.getIdentifier(), {
         lastSync: new Date().toISOString(),
       });

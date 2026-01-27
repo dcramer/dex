@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { TaskService } from "./task-service.js";
+import { GitHubSyncService } from "./github/index.js";
 import { ValidationError } from "../errors.js";
 
 describe("TaskService", () => {
@@ -788,6 +789,222 @@ describe("TaskService", () => {
           parent_id: epicTask.id,
         }),
       ).rejects.toThrow("maximum depth");
+    });
+  });
+
+  describe("autosync", () => {
+    let mockSyncService: {
+      syncTask: ReturnType<typeof vi.fn>;
+      getRepo: ReturnType<typeof vi.fn>;
+    };
+
+    beforeEach(() => {
+      mockSyncService = {
+        syncTask: vi.fn(),
+        getRepo: vi.fn(() => ({ owner: "test", repo: "test" })),
+      };
+    });
+
+    it("saves GitHub metadata when autosync creates an issue", async () => {
+      // Mock syncTask to return the task ID it was called with
+      mockSyncService.syncTask.mockImplementation(async (task) => ({
+        taskId: task.id,
+        github: {
+          issueNumber: 42,
+          issueUrl: "https://github.com/test/test/issues/42",
+          repo: "test/test",
+          state: "open",
+        },
+        created: true,
+      }));
+
+      const syncService = new TaskService({
+        storage: storagePath,
+        syncService: mockSyncService as unknown as GitHubSyncService,
+        syncConfig: { enabled: true, auto: { on_change: true } },
+      });
+
+      const task = await syncService.create({
+        name: "Test task",
+        description: "Test",
+      });
+
+      expect(mockSyncService.syncTask).toHaveBeenCalled();
+
+      // Fetch the task from storage to verify metadata was saved
+      const savedTask = await syncService.get(task.id);
+      expect(savedTask?.metadata?.github).toEqual({
+        issueNumber: 42,
+        issueUrl: "https://github.com/test/test/issues/42",
+        repo: "test/test",
+        state: "open",
+      });
+    });
+
+    it("saves GitHub metadata when autosync updates an issue", async () => {
+      // First create a task without sync
+      const noSyncService = new TaskService({ storage: storagePath });
+      const task = await noSyncService.create({
+        name: "Test task",
+        description: "Test",
+      });
+
+      // Now create a service with sync enabled
+      mockSyncService.syncTask.mockResolvedValue({
+        taskId: task.id,
+        github: {
+          issueNumber: 99,
+          issueUrl: "https://github.com/test/test/issues/99",
+          repo: "test/test",
+          state: "open",
+        },
+        created: false,
+      });
+
+      const syncService = new TaskService({
+        storage: storagePath,
+        syncService: mockSyncService as unknown as GitHubSyncService,
+        syncConfig: { enabled: true, auto: { on_change: true } },
+      });
+
+      await syncService.update({
+        id: task.id,
+        name: "Updated name",
+      });
+
+      const savedTask = await syncService.get(task.id);
+      expect(savedTask?.metadata?.github?.issueNumber).toBe(99);
+    });
+
+    it("preserves existing metadata when saving GitHub metadata", async () => {
+      // First create a task with commit metadata
+      const noSyncService = new TaskService({ storage: storagePath });
+      const task = await noSyncService.create({
+        name: "Test task",
+        description: "Test",
+        metadata: {
+          commit: {
+            sha: "abc123",
+            message: "Initial commit",
+          },
+        },
+      });
+
+      // Now update with sync enabled
+      mockSyncService.syncTask.mockResolvedValue({
+        taskId: task.id,
+        github: {
+          issueNumber: 55,
+          issueUrl: "https://github.com/test/test/issues/55",
+          repo: "test/test",
+          state: "open",
+        },
+        created: false,
+      });
+
+      const syncService = new TaskService({
+        storage: storagePath,
+        syncService: mockSyncService as unknown as GitHubSyncService,
+        syncConfig: { enabled: true, auto: { on_change: true } },
+      });
+
+      await syncService.update({
+        id: task.id,
+        name: "Updated name",
+      });
+
+      const savedTask = await syncService.get(task.id);
+      // GitHub metadata should be added
+      expect(savedTask?.metadata?.github?.issueNumber).toBe(55);
+      // Commit metadata should be preserved
+      expect(savedTask?.metadata?.commit?.sha).toBe("abc123");
+    });
+
+    it("does not save metadata when autosync is skipped", async () => {
+      // First create a task
+      const noSyncService = new TaskService({ storage: storagePath });
+      const task = await noSyncService.create({
+        name: "Test task",
+        description: "Test",
+      });
+      const originalUpdatedAt = task.updated_at;
+
+      // Wait a bit to ensure timestamp would change
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      // Sync returns skipped: true
+      mockSyncService.syncTask.mockResolvedValue({
+        taskId: task.id,
+        github: {
+          issueNumber: 77,
+          issueUrl: "https://github.com/test/test/issues/77",
+          repo: "test/test",
+          state: "open",
+        },
+        created: false,
+        skipped: true,
+      });
+
+      const syncService = new TaskService({
+        storage: storagePath,
+        syncService: mockSyncService as unknown as GitHubSyncService,
+        syncConfig: { enabled: true, auto: { on_change: true } },
+      });
+
+      await syncService.update({
+        id: task.id,
+        name: "Updated name",
+      });
+
+      const savedTask = await syncService.get(task.id);
+      // GitHub metadata should NOT be saved when skipped
+      expect(savedTask?.metadata?.github).toBeUndefined();
+    });
+
+    it("handles subtask sync (saves to parent)", async () => {
+      // First create parent and subtask
+      const noSyncService = new TaskService({ storage: storagePath });
+      const parent = await noSyncService.create({
+        name: "Parent task",
+        description: "Parent",
+      });
+      const subtask = await noSyncService.create({
+        name: "Subtask",
+        description: "Child",
+        parent_id: parent.id,
+      });
+
+      // Sync service returns parent's ID (subtasks sync their parent)
+      mockSyncService.syncTask.mockResolvedValue({
+        taskId: parent.id, // Parent gets the GitHub issue, not subtask
+        github: {
+          issueNumber: 88,
+          issueUrl: "https://github.com/test/test/issues/88",
+          repo: "test/test",
+          state: "open",
+        },
+        created: false,
+      });
+
+      const syncService = new TaskService({
+        storage: storagePath,
+        syncService: mockSyncService as unknown as GitHubSyncService,
+        syncConfig: { enabled: true, auto: { on_change: true } },
+      });
+
+      // Update subtask triggers sync
+      await syncService.update({
+        id: subtask.id,
+        name: "Updated subtask",
+      });
+
+      // Parent should have GitHub metadata
+      const savedParent = await syncService.get(parent.id);
+      expect(savedParent?.metadata?.github?.issueNumber).toBe(88);
+
+      // Subtask should NOT have GitHub metadata (only parent gets it)
+      const savedSubtask = await syncService.get(subtask.id);
+      expect(savedSubtask?.metadata?.github).toBeUndefined();
     });
   });
 });
