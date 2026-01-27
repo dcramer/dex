@@ -13,6 +13,7 @@ import {
   pluralize,
   truncateText,
 } from "./formatting.js";
+import { printGroupedTasks } from "./tree-display.js";
 import { getGitHubIssueNumber } from "../core/github/index.js";
 import { getIncompleteBlockerIds } from "../core/task-relationships.js";
 import { TaskService } from "../core/task-service.js";
@@ -175,7 +176,7 @@ ${colors.bold}EXAMPLES:${colors.reset}
     }
   }
 
-  const completedFilter = getBooleanFlag(flags, "completed") ? true : undefined;
+  const completedFilter = getBooleanFlag(flags, "completed") || undefined;
 
   // If parent filter specified, validate it exists
   if (parentFilter) {
@@ -259,16 +260,19 @@ ${colors.bold}EXAMPLES:${colors.reset}
     }
   }
 
-  // Use flat mode when explicitly requested or when filtering (tree display doesn't work well with filtered results)
-  const useFlat =
-    getBooleanFlag(flags, "flat") ||
+  // Check if filtering is applied (results don't form a complete tree)
+  const hasFilter =
     Boolean(query) ||
     getBooleanFlag(flags, "blocked") ||
     getBooleanFlag(flags, "ready") ||
     issueFilter !== undefined ||
     commitFilter !== undefined;
 
+  // Use flat mode only when explicitly requested
+  const useFlat = getBooleanFlag(flags, "flat");
+
   if (useFlat) {
+    // Explicit flat mode: simple list with no grouping
     for (const task of filteredTasks) {
       const blockedByIds = getIncompleteBlockerIds(allTasks, task);
       const githubIssue = getGithubIssueFromAncestors(task, allTasks);
@@ -280,6 +284,13 @@ ${colors.bold}EXAMPLES:${colors.reset}
         }),
       );
     }
+  } else if (hasFilter) {
+    // Filtered results: group by parent (like dex status)
+    printGroupedTasks(filteredTasks, allTasks, filteredTasks.length, {
+      truncateName: LIST_NAME_MAX_LENGTH,
+      getBlockedByIds: (task) => getIncompleteBlockerIds(allTasks, task),
+      getGithubIssue: (task) => getGithubIssueFromAncestors(task, allTasks),
+    });
   } else if (subtreeRoot) {
     // Subtree view: show the root task, then its children as a tree
     const blockedByIds = getIncompleteBlockerIds(allTasks, subtreeRoot);
