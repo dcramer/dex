@@ -196,23 +196,58 @@ dex plan feature.md --parent abc123`}
     </Terminal>
   </div>
 
-  <h2>GitHub</h2>
+  <h2>Integrations</h2>
 
   <div class="command-card">
     <h3>dex sync</h3>
-    <div class="synopsis">dex sync [options]</div>
-    <p>Sync tasks to GitHub Issues. Requires <code>[sync.github]</code> configuration in <code>dex.toml</code>.</p>
+    <div class="synopsis">dex sync [task-id] [options]</div>
+    <p>Sync tasks to GitHub Issues and/or Shortcut Stories. Syncs all root tasks by default, or a specific task if ID is provided.</p>
+    <ul>
+      <li><code>--github</code> — Sync only to GitHub Issues</li>
+      <li><code>--shortcut</code> — Sync only to Shortcut Stories</li>
+      <li><code>--dry-run</code> — Preview what would be synced without making changes</li>
+    </ul>
     <Terminal title="Terminal">
-      <Code code="dex sync" lang="bash" theme="vitesse-black" />
+      <Code
+        code={`dex sync                    # Sync to all configured services
+dex sync abc123             # Sync specific task
+dex sync --github           # Sync only to GitHub
+dex sync --shortcut         # Sync only to Shortcut
+dex sync --dry-run          # Preview sync`}
+        lang="bash"
+        theme="vitesse-black"
+      />
     </Terminal>
   </div>
 
   <div class="command-card">
     <h3>dex import</h3>
-    <div class="synopsis">dex import &lt;github-issue-url&gt;</div>
-    <p>Import a GitHub Issue as a dex task.</p>
+    <div class="synopsis">dex import &lt;ref&gt; [options]</div>
+    <p>Import a GitHub Issue or Shortcut Story as a dex task.</p>
+    <ul>
+      <li><code>--all</code> — Import all items with the dex label</li>
+      <li><code>--github</code> — Filter <code>--all</code> to only GitHub</li>
+      <li><code>--shortcut</code> — Filter <code>--all</code> to only Shortcut</li>
+      <li><code>--update</code> — Update existing task if already imported</li>
+      <li><code>--dry-run</code> — Preview what would be imported</li>
+    </ul>
+    <p><strong>Reference formats:</strong></p>
+    <ul>
+      <li>GitHub: <code>#123</code>, <code>owner/repo#123</code>, or full URL</li>
+      <li>Shortcut: <code>sc#123</code>, <code>SC#123</code>, or full URL</li>
+    </ul>
     <Terminal title="Terminal">
-      <Code code="dex import https://github.com/owner/repo/issues/123" lang="bash" theme="vitesse-black" />
+      <Code
+        code={`dex import #42                    # Import GitHub issue #42
+dex import sc#123                 # Import Shortcut story #123
+dex import https://github.com/owner/repo/issues/42
+dex import https://app.shortcut.com/myorg/story/123
+dex import --all                  # Import all dex-labeled items
+dex import --all --shortcut       # Import only from Shortcut
+dex import #42 --update           # Refresh local task from GitHub`}
+        lang="bash"
+        theme="vitesse-black"
+      />
     </Terminal>
   </div>
 
@@ -319,6 +354,12 @@ ls $(dex dir)          # List task directory contents`}
       <li><code>sync.github.label_prefix</code> — Label prefix for dex tasks</li>
       <li><code>sync.github.auto.on_change</code> — Sync on mutations (boolean)</li>
       <li><code>sync.github.auto.max_age</code> — Max age before stale (e.g., 30m, 1h)</li>
+      <li><code>sync.shortcut.enabled</code> — Enable Shortcut sync (boolean)</li>
+      <li><code>sync.shortcut.token_env</code> — Environment variable for Shortcut token</li>
+      <li><code>sync.shortcut.workspace</code> — Shortcut workspace slug (auto-detected if not set)</li>
+      <li><code>sync.shortcut.team</code> — Team ID or mention name (required for sync)</li>
+      <li><code>sync.shortcut.workflow</code> — Workflow ID (uses team default if not set)</li>
+      <li><code>sync.shortcut.label</code> — Label name for dex stories (default: "dex")</li>
     </ul>
     <Terminal title="Terminal">
       <Code
@@ -395,6 +436,10 @@ dex help complete`}
       <tr>
         <td><code>GITHUB_TOKEN</code></td>
         <td>GitHub API token for sync/import</td>
+      </tr>
+      <tr>
+        <td><code>SHORTCUT_API_TOKEN</code></td>
+        <td>Shortcut API token for sync/import</td>
       </tr>
     </tbody>
   </table>

@@ -4,26 +4,29 @@ Guidance for organizing work into epics, tasks, and subtasks.
 
 ## Three Levels
 
-| Level | Name | Purpose | Example |
-|-------|------|---------|---------|
-| L0 | **Epic** | Large initiative (5+ tasks) | "Add user authentication system" |
-| L1 | **Task** | Significant work item | "Implement JWT middleware" |
-| L2 | **Subtask** | Atomic implementation step | "Add token verification function" |
+| Level | Name        | Purpose                     | Example                           |
+| ----- | ----------- | --------------------------- | --------------------------------- |
+| L0    | **Epic**    | Large initiative (5+ tasks) | "Add user authentication system"  |
+| L1    | **Task**    | Significant work item       | "Implement JWT middleware"        |
+| L2    | **Subtask** | Atomic implementation step  | "Add token verification function" |
 
 **Maximum depth is 3 levels.** Attempting to create a child of a subtask will fail.
 
 ## When to Use Each Level
 
 ### Single Task (No Hierarchy)
+
 - Small feature (1-2 files, ~1 session)
 - Work is atomic, no natural breakdown
 
 ### Task with Subtasks
+
 - Medium feature (3-5 files, 3-7 steps)
 - Work naturally decomposes into discrete steps
 - Subtasks could be worked on independently
 
 ### Epic with Tasks
+
 - Large initiative (multiple areas, many sessions)
 - Work spans 5+ distinct tasks
 - You want high-level progress tracking
@@ -32,24 +35,25 @@ Guidance for organizing work into epics, tasks, and subtasks.
 
 ```bash
 # Create the epic
-dex create -d "Add user authentication system" \
-  --context "Full auth system with JWT tokens, password reset..."
+dex create "Add user authentication system" \
+  --description "Full auth system with JWT tokens, password reset..."
 
 # Create tasks under it (note the epic ID, e.g., abc123)
-dex create --parent abc123 -d "Implement JWT token generation" \
-  --context "Create token service with signing and verification..."
+dex create --parent abc123 "Implement JWT token generation" \
+  --description "Create token service with signing and verification..."
 
-dex create --parent abc123 -d "Add password reset flow" \
-  --context "Email-based password reset with secure tokens..."
+dex create --parent abc123 "Add password reset flow" \
+  --description "Email-based password reset with secure tokens..."
 
 # For complex tasks, add subtasks
-dex create --parent def456 -d "Add token verification function" \
-  --context "Verify JWT signature and expiration..."
+dex create --parent def456 "Add token verification function" \
+  --description "Verify JWT signature and expiration..."
 ```
 
 ## Subtask Best Practices
 
 Each subtask should be:
+
 - **Independently understandable**: Clear on its own
 - **Linked to parent**: Reference parent, explain how this piece fits
 - **Specific scope**: What this subtask does vs what parent/siblings do

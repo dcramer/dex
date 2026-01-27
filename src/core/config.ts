@@ -34,11 +34,31 @@ export interface GitHubSyncConfig {
 }
 
 /**
+ * Shortcut sync configuration.
+ */
+export interface ShortcutSyncConfig {
+  /** Enable automatic Shortcut sync on task create/update (default: false) */
+  enabled?: boolean;
+  /** Environment variable containing Shortcut API token (default: "SHORTCUT_API_TOKEN") */
+  token_env?: string;
+  /** Shortcut workspace slug (inferred from API if not set) */
+  workspace?: string;
+  /** Team ID or mention name for story creation (required for auto-sync) */
+  team?: string;
+  /** Workflow ID to use (uses team default if not set) */
+  workflow?: number;
+  /** Label name for dex stories (default: "dex") */
+  label?: string;
+}
+
+/**
  * Sync configuration
  */
 export interface SyncConfig {
   /** GitHub sync settings */
   github?: GitHubSyncConfig;
+  /** Shortcut sync settings */
+  shortcut?: ShortcutSyncConfig;
 }
 
 /**
@@ -170,7 +190,7 @@ function mergeSyncConfig(
 ): SyncConfig | undefined {
   if (b === undefined) return a;
 
-  const mergedAuto =
+  const mergedGitHubAuto =
     b.github?.auto !== undefined
       ? { ...a?.github?.auto, ...b.github.auto }
       : a?.github?.auto;
@@ -179,7 +199,11 @@ function mergeSyncConfig(
     github: {
       ...a?.github,
       ...b.github,
-      auto: mergedAuto,
+      auto: mergedGitHubAuto,
+    },
+    shortcut: {
+      ...a?.shortcut,
+      ...b.shortcut,
     },
   };
 }

@@ -1,7 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { FileStorage } from "../core/storage/index.js";
 import { runCli } from "./index.js";
-import type { CapturedOutput, GitHubMock } from "./test-helpers.js";
+import type {
+  CapturedOutput,
+  GitHubMock,
+  ShortcutMock,
+} from "./test-helpers.js";
 import {
   captureOutput,
   createTempStorage,
@@ -9,7 +13,14 @@ import {
   setupGitHubMock,
   cleanupGitHubMock,
   createIssueFixture,
+  setupShortcutMock,
+  cleanupShortcutMock,
+  createStoryFixture,
+  createWorkflowFixture,
+  createTeamFixture,
+  createMemberFixture,
 } from "./test-helpers.js";
+import { loadConfig } from "../core/config.js";
 
 // Mock git remote detection
 vi.mock("../core/github/remote.js", async (importOriginal) => {
@@ -306,7 +317,10 @@ describe("sync command", () => {
       await expect(runCli(["sync"], { storage })).rejects.toThrow(
         "process.exit",
       );
-      expect(output.stderr.join("\n")).toMatch(/GitHub token|GITHUB_TOKEN/i);
+      // When no sync services are available, shows generic error
+      expect(output.stderr.join("\n")).toMatch(
+        /No sync services available|GitHub token|GITHUB_TOKEN/i,
+      );
     });
 
     it.each([
@@ -334,6 +348,404 @@ describe("sync command", () => {
         "process.exit",
       );
       expect(output.stderr.join("\n").length).toBeGreaterThan(0);
+    });
+  });
+});
+
+// Mock config loading for Shortcut tests
+vi.mock("../core/config.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../core/config.js")>();
+  return {
+    ...original,
+    loadConfig: vi.fn(original.loadConfig),
+  };
+});
+
+describe("sync command --shortcut", () => {
+  let storage: FileStorage;
+  let cleanup: () => void;
+  let output: CapturedOutput;
+  let mockExit: ReturnType<typeof vi.spyOn>;
+  let shortcutMock: ShortcutMock;
+  let originalEnv: string | undefined;
+  let originalGithubEnv: string | undefined;
+
+  beforeEach(() => {
+    const temp = createTempStorage();
+    storage = temp.storage;
+    cleanup = temp.cleanup;
+    output = captureOutput();
+    mockExit = vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("process.exit called");
+    }) as () => never);
+
+    // Set Shortcut token, remove GitHub token to test Shortcut-only
+    originalEnv = process.env.SHORTCUT_API_TOKEN;
+    originalGithubEnv = process.env.GITHUB_TOKEN;
+    process.env.SHORTCUT_API_TOKEN = "test-shortcut-token";
+    delete process.env.GITHUB_TOKEN;
+
+    shortcutMock = setupShortcutMock();
+  });
+
+  afterEach(() => {
+    output.restore();
+    cleanup();
+    mockExit.mockRestore();
+    cleanupShortcutMock();
+    if (originalEnv !== undefined) {
+      process.env.SHORTCUT_API_TOKEN = originalEnv;
+    } else {
+      delete process.env.SHORTCUT_API_TOKEN;
+    }
+    if (originalGithubEnv !== undefined) {
+      process.env.GITHUB_TOKEN = originalGithubEnv;
+    } else {
+      delete process.env.GITHUB_TOKEN;
+    }
+    vi.restoreAllMocks();
+  });
+
+  /** Helper to create a task and return its ID, clearing output afterward. */
+  async function createTask(
+    name: string,
+    opts: { description?: string; parent?: string } = {},
+  ): Promise<string> {
+    const args = [
+      "create",
+      "-n",
+      name,
+      "--description",
+      opts.description ?? "ctx",
+    ];
+    if (opts.parent) args.push("--parent", opts.parent);
+    await runCli(args, { storage });
+    const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    output.stdout.length = 0;
+    if (!taskId) throw new Error("Failed to create task");
+    return taskId;
+  }
+
+  /** Setup common Shortcut mocks for sync operations */
+  function setupShortcutSyncMocks() {
+    shortcutMock.getCurrentMember(createMemberFixture());
+    shortcutMock.listGroups([createTeamFixture()]);
+    shortcutMock.getGroup("test-team-uuid", createTeamFixture());
+    shortcutMock.getWorkflow(
+      500000000,
+      createWorkflowFixture({ id: 500000000 }),
+    );
+    shortcutMock.listLabels([{ id: 1, name: "dex" }]);
+  }
+
+  it("fails when Shortcut token is missing", async () => {
+    delete process.env.SHORTCUT_API_TOKEN;
+    await createTask("Task");
+
+    await expect(runCli(["sync", "--shortcut"], { storage })).rejects.toThrow(
+      "process.exit",
+    );
+    expect(output.stderr.join("\n")).toMatch(
+      /Shortcut API token|SHORTCUT_API_TOKEN/i,
+    );
+  });
+
+  it("fails when team is not configured", async () => {
+    await createTask("Task");
+    shortcutMock.getCurrentMember(createMemberFixture());
+
+    await expect(runCli(["sync", "--shortcut"], { storage })).rejects.toThrow(
+      "process.exit",
+    );
+    expect(output.stderr.join("\n")).toMatch(/team/i);
+  });
+
+  describe("with team configured", () => {
+    beforeEach(() => {
+      // Mock loadConfig to return Shortcut team configuration
+      vi.mocked(loadConfig).mockReturnValue({
+        storage: { engine: "file" },
+        sync: {
+          shortcut: {
+            enabled: true,
+            team: "test-team",
+          },
+        },
+      });
+    });
+
+    describe("dry-run mode", () => {
+      it("previews sync without making changes", async () => {
+        const taskId = await createTask("Test task", {
+          description: "context",
+        });
+        setupShortcutSyncMocks();
+        shortcutMock.searchStories([]);
+
+        await runCli(["sync", "--shortcut", "--dry-run"], { storage });
+
+        const out = output.stdout.join("\n");
+        expect(out).toContain("Would sync");
+        expect(out).toContain("test-workspace");
+        expect(out).toContain("[create]");
+        expect(out).toContain(taskId);
+      });
+
+      it("shows update action for tasks already synced", async () => {
+        const taskId = await createTask("Synced task", {
+          description: "context",
+        });
+
+        // First sync to create Shortcut metadata
+        setupShortcutSyncMocks();
+        shortcutMock.searchStories([]);
+        shortcutMock.createStory(
+          createStoryFixture({
+            id: 123,
+            name: "Synced task",
+          }),
+        );
+        await runCli(["sync", "--shortcut", taskId], { storage });
+        output.stdout.length = 0;
+
+        // Set up fresh mocks for the dry-run (nock interceptors are consumed after one use)
+        setupShortcutSyncMocks();
+        shortcutMock.searchStories([
+          createStoryFixture({
+            id: 123,
+            name: "Old title",
+            description: `<!-- dex:task:id:${taskId} -->\nOld body`,
+            labels: [{ name: "dex" }],
+          }),
+        ]);
+
+        await runCli(["sync", "--shortcut", "--dry-run"], { storage });
+
+        const out = output.stdout.join("\n");
+        expect(out).toContain("Would sync");
+        expect(out).toContain("[update]");
+      });
+
+      it("previews sync for specific task", async () => {
+        const taskId = await createTask("Task to sync");
+        setupShortcutSyncMocks();
+        shortcutMock.searchStories([]);
+
+        await runCli(["sync", "--shortcut", taskId, "--dry-run"], { storage });
+
+        const out = output.stdout.join("\n");
+        expect(out).toContain("Would sync");
+        expect(out).toContain(taskId);
+      });
+    });
+
+    describe("sync specific task", () => {
+      it("syncs a specific task to Shortcut", async () => {
+        const taskId = await createTask("Task to sync", {
+          description: "Some context",
+        });
+
+        setupShortcutSyncMocks();
+        shortcutMock.searchStories([]);
+        shortcutMock.createStory(
+          createStoryFixture({
+            id: 101,
+            name: "Task to sync",
+          }),
+        );
+
+        await runCli(["sync", "--shortcut", taskId], { storage });
+
+        const out = output.stdout.join("\n");
+        expect(out).toContain("Synced");
+        expect(out).toContain(taskId);
+        expect(out).toContain("test-workspace");
+        expect(out).toContain("story/101");
+      });
+
+      it("fails when task not found", async () => {
+        setupShortcutSyncMocks();
+
+        await expect(
+          runCli(["sync", "--shortcut", "nonexist"], { storage }),
+        ).rejects.toThrow("process.exit");
+        expect(output.stderr.join("\n")).toContain("not found");
+      });
+
+      it("syncs subtask by finding root task", async () => {
+        const parentId = await createTask("Parent task");
+        const subtaskId = await createTask("Subtask", { parent: parentId });
+
+        setupShortcutSyncMocks();
+        shortcutMock.searchStories([]);
+        // Parent story created
+        shortcutMock.createStory(
+          createStoryFixture({ id: 102, name: "Parent task" }),
+        );
+        // Subtask as sub-story
+        shortcutMock.createStory(
+          createStoryFixture({ id: 103, name: "Subtask" }),
+        );
+
+        // Sync the subtask - should sync the parent instead
+        await runCli(["sync", "--shortcut", subtaskId], { storage });
+
+        const out = output.stdout.join("\n");
+        expect(out).toContain("Synced");
+        expect(out).toContain(parentId);
+      });
+
+      it("saves shortcut metadata after sync", async () => {
+        const taskId = await createTask("Task to sync", {
+          description: "Some context",
+        });
+
+        setupShortcutSyncMocks();
+        shortcutMock.searchStories([]);
+        shortcutMock.createStory(
+          createStoryFixture({
+            id: 999,
+            name: "Task to sync",
+          }),
+        );
+
+        await runCli(["sync", "--shortcut", taskId], { storage });
+
+        // Clear output from sync command before getting JSON
+        output.stdout.length = 0;
+
+        // Verify metadata was saved by checking the task
+        await runCli(["show", taskId, "--json"], { storage });
+        const showOutput = output.stdout.join("\n");
+        const task = JSON.parse(showOutput);
+        expect(task.metadata?.shortcut).toBeDefined();
+        expect(task.metadata.shortcut.storyId).toBe(999);
+        expect(task.metadata.shortcut.workspace).toBe("test-workspace");
+        expect(task.metadata.shortcut.storyUrl).toContain("story/999");
+      });
+    });
+
+    describe("sync all tasks", () => {
+      it("syncs all root tasks to Shortcut", async () => {
+        await createTask("Task 1", { description: "ctx1" });
+        await createTask("Task 2", { description: "ctx2" });
+
+        setupShortcutSyncMocks();
+        shortcutMock.searchStories([]);
+        shortcutMock.createStory(
+          createStoryFixture({ id: 201, name: "Task 1" }),
+        );
+        shortcutMock.createStory(
+          createStoryFixture({ id: 202, name: "Task 2" }),
+        );
+
+        await runCli(["sync", "--shortcut"], { storage });
+
+        const out = output.stdout.join("\n");
+        expect(out).toContain("Synced");
+        expect(out).toContain("2 task(s)");
+        expect(out).toContain("2 created");
+      });
+
+      it("counts only root tasks in sync summary (subtasks synced as sub-stories)", async () => {
+        const rootId = await createTask("Root task");
+        await createTask("Subtask", { parent: rootId });
+
+        setupShortcutSyncMocks();
+        shortcutMock.searchStories([]);
+        // Root task creates a story
+        shortcutMock.createStory(
+          createStoryFixture({ id: 301, name: "Root task" }),
+        );
+        // Subtask creates a sub-story (linked to parent story 301)
+        shortcutMock.createStory(
+          createStoryFixture({ id: 302, name: "Subtask" }),
+        );
+
+        await runCli(["sync", "--shortcut"], { storage });
+
+        const out = output.stdout.join("\n");
+        expect(out).toContain("Synced");
+        // Only root tasks are counted, but subtasks are still synced as sub-stories
+        expect(out).toContain("1 task(s)");
+      });
+
+      it("reports updated count when updating existing stories", async () => {
+        const taskId = await createTask("Already synced");
+
+        // First sync to create the story
+        setupShortcutSyncMocks();
+        shortcutMock.searchStories([]);
+        shortcutMock.createStory(
+          createStoryFixture({ id: 400, name: "Already synced" }),
+        );
+        await runCli(["sync", "--shortcut", taskId], { storage });
+        output.stdout.length = 0;
+
+        // Second sync triggers update - searchStories returns existing story
+        setupShortcutSyncMocks();
+        shortcutMock.searchStories([
+          createStoryFixture({
+            id: 400,
+            name: "Old title",
+            description: `<!-- dex:task:id:${taskId} -->\nOld body`,
+            labels: [{ name: "dex" }],
+          }),
+        ]);
+        shortcutMock.updateStory(
+          400,
+          createStoryFixture({ id: 400, name: "Already synced" }),
+        );
+
+        await runCli(["sync", "--shortcut"], { storage });
+
+        const out = output.stdout.join("\n");
+        expect(out).toContain("Synced");
+        expect(out).toContain("1 task(s)");
+        expect(out).toContain("1 updated");
+      });
+    });
+
+    describe("error handling", () => {
+      it.each([
+        [
+          "401 unauthorized",
+          (mock: ShortcutMock) => {
+            mock.getCurrentMember(createMemberFixture());
+            mock.listGroups([createTeamFixture()]);
+            mock.getGroup("test-team-uuid", createTeamFixture());
+            mock.getWorkflow(
+              500000000,
+              createWorkflowFixture({ id: 500000000 }),
+            );
+            mock.listLabels([{ id: 1, name: "dex" }]);
+            mock.searchStories401();
+          },
+        ],
+        [
+          "500 server error on create",
+          (mock: ShortcutMock) => {
+            mock.getCurrentMember(createMemberFixture());
+            mock.listGroups([createTeamFixture()]);
+            mock.getGroup("test-team-uuid", createTeamFixture());
+            mock.getWorkflow(
+              500000000,
+              createWorkflowFixture({ id: 500000000 }),
+            );
+            mock.listLabels([{ id: 1, name: "dex" }]);
+            mock.searchStories([]);
+            mock.createStory500();
+          },
+        ],
+      ])("fails on Shortcut API %s", async (_, setupMock) => {
+        await createTask("Task");
+        setupMock(shortcutMock);
+
+        await expect(
+          runCli(["sync", "--shortcut"], { storage }),
+        ).rejects.toThrow("process.exit");
+        expect(output.stderr.join("\n").length).toBeGreaterThan(0);
+      });
     });
   });
 });

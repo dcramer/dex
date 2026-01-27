@@ -5,13 +5,13 @@ Full command reference for dex. For basic usage, see SKILL.md.
 ## Create a Task
 
 ```bash
-dex create -d "Short description" --context "Full implementation context"
+dex create "Task name" --description "Full implementation details"
 ```
 
 Options:
 
-- `-d, --description` (required): One-line summary
-- `--context` (required): Full implementation details
+- `<name>` or `-n, --name`: One-line summary (required)
+- `-d, --description`: Full implementation details (optional but recommended)
 - `-p, --priority <n>`: Lower = higher priority (default: 1)
 - `-b, --blocked-by <ids>`: Comma-separated task IDs that must complete first
 - `--parent <id>`: Parent task ID (creates subtask)
@@ -24,7 +24,7 @@ dex list --all                # Include completed
 dex list --completed          # Only completed
 dex list --ready              # Only tasks ready to work on (no blockers)
 dex list --blocked            # Only blocked tasks
-dex list --query "login"      # Search in description/context
+dex list --query "login"      # Search in name/description
 ```
 
 Blocked tasks show an indicator: `[B: xyz123]` (blocked by task xyz123) or `[B: 2]` (blocked by 2 tasks).
@@ -56,7 +56,7 @@ This captures commit SHA, message, and branch automatically.
 ## Edit a Task
 
 ```bash
-dex edit <id> -d "Updated description" --context "Updated context"
+dex edit <id> -n "Updated name" --description "Updated description"
 dex edit <id> --add-blocker xyz123      # Add blocking dependency
 dex edit <id> --remove-blocker xyz123   # Remove blocking dependency
 ```
@@ -75,7 +75,7 @@ Use blocking dependencies to enforce task ordering:
 
 ```bash
 # Create a task that depends on another
-dex create -d "Deploy to production" --context "..." --blocked-by abc123
+dex create "Deploy to production" --description "..." --blocked-by abc123
 
 # Add a blocker to an existing task
 dex edit xyz789 --add-blocker abc123
@@ -121,14 +121,12 @@ Override with `--storage-path` or `DEX_STORAGE_PATH` env var.
 {
   "id": "abc123",
   "parent_id": null,
-  "description": "One-line summary",
-  "context": "Full implementation details...",
+  "name": "One-line summary",
+  "description": "Full implementation details...",
   "priority": 1,
   "completed": false,
   "result": null,
-  "blockedBy": ["xyz789"],
-  "blocks": ["def456"],
-  "children": [],
+  "blocked_by": ["xyz789"],
   "created_at": "2026-01-01T00:00:00.000Z",
   "updated_at": "2026-01-01T00:00:00.000Z",
   "completed_at": null

@@ -38,8 +38,12 @@ ${colors.bold}COMMANDS:${colors.reset}
   archive --older-than 60d         Archive tasks completed >60 days ago
   archive --completed              Archive ALL completed tasks
   plan <file>                      Create task from plan markdown file
-  sync [id]                        Push tasks to GitHub Issues
-  import <ref>                     Import GitHub Issue as task
+  sync [id]                        Push tasks to GitHub/Shortcut
+  sync --github                    Sync only to GitHub Issues
+  sync --shortcut                  Sync only to Shortcut Stories
+  import #N                        Import GitHub issue
+  import sc#N                      Import Shortcut story
+  import --all                     Import all dex-labeled items
   export <id>...                   Export tasks to GitHub (no sync back)
   completion <shell>               Generate shell completion script
 
@@ -79,5 +83,17 @@ ${colors.bold}EXAMPLES:${colors.reset}
   ${colors.dim}# Other common operations:${colors.reset}
   dex list --json | jq '.[] | .id'
   dex create "Subtask" --description "..." --parent abc123
+
+  ${colors.dim}# Sync tasks to external services:${colors.reset}
+  dex sync                          # Sync to all configured services
+  dex sync --github                 # Sync only to GitHub
+  dex sync --shortcut               # Sync only to Shortcut
+  dex sync --dry-run                # Preview what would be synced
+
+  ${colors.dim}# Import from external services:${colors.reset}
+  dex import #42                    # Import GitHub issue #42
+  dex import sc#123                 # Import Shortcut story #123
+  dex import --all                  # Import all dex-labeled items
+  dex import --all --shortcut       # Import only from Shortcut
 `);
 }

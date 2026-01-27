@@ -21,6 +21,17 @@ export {
   type GitHubMock,
 } from "../test-utils/github-mock.js";
 
+export {
+  setupShortcutMock,
+  cleanupShortcutMock,
+  createStoryFixture,
+  createWorkflowFixture,
+  createTeamFixture,
+  createMemberFixture,
+  type ShortcutStoryFixture,
+  type ShortcutMock,
+} from "../test-utils/shortcut-mock.js";
+
 /**
  * Create an ArchivedTask with sensible defaults for testing.
  */

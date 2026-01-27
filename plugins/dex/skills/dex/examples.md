@@ -1,19 +1,20 @@
 # Examples
 
-Good and bad examples for writing task context and results.
+Good and bad examples for writing task descriptions and results.
 
-## Writing Context
+## Writing Descriptions
 
-Context should include everything needed to do the work without asking questions:
+Descriptions should include everything needed to do the work without asking questions:
+
 - **What** needs to be done and why
 - **Implementation approach** (steps, files to modify, technical choices)
 - **Done when** (acceptance criteria)
 
-### Good Context Example
+### Good Description Example
 
 ```bash
-dex create -d "Migrate storage to one file per task" \
-  --context "Change storage format for git-friendliness:
+dex create "Migrate storage to one file per task" \
+  --description "Change storage format for git-friendliness:
 
 Structure:
 .dex/
@@ -46,10 +47,10 @@ Benefits:
 
 Notice: States the goal, shows the structure, lists specific implementation steps, and explains benefits. Someone could pick this up without asking questions.
 
-### Bad Context Example
+### Bad Description Example
 
 ```bash
-dex create -d "Add auth" --context "Need to add authentication"
+dex create "Add auth" --description "Need to add authentication"
 ```
 
 ❌ Missing: How to implement it, what files, what's done when, technical approach
@@ -57,6 +58,7 @@ dex create -d "Add auth" --context "Need to add authentication"
 ## Writing Results
 
 Results should capture what was actually done:
+
 - **What changed** (implementation summary)
 - **Key decisions** (and why)
 - **Verification** (tests passing, manual testing done)
@@ -95,7 +97,7 @@ dex complete abc123 --result "Fixed the storage issue"
 
 ❌ Missing: What was actually implemented, how, what decisions were made
 
-## Subtask Context Example
+## Subtask Description Example
 
 Link subtasks to their parent and explain what this piece does specifically:
 

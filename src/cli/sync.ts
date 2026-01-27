@@ -3,12 +3,25 @@ import { createService, findRootTask, formatCliError } from "./utils.js";
 import { colors } from "./colors.js";
 import { getBooleanFlag, parseArgs } from "./args.js";
 import { truncateText } from "./formatting.js";
-import type { SyncProgress, SyncResult } from "../core/github/index.js";
+import type { Task } from "../types.js";
+import type {
+  SyncProgress as GitHubSyncProgress,
+  SyncResult as GitHubSyncResult,
+} from "../core/github/index.js";
 import {
   createGitHubSyncServiceOrThrow,
   getGitHubIssueNumber,
   GitHubSyncService,
 } from "../core/github/index.js";
+import type {
+  SyncProgress as ShortcutSyncProgress,
+  SyncResult as ShortcutSyncResult,
+} from "../core/shortcut/index.js";
+import {
+  createShortcutSyncServiceOrThrow,
+  getShortcutStoryId,
+  ShortcutSyncService,
+} from "../core/shortcut/index.js";
 import { loadConfig } from "../core/config.js";
 import { updateSyncState } from "../core/sync-state.js";
 
@@ -20,33 +33,46 @@ export async function syncCommand(
     args,
     {
       "dry-run": { hasValue: false },
+      github: { hasValue: false },
+      shortcut: { hasValue: false },
       help: { short: "h", hasValue: false },
     },
     "sync",
   );
 
   if (getBooleanFlag(flags, "help")) {
-    console.log(`${colors.bold}dex sync${colors.reset} - Push tasks to GitHub Issues
+    console.log(`${colors.bold}dex sync${colors.reset} - Push tasks to GitHub Issues or Shortcut Stories
 
 ${colors.bold}USAGE:${colors.reset}
-  dex sync              # Sync all root tasks
+  dex sync              # Sync all root tasks to all enabled services
   dex sync <task-id>    # Sync specific task
+  dex sync --github     # Sync only to GitHub
+  dex sync --shortcut   # Sync only to Shortcut
   dex sync --dry-run    # Preview without syncing
 
 ${colors.bold}ARGUMENTS:${colors.reset}
   <task-id>             Optional task ID to sync (syncs all if omitted)
 
 ${colors.bold}OPTIONS:${colors.reset}
+  --github              Sync only to GitHub Issues
+  --shortcut            Sync only to Shortcut Stories
   --dry-run             Show what would be synced without making changes
   -h, --help            Show this help message
 
 ${colors.bold}REQUIREMENTS:${colors.reset}
-  - Git repository with GitHub remote
-  - GITHUB_TOKEN environment variable
+  GitHub:
+    - Git repository with GitHub remote
+    - GITHUB_TOKEN environment variable
+
+  Shortcut:
+    - SHORTCUT_API_TOKEN environment variable
+    - Team configured in dex.toml [sync.shortcut] section
 
 ${colors.bold}EXAMPLE:${colors.reset}
-  dex sync                    # Sync all tasks to GitHub
+  dex sync                    # Sync all tasks to all services
   dex sync abc123             # Sync specific task
+  dex sync --github           # Sync only to GitHub
+  dex sync --shortcut         # Sync only to Shortcut
   dex sync --dry-run          # Preview sync
 `);
     return;
@@ -54,18 +80,57 @@ ${colors.bold}EXAMPLE:${colors.reset}
 
   const taskId = positional[0];
   const dryRun = getBooleanFlag(flags, "dry-run");
-  const config = loadConfig({ storagePath: options.storage.getIdentifier() });
+  const githubOnly = getBooleanFlag(flags, "github");
+  const shortcutOnly = getBooleanFlag(flags, "shortcut");
 
-  let syncService: GitHubSyncService;
-  try {
-    syncService = createGitHubSyncServiceOrThrow(config.sync?.github);
-  } catch (err) {
-    console.error(formatCliError(err));
-    process.exit(1);
+  // If neither flag is specified, sync to all configured services
+  const syncToGitHub = !shortcutOnly;
+  const syncToShortcut = !githubOnly;
+
+  const config = loadConfig({ storagePath: options.storage.getIdentifier() });
+  const service = createService(options);
+
+  let githubSyncService: GitHubSyncService | null = null;
+  let shortcutSyncService: ShortcutSyncService | null = null;
+
+  // Try to create GitHub sync service
+  if (syncToGitHub) {
+    try {
+      githubSyncService = createGitHubSyncServiceOrThrow(config.sync?.github);
+    } catch (err) {
+      if (githubOnly) {
+        // If explicitly requested, show the error
+        console.error(formatCliError(err));
+        process.exit(1);
+      }
+      // Otherwise, silently skip GitHub sync
+    }
   }
 
-  const service = createService(options);
-  const repo = syncService.getRepo();
+  // Try to create Shortcut sync service
+  if (syncToShortcut) {
+    try {
+      shortcutSyncService = await createShortcutSyncServiceOrThrow(
+        config.sync?.shortcut,
+      );
+    } catch (err) {
+      if (shortcutOnly) {
+        // If explicitly requested, show the error
+        console.error(formatCliError(err));
+        process.exit(1);
+      }
+      // Otherwise, silently skip Shortcut sync
+    }
+  }
+
+  // Check if we have at least one sync service
+  if (!githubSyncService && !shortcutSyncService) {
+    console.error(
+      `${colors.red}Error:${colors.reset} No sync services available.\n` +
+        "Configure GitHub and/or Shortcut sync in dex.toml.",
+    );
+    process.exit(1);
+  }
 
   try {
     if (taskId) {
@@ -82,35 +147,46 @@ ${colors.bold}EXAMPLE:${colors.reset}
       const rootTask = await findRootTask(service, task);
 
       if (dryRun) {
-        const action = getGitHubIssueNumber(rootTask) ? "update" : "create";
-        console.log(
-          `Would sync to ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}:`,
-        );
-        console.log(
-          `  [${action}] ${colors.bold}${rootTask.id}${colors.reset}: ${rootTask.name}`,
-        );
+        printDryRunSingleTask(rootTask, githubSyncService, shortcutSyncService);
         return;
       }
 
       const store = await options.storage.readAsync();
-      const result = await syncService.syncTask(rootTask, store);
 
-      // Save github metadata to task
-      if (result) {
-        await saveGithubMetadata(service, result);
+      // Sync to GitHub
+      if (githubSyncService) {
+        const result = await githubSyncService.syncTask(rootTask, store);
+        if (result) {
+          await saveGithubMetadata(service, result);
+          const repo = githubSyncService.getRepo();
+          console.log(
+            `${colors.green}Synced${colors.reset} task ${colors.bold}${rootTask.id}${colors.reset} to GitHub ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}`,
+          );
+          console.log(
+            `  ${colors.dim}${result.github.issueUrl}${colors.reset}`,
+          );
+        }
+      }
+
+      // Sync to Shortcut
+      if (shortcutSyncService) {
+        const result = await shortcutSyncService.syncTask(rootTask, store);
+        if (result) {
+          await saveShortcutMetadata(service, result);
+          const workspace = shortcutSyncService.getWorkspace();
+          console.log(
+            `${colors.green}Synced${colors.reset} task ${colors.bold}${rootTask.id}${colors.reset} to Shortcut ${colors.cyan}${workspace}${colors.reset}`,
+          );
+          console.log(
+            `  ${colors.dim}${result.shortcut.storyUrl}${colors.reset}`,
+          );
+        }
       }
 
       // Update sync state timestamp
       updateSyncState(options.storage.getIdentifier(), {
         lastSync: new Date().toISOString(),
       });
-
-      console.log(
-        `${colors.green}Synced${colors.reset} task ${colors.bold}${rootTask.id}${colors.reset} to ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}`,
-      );
-      if (result) {
-        console.log(`  ${colors.dim}${result.github.issueUrl}${colors.reset}`);
-      }
     } else {
       // Sync all root tasks
       const allTasks = await service.list({ all: true });
@@ -122,108 +198,46 @@ ${colors.bold}EXAMPLE:${colors.reset}
       }
 
       if (dryRun) {
-        console.log(
-          `Would sync ${rootTasks.length} task(s) to ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}:`,
-        );
-        for (const task of rootTasks) {
-          const action = getGitHubIssueNumber(task) ? "update" : "create";
-          console.log(
-            `  [${action}] ${colors.bold}${task.id}${colors.reset}: ${task.name}`,
-          );
-        }
+        printDryRunAllTasks(rootTasks, githubSyncService, shortcutSyncService);
         return;
       }
 
-      console.log(
-        `Syncing ${rootTasks.length} task(s) to ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}...`,
-      );
-
       const store = await options.storage.readAsync();
-      const isTTY = process.stdout.isTTY;
 
-      // Progress callback for real-time output
-      const onProgress = (progress: SyncProgress): void => {
-        const { current, total, task, phase } = progress;
-        const desc = truncateText(task.name, 50);
-        const counter = `[${current}/${total}]`;
+      // Sync to GitHub
+      if (githubSyncService) {
+        const repo = githubSyncService.getRepo();
+        console.log(
+          `Syncing ${rootTasks.length} task(s) to GitHub ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}...`,
+        );
 
-        // Clear line for TTY (in-place updates)
-        if (isTTY) {
-          process.stdout.write("\r\x1b[K");
-        }
-
-        switch (phase) {
-          case "checking":
-            if (isTTY) {
-              process.stdout.write(
-                `${colors.dim}${counter}${colors.reset} Checking ${colors.bold}${task.id}${colors.reset}: ${desc}`,
-              );
-            }
-            break;
-          case "skipped":
-            // Show skipped in dim for TTY, but skip entirely for non-TTY to reduce noise
-            if (isTTY) {
-              console.log(
-                `${colors.dim}${counter} ∙ ${task.id}: ${desc}${colors.reset}`,
-              );
-            }
-            break;
-          case "creating":
-            // Always show creates
-            if (isTTY) {
-              process.stdout.write(
-                `${colors.dim}${counter}${colors.reset} ${colors.green}+${colors.reset} ${colors.bold}${task.id}${colors.reset}: ${desc}`,
-              );
-            } else {
-              console.log(`${counter} + ${task.id}: ${desc}`);
-            }
-            break;
-          case "updating":
-            // Always show updates
-            if (isTTY) {
-              process.stdout.write(
-                `${colors.dim}${counter}${colors.reset} ${colors.yellow}↻${colors.reset} ${colors.bold}${task.id}${colors.reset}: ${desc}`,
-              );
-            } else {
-              console.log(`${counter} ~ ${task.id}: ${desc}`);
-            }
-            break;
-        }
-      };
-
-      const results = await syncService.syncAll(store, { onProgress });
-
-      // Clear any remaining progress line
-      if (isTTY) {
-        process.stdout.write("\r\x1b[K");
+        const results = await syncAllToGitHub(
+          githubSyncService,
+          store,
+          service,
+        );
+        printSyncSummary("GitHub", repo.owner + "/" + repo.repo, results);
       }
 
-      // Save github metadata for all synced tasks (skip already-synced ones)
-      for (const result of results) {
-        if (!result.skipped) {
-          await saveGithubMetadata(service, result);
-        }
+      // Sync to Shortcut
+      if (shortcutSyncService) {
+        const workspace = shortcutSyncService.getWorkspace();
+        console.log(
+          `Syncing ${rootTasks.length} task(s) to Shortcut ${colors.cyan}${workspace}${colors.reset}...`,
+        );
+
+        const results = await syncAllToShortcut(
+          shortcutSyncService,
+          store,
+          service,
+        );
+        printSyncSummary("Shortcut", workspace, results);
       }
 
       // Update sync state timestamp
       updateSyncState(options.storage.getIdentifier(), {
         lastSync: new Date().toISOString(),
       });
-
-      const created = results.filter((r) => r.created).length;
-      const updated = results.filter((r) => !r.created && !r.skipped).length;
-      const skipped = results.filter((r) => r.skipped).length;
-
-      console.log(
-        `${colors.green}Synced${colors.reset} ${rootTasks.length} task(s) to ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}`,
-      );
-      const parts = [];
-      if (created > 0) parts.push(`${created} created`);
-      if (updated > 0) parts.push(`${updated} updated`);
-      if (skipped > 0) parts.push(`${skipped} unchanged`);
-      if (parts.length > 0) {
-        console.log(`  (${parts.join(", ")})`);
-      }
     }
   } catch (err) {
     console.error(formatCliError(err));
@@ -232,19 +246,271 @@ ${colors.bold}EXAMPLE:${colors.reset}
 }
 
 /**
+ * Print dry run output for a single task.
+ */
+function printDryRunSingleTask(
+  task: Task,
+  githubService: GitHubSyncService | null,
+  shortcutService: ShortcutSyncService | null,
+): void {
+  if (githubService) {
+    const repo = githubService.getRepo();
+    const action = getGitHubIssueNumber(task) ? "update" : "create";
+    console.log(
+      `Would sync to GitHub ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}:`,
+    );
+    console.log(
+      `  [${action}] ${colors.bold}${task.id}${colors.reset}: ${task.name}`,
+    );
+  }
+
+  if (shortcutService) {
+    const workspace = shortcutService.getWorkspace();
+    const action = getShortcutStoryId(task) ? "update" : "create";
+    console.log(
+      `Would sync to Shortcut ${colors.cyan}${workspace}${colors.reset}:`,
+    );
+    console.log(
+      `  [${action}] ${colors.bold}${task.id}${colors.reset}: ${task.name}`,
+    );
+  }
+}
+
+/**
+ * Print dry run output for all tasks.
+ */
+function printDryRunAllTasks(
+  tasks: Task[],
+  githubService: GitHubSyncService | null,
+  shortcutService: ShortcutSyncService | null,
+): void {
+  if (githubService) {
+    const repo = githubService.getRepo();
+    console.log(
+      `Would sync ${tasks.length} task(s) to GitHub ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}:`,
+    );
+    for (const task of tasks) {
+      const action = getGitHubIssueNumber(task) ? "update" : "create";
+      console.log(
+        `  [${action}] ${colors.bold}${task.id}${colors.reset}: ${task.name}`,
+      );
+    }
+  }
+
+  if (shortcutService) {
+    const workspace = shortcutService.getWorkspace();
+    console.log(
+      `Would sync ${tasks.length} task(s) to Shortcut ${colors.cyan}${workspace}${colors.reset}:`,
+    );
+    for (const task of tasks) {
+      const action = getShortcutStoryId(task) ? "update" : "create";
+      console.log(
+        `  [${action}] ${colors.bold}${task.id}${colors.reset}: ${task.name}`,
+      );
+    }
+  }
+}
+
+/**
+ * Sync all tasks to GitHub with progress output.
+ */
+async function syncAllToGitHub(
+  syncService: GitHubSyncService,
+  store: { tasks: Task[] },
+  service: ReturnType<typeof createService>,
+): Promise<GitHubSyncResult[]> {
+  const isTTY = process.stdout.isTTY;
+
+  const onProgress = (progress: GitHubSyncProgress): void => {
+    const { current, total, task, phase } = progress;
+    const desc = truncateText(task.name, 50);
+    const counter = `[${current}/${total}]`;
+
+    if (isTTY) {
+      process.stdout.write("\r\x1b[K");
+    }
+
+    switch (phase) {
+      case "checking":
+        if (isTTY) {
+          process.stdout.write(
+            `${colors.dim}${counter}${colors.reset} Checking ${colors.bold}${task.id}${colors.reset}: ${desc}`,
+          );
+        }
+        break;
+      case "skipped":
+        if (isTTY) {
+          console.log(
+            `${colors.dim}${counter} ∙ ${task.id}: ${desc}${colors.reset}`,
+          );
+        }
+        break;
+      case "creating":
+        if (isTTY) {
+          process.stdout.write(
+            `${colors.dim}${counter}${colors.reset} ${colors.green}+${colors.reset} ${colors.bold}${task.id}${colors.reset}: ${desc}`,
+          );
+        } else {
+          console.log(`${counter} + ${task.id}: ${desc}`);
+        }
+        break;
+      case "updating":
+        if (isTTY) {
+          process.stdout.write(
+            `${colors.dim}${counter}${colors.reset} ${colors.yellow}↻${colors.reset} ${colors.bold}${task.id}${colors.reset}: ${desc}`,
+          );
+        } else {
+          console.log(`${counter} ~ ${task.id}: ${desc}`);
+        }
+        break;
+    }
+  };
+
+  const results = await syncService.syncAll(store, { onProgress });
+
+  if (isTTY) {
+    process.stdout.write("\r\x1b[K");
+  }
+
+  // Save metadata for all synced tasks
+  for (const result of results) {
+    if (!result.skipped) {
+      await saveGithubMetadata(service, result);
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Sync all tasks to Shortcut with progress output.
+ */
+async function syncAllToShortcut(
+  syncService: ShortcutSyncService,
+  store: { tasks: Task[] },
+  service: ReturnType<typeof createService>,
+): Promise<ShortcutSyncResult[]> {
+  const isTTY = process.stdout.isTTY;
+
+  const onProgress = (progress: ShortcutSyncProgress): void => {
+    const { current, total, task, phase } = progress;
+    const desc = truncateText(task.name, 50);
+    const counter = `[${current}/${total}]`;
+
+    if (isTTY) {
+      process.stdout.write("\r\x1b[K");
+    }
+
+    switch (phase) {
+      case "checking":
+        if (isTTY) {
+          process.stdout.write(
+            `${colors.dim}${counter}${colors.reset} Checking ${colors.bold}${task.id}${colors.reset}: ${desc}`,
+          );
+        }
+        break;
+      case "skipped":
+        if (isTTY) {
+          console.log(
+            `${colors.dim}${counter} ∙ ${task.id}: ${desc}${colors.reset}`,
+          );
+        }
+        break;
+      case "creating":
+        if (isTTY) {
+          process.stdout.write(
+            `${colors.dim}${counter}${colors.reset} ${colors.green}+${colors.reset} ${colors.bold}${task.id}${colors.reset}: ${desc}`,
+          );
+        } else {
+          console.log(`${counter} + ${task.id}: ${desc}`);
+        }
+        break;
+      case "updating":
+        if (isTTY) {
+          process.stdout.write(
+            `${colors.dim}${counter}${colors.reset} ${colors.yellow}↻${colors.reset} ${colors.bold}${task.id}${colors.reset}: ${desc}`,
+          );
+        } else {
+          console.log(`${counter} ~ ${task.id}: ${desc}`);
+        }
+        break;
+    }
+  };
+
+  const results = await syncService.syncAll(store, { onProgress });
+
+  if (isTTY) {
+    process.stdout.write("\r\x1b[K");
+  }
+
+  // Save metadata for all synced tasks
+  for (const result of results) {
+    if (!result.skipped) {
+      await saveShortcutMetadata(service, result);
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Print sync summary.
+ */
+function printSyncSummary(
+  serviceName: string,
+  target: string,
+  results: Array<{ created: boolean; skipped?: boolean }>,
+): void {
+  const created = results.filter((r) => r.created).length;
+  const updated = results.filter((r) => !r.created && !r.skipped).length;
+  const skipped = results.filter((r) => r.skipped).length;
+
+  console.log(
+    `${colors.green}Synced${colors.reset} to ${serviceName} ${colors.cyan}${target}${colors.reset}`,
+  );
+  const parts = [];
+  if (created > 0) parts.push(`${created} created`);
+  if (updated > 0) parts.push(`${updated} updated`);
+  if (skipped > 0) parts.push(`${skipped} unchanged`);
+  if (parts.length > 0) {
+    console.log(`  (${parts.join(", ")})`);
+  }
+}
+
+/**
  * Save github metadata to a task after syncing.
  */
 async function saveGithubMetadata(
   service: ReturnType<typeof createService>,
-  result: SyncResult,
+  result: GitHubSyncResult,
 ): Promise<void> {
   const task = await service.get(result.taskId);
   if (!task) return;
 
-  // Merge with existing metadata
   const metadata = {
     ...task.metadata,
     github: result.github,
+  };
+
+  await service.update({
+    id: result.taskId,
+    metadata,
+  });
+}
+
+/**
+ * Save shortcut metadata to a task after syncing.
+ */
+async function saveShortcutMetadata(
+  service: ReturnType<typeof createService>,
+  result: ShortcutSyncResult,
+): Promise<void> {
+  const task = await service.get(result.taskId);
+  if (!task) return;
+
+  const metadata = {
+    ...task.metadata,
+    shortcut: result.shortcut,
   };
 
   await service.update({
