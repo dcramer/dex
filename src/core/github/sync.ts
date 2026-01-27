@@ -1,4 +1,3 @@
-import { execSync } from "node:child_process";
 import { Octokit } from "@octokit/rest";
 import { GithubMetadata, Task, TaskStore } from "../../types.js";
 import { GitHubRepo } from "./remote.js";
@@ -8,6 +7,7 @@ import {
   HierarchicalTask,
   encodeMetadataValue,
 } from "./issue-markdown.js";
+import { isCommitOnRemote } from "../git-utils.js";
 
 /**
  * Result of syncing a task to GitHub.
@@ -87,7 +87,6 @@ export class GitHubSyncService {
   private repo: string;
   private labelPrefix: string;
   private storagePath: string;
-  private gitignoreCache: boolean | null = null;
 
   constructor(options: GitHubSyncServiceOptions) {
     this.octokit = new Octokit({ auth: options.token });
@@ -540,60 +539,27 @@ export class GitHubSyncService {
   }
 
   /**
-   * Check if task storage is gitignored.
-   * Checks the tasks directory specifically since that's where task files live.
-   * Result is cached on first call to avoid repeated subprocess calls.
-   */
-  private isStorageGitignored(): boolean {
-    if (this.gitignoreCache !== null) {
-      return this.gitignoreCache;
-    }
-    try {
-      // Check the tasks directory specifically - it may be gitignored even if .dex is not
-      // git check-ignore returns 0 if ignored, 1 if not ignored
-      execSync(`git check-ignore -q ${this.storagePath}/tasks/`, {
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-      this.gitignoreCache = true;
-    } catch {
-      this.gitignoreCache = false;
-    }
-    return this.gitignoreCache;
-  }
-
-  /**
    * Determine if a task should be marked as completed in GitHub.
    *
-   * If storage is gitignored: use local completion status (tasks won't be pushed)
-   * If storage is tracked: use remote completion status (sync-on-push behavior)
+   * If task has a commit SHA: only mark completed if that commit is pushed to origin
+   * If task has no commit SHA: use local completion status (can't verify push status)
+   *
+   * This ensures GitHub issues are only closed when the actual work has been pushed.
    */
   private shouldMarkCompleted(task: Task): boolean {
-    // If storage is gitignored, use local status directly
-    if (this.isStorageGitignored()) {
-      return task.completed;
-    }
-
-    // Otherwise, only mark completed if pushed to remote
-    return this.isTaskCompletedOnRemote(task.id);
-  }
-
-  /**
-   * Check if a task is marked as completed on the remote branch.
-   * Only returns true if the task file exists on origin/HEAD and has completed=true.
-   * This ensures we only close GitHub issues when completion has been pushed.
-   */
-  private isTaskCompletedOnRemote(taskId: string): boolean {
-    try {
-      const result = execSync(
-        `git show origin/HEAD:${this.storagePath}/tasks/${taskId}.json 2>/dev/null`,
-        { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
-      );
-      const task = JSON.parse(result);
-      return task.completed === true;
-    } catch {
-      // File doesn't exist on remote, parse error, or no remote tracking
+    // Task must be locally completed first
+    if (!task.completed) {
       return false;
     }
+
+    // If task has a commit SHA, verify it's been pushed
+    const commitSha = task.metadata?.commit?.sha;
+    if (commitSha) {
+      return isCommitOnRemote(commitSha);
+    }
+
+    // No commit SHA - use local completion status (can't verify push)
+    return true;
   }
 
   /**

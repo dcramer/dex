@@ -14,6 +14,11 @@ vi.mock("node:fs", async () => {
   };
 });
 
+// Mock git-utils for commit checking
+vi.mock("./git-utils.js", () => ({
+  isCommitOnRemote: vi.fn(() => true), // Default: commits are on remote
+}));
+
 const createTask = (overrides: Partial<Task> = {}): Task => ({
   id: "test-id",
   parent_id: null,
@@ -374,5 +379,92 @@ describe("performAutoArchive", () => {
 
     // With default keep_recent of 50, this task won't be archived
     expect(result.archivedCount).toBe(0);
+  });
+
+  describe("commit-based archive filtering", () => {
+    it("does not archive tasks with unpushed commits", async () => {
+      const { isCommitOnRemote } = await import("./git-utils.js");
+      vi.mocked(isCommitOnRemote).mockReturnValue(false); // Commit not pushed
+
+      const store: TaskStore = {
+        tasks: [
+          createTask({
+            id: "unpushed-task",
+            completed: true,
+            completed_at: "2024-01-01T00:00:00.000Z",
+            metadata: {
+              commit: {
+                sha: "abc123",
+                message: "Fix bug",
+              },
+            },
+          }),
+        ],
+      };
+
+      const result = performAutoArchive(store, testStoragePath, {
+        auto: true,
+        age_days: 90,
+        keep_recent: 0,
+      });
+
+      expect(result.archivedCount).toBe(0);
+      expect(store.tasks).toHaveLength(1);
+    });
+
+    it("archives tasks with pushed commits", async () => {
+      const { isCommitOnRemote } = await import("./git-utils.js");
+      vi.mocked(isCommitOnRemote).mockReturnValue(true); // Commit is pushed
+
+      const store: TaskStore = {
+        tasks: [
+          createTask({
+            id: "pushed-task",
+            completed: true,
+            completed_at: "2024-01-01T00:00:00.000Z",
+            metadata: {
+              commit: {
+                sha: "abc123",
+                message: "Fix bug",
+              },
+            },
+          }),
+        ],
+      };
+
+      const result = performAutoArchive(store, testStoragePath, {
+        auto: true,
+        age_days: 90,
+        keep_recent: 0,
+      });
+
+      expect(result.archivedCount).toBe(1);
+      expect(store.tasks).toHaveLength(0);
+    });
+
+    it("archives tasks without commit metadata (uses local status)", async () => {
+      const { isCommitOnRemote } = await import("./git-utils.js");
+      vi.mocked(isCommitOnRemote).mockReturnValue(true); // No commit = assume pushed
+
+      const store: TaskStore = {
+        tasks: [
+          createTask({
+            id: "no-commit-task",
+            completed: true,
+            completed_at: "2024-01-01T00:00:00.000Z",
+            // No commit metadata
+          }),
+        ],
+      };
+
+      const result = performAutoArchive(store, testStoragePath, {
+        auto: true,
+        age_days: 90,
+        keep_recent: 0,
+      });
+
+      expect(result.archivedCount).toBe(1);
+      expect(store.tasks).toHaveLength(0);
+    });
   });
 });

@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ArchivedTask, TaskStore } from "../types.js";
+import { ArchivedTask, Task, TaskStore } from "../types.js";
 import { ArchiveConfig } from "./config.js";
 import {
   findAutoArchivableTasks,
@@ -10,6 +10,7 @@ import {
 } from "./archive-compactor.js";
 import { ArchiveStorage } from "./storage/archive-storage.js";
 import { cleanupTaskReferences } from "./task-relationships.js";
+import { isCommitOnRemote } from "./git-utils.js";
 
 /**
  * Default auto-archive configuration.
@@ -39,6 +40,16 @@ function toAutoArchiveConfig(config: ArchiveConfig): AutoArchiveConfig {
     minAgeDays: config.age_days ?? DEFAULT_ARCHIVE_CONFIG.age_days,
     keepRecentCount: config.keep_recent ?? DEFAULT_ARCHIVE_CONFIG.keep_recent,
   };
+}
+
+/**
+ * Check if a task's commit has been pushed to origin.
+ * Only tasks with pushed commits (or no commit SHA) can be auto-archived.
+ */
+function isTaskPushed(task: Task): boolean {
+  const sha = task.metadata?.commit?.sha;
+  // No commit SHA means we can't verify - allow archiving
+  return !sha || isCommitOnRemote(sha);
 }
 
 /**
@@ -100,7 +111,11 @@ export function performAutoArchive(
   // Find eligible tasks (root-level only)
   const eligibleTasks = findAutoArchivableTasks(store.tasks, autoArchiveConfig);
 
-  if (eligibleTasks.length === 0) {
+  // Filter to only tasks whose commits have been pushed to origin
+  // This ensures we don't archive work that hasn't been published yet
+  const pushedTasks = eligibleTasks.filter(isTaskPushed);
+
+  if (pushedTasks.length === 0) {
     return { archivedCount: 0, archivedIds: [] };
   }
 
@@ -111,7 +126,7 @@ export function performAutoArchive(
   const tasksToArchive: ArchivedTask[] = [];
 
   // Process each eligible task
-  for (const rootTask of eligibleTasks) {
+  for (const rootTask of pushedTasks) {
     const collected = collectArchivableTasks(rootTask.id, store.tasks);
     if (!collected) continue;
 

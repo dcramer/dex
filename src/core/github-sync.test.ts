@@ -33,11 +33,9 @@ vi.mock("node:child_process", async (importOriginal) => {
       if (cmd.includes("gh auth token")) {
         throw new Error("gh not authenticated");
       }
-      if (cmd.includes("git check-ignore")) {
-        throw new Error("not ignored");
-      }
-      if (cmd.includes("git show origin/HEAD")) {
-        throw new Error("not on remote");
+      // Default: commits are on remote (for most tests)
+      if (cmd.includes("git merge-base --is-ancestor")) {
+        return ""; // Success = commit is on remote
       }
       return "";
     }),
@@ -219,20 +217,10 @@ describe("GitHubSyncService", () => {
     });
 
     describe("fast-path state tracking", () => {
-      // Helper to mock gitignored storage so local completion status is used
-      async function mockGitignoredStorage(): Promise<void> {
-        const { execSync } = await import("node:child_process");
-        vi.mocked(execSync).mockImplementation((cmd: string) => {
-          if (typeof cmd === "string" && cmd.includes("git check-ignore")) {
-            return ""; // Storage is gitignored
-          }
-          throw new Error("unexpected command");
-        });
-      }
+      // Tasks without commit SHA use local completion status directly
+      // Tasks with commit SHA require the commit to be on origin/HEAD
 
       it("syncs completed task when previously synced as open", async () => {
-        await mockGitignoredStorage();
-
         // Bug scenario: task synced while pending (state: "open"), then completed locally
         // The sync should update the issue to close it
         const task = createTask({
@@ -278,8 +266,6 @@ describe("GitHubSyncService", () => {
       });
 
       it("skips completed task when already synced as closed", async () => {
-        await mockGitignoredStorage();
-
         // Fast-path: completed task with state: "closed" should skip API call
         const task = createTask({
           completed: true,
@@ -346,6 +332,147 @@ describe("GitHubSyncService", () => {
         expect(result).not.toBeNull();
         expect(result?.skipped).toBeFalsy();
         expect(result?.github.state).toBe("open");
+      });
+    });
+
+    describe("commit-based completion checking", () => {
+      it("keeps issue open when task has unpushed commit", async () => {
+        const { execSync } = await import("node:child_process");
+        vi.mocked(execSync).mockImplementation((cmd: string) => {
+          if (typeof cmd === "string" && cmd.includes("gh auth token")) {
+            throw new Error("gh not authenticated");
+          }
+          // Commit is NOT on remote
+          if (
+            typeof cmd === "string" &&
+            cmd.includes("git merge-base --is-ancestor")
+          ) {
+            throw new Error("not ancestor");
+          }
+          return "";
+        });
+
+        // Task is completed locally with a commit SHA that's not pushed
+        const task = createTask({
+          completed: true,
+          metadata: {
+            commit: {
+              sha: "abc123",
+              message: "Fix bug",
+            },
+          },
+        });
+        const store = createStore([task]);
+
+        // Should create issue as OPEN (not closed) because commit isn't pushed
+        githubMock.listIssues("test-owner", "test-repo", []);
+        githubMock.createIssue(
+          "test-owner",
+          "test-repo",
+          createIssueFixture({
+            number: 1,
+            title: task.name,
+            state: "open",
+          }),
+        );
+
+        const result = await service.syncTask(task, store);
+
+        expect(result).not.toBeNull();
+        expect(result?.github.state).toBe("open");
+      });
+
+      it("closes issue when task has pushed commit", async () => {
+        const { execSync } = await import("node:child_process");
+        vi.mocked(execSync).mockImplementation((cmd: string) => {
+          if (typeof cmd === "string" && cmd.includes("gh auth token")) {
+            throw new Error("gh not authenticated");
+          }
+          // Commit IS on remote (success = exit 0)
+          if (
+            typeof cmd === "string" &&
+            cmd.includes("git merge-base --is-ancestor")
+          ) {
+            return ""; // Success
+          }
+          return "";
+        });
+
+        // Task is completed locally with a commit SHA that IS pushed
+        const task = createTask({
+          completed: true,
+          metadata: {
+            commit: {
+              sha: "abc123",
+              message: "Fix bug",
+            },
+          },
+        });
+        const store = createStore([task]);
+
+        // Should create issue as CLOSED because commit is pushed
+        githubMock.listIssues("test-owner", "test-repo", []);
+        githubMock.createIssue(
+          "test-owner",
+          "test-repo",
+          createIssueFixture({
+            number: 1,
+            title: task.name,
+            state: "open",
+          }),
+        );
+        githubMock.updateIssue(
+          "test-owner",
+          "test-repo",
+          1,
+          createIssueFixture({
+            number: 1,
+            title: task.name,
+            state: "closed",
+          }),
+        );
+
+        const result = await service.syncTask(task, store);
+
+        expect(result).not.toBeNull();
+        expect(result?.github.state).toBe("closed");
+      });
+
+      it("closes issue when task has no commit SHA (uses local status)", async () => {
+        // Task is completed locally without a commit SHA
+        // Should use local completion status directly
+        const task = createTask({
+          completed: true,
+          // No commit metadata
+        });
+        const store = createStore([task]);
+
+        // Should create issue as CLOSED because local status is completed
+        githubMock.listIssues("test-owner", "test-repo", []);
+        githubMock.createIssue(
+          "test-owner",
+          "test-repo",
+          createIssueFixture({
+            number: 1,
+            title: task.name,
+            state: "open",
+          }),
+        );
+        githubMock.updateIssue(
+          "test-owner",
+          "test-repo",
+          1,
+          createIssueFixture({
+            number: 1,
+            title: task.name,
+            state: "closed",
+          }),
+        );
+
+        const result = await service.syncTask(task, store);
+
+        expect(result).not.toBeNull();
+        expect(result?.github.state).toBe("closed");
       });
     });
   });
@@ -1248,151 +1375,6 @@ describe("hasIssueChangedFromCache change detection", () => {
     const results = await service.syncAll(store);
 
     expect(results[0].skipped).toBe(true);
-  });
-});
-
-describe("isStorageGitignored caching", () => {
-  let originalEnv: string | undefined;
-
-  beforeEach(() => {
-    originalEnv = process.env.GITHUB_TOKEN;
-    process.env.GITHUB_TOKEN = "test-token";
-  });
-
-  afterEach(() => {
-    if (originalEnv !== undefined) {
-      process.env.GITHUB_TOKEN = originalEnv;
-    } else {
-      delete process.env.GITHUB_TOKEN;
-    }
-    vi.restoreAllMocks();
-    cleanupGitHubMock();
-  });
-
-  it("caches gitignore check result across multiple calls", async () => {
-    const { execSync } = await import("node:child_process");
-    let gitCheckIgnoreCallCount = 0;
-
-    vi.mocked(execSync).mockImplementation((cmd: string) => {
-      if (typeof cmd === "string" && cmd.includes("git check-ignore")) {
-        gitCheckIgnoreCallCount++;
-        return ""; // Storage is gitignored
-      }
-      if (typeof cmd === "string" && cmd.includes("gh auth token")) {
-        throw new Error("not authenticated");
-      }
-      throw new Error("unexpected command");
-    });
-
-    const githubMock = setupGitHubMock();
-    const service = new GitHubSyncService({
-      repo: { owner: "test-owner", repo: "test-repo" },
-      token: "test-token",
-    });
-
-    const task1 = createTask({
-      id: "task1",
-      description: "Task 1",
-      completed: true,
-    });
-    const task2 = createTask({
-      id: "task2",
-      description: "Task 2",
-      completed: true,
-    });
-    const store = createStore([task1, task2]);
-
-    // Cache fetch
-    githubMock.listIssues("test-owner", "test-repo", []);
-
-    // Both tasks need to be created
-    githubMock.createIssue(
-      "test-owner",
-      "test-repo",
-      createIssueFixture({ number: 1, title: "Task 1" }),
-    );
-    githubMock.updateIssue(
-      "test-owner",
-      "test-repo",
-      1,
-      createIssueFixture({ number: 1, state: "closed" }),
-    );
-    githubMock.createIssue(
-      "test-owner",
-      "test-repo",
-      createIssueFixture({ number: 2, title: "Task 2" }),
-    );
-    githubMock.updateIssue(
-      "test-owner",
-      "test-repo",
-      2,
-      createIssueFixture({ number: 2, state: "closed" }),
-    );
-
-    await service.syncAll(store);
-
-    // git check-ignore should only be called once, not twice
-    expect(gitCheckIgnoreCallCount).toBe(1);
-  });
-
-  it("returns cached value on subsequent sync calls", async () => {
-    const { execSync } = await import("node:child_process");
-    let gitCheckIgnoreCallCount = 0;
-
-    vi.mocked(execSync).mockImplementation((cmd: string) => {
-      if (typeof cmd === "string" && cmd.includes("git check-ignore")) {
-        gitCheckIgnoreCallCount++;
-        throw new Error("not ignored"); // Storage is tracked in git
-      }
-      if (typeof cmd === "string" && cmd.includes("gh auth token")) {
-        throw new Error("not authenticated");
-      }
-      if (typeof cmd === "string" && cmd.includes("git show origin/HEAD")) {
-        throw new Error("not on remote");
-      }
-      return "";
-    });
-
-    const githubMock = setupGitHubMock();
-    const service = new GitHubSyncService({
-      repo: { owner: "test-owner", repo: "test-repo" },
-      token: "test-token",
-    });
-
-    const task = createTask({ id: "task1", description: "Task 1" });
-    const store = createStore([task]);
-
-    // First sync
-    githubMock.listIssues("test-owner", "test-repo", []);
-    githubMock.createIssue(
-      "test-owner",
-      "test-repo",
-      createIssueFixture({ number: 1, title: "Task 1" }),
-    );
-
-    await service.syncAll(store);
-
-    // Second sync with same service instance
-    githubMock.listIssues("test-owner", "test-repo", [
-      createIssueFixture({
-        number: 1,
-        title: "Task 1",
-        body: `<!-- dex:task:id:task1 -->\nTest context`,
-        labels: [{ name: "dex" }],
-      }),
-    ]);
-    githubMock.listIssues("test-owner", "test-repo", []);
-    githubMock.updateIssue(
-      "test-owner",
-      "test-repo",
-      1,
-      createIssueFixture({ number: 1, title: "Task 1" }),
-    );
-
-    await service.syncAll(store);
-
-    // Should only call git check-ignore once despite two syncAll calls
-    expect(gitCheckIgnoreCallCount).toBe(1);
   });
 });
 
