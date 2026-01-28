@@ -48,7 +48,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
         <p>"Migrate our API from Express to Hono. Use dex to track it."</p>
       </div>
       <Terminal title="Terminal" showCopy={false}>
-        <pre class="cli-output"><span class="cli-dim">$</span> dex create -d "Migrate auth middleware" --context "Current auth
+        <pre class="cli-output"><span class="cli-dim">$</span> dex create "Migrate auth middleware" --description "Current auth
 uses passport.js with JWT strategy in src/middleware/auth.ts.
 Hono equivalent is hono/jwt. Must preserve req.user pattern
 that 12 route handlers depend on."
@@ -111,7 +111,7 @@ Analyzed plan structure: Found 4 implementation steps
         <p>"Investigate why auto-sync with GitHub isn't working. Use Dex to track the fix."</p>
       </div>
       <Terminal title="Terminal" showCopy={false}>
-        <pre class="cli-output"><span class="cli-dim">$</span> dex create -d "Fix auto-sync not loading project config" --context "In
+        <pre class="cli-output"><span class="cli-dim">$</span> dex create "Fix auto-sync not loading project config" --description "In
 src/index.ts, createSyncService() calls loadConfig() without the
 storage path. Project config (.dex/config.toml) is never loaded.
 

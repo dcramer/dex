@@ -14,6 +14,7 @@ dex <command>
 ```
 
 If `dex` is not on PATH, use `npx @zeeg/dex <command>` instead. Check once at the start:
+
 ```bash
 command -v dex &>/dev/null && echo "use: dex" || echo "use: npx @zeeg/dex"
 ```
@@ -31,6 +32,7 @@ Use `/dex-plan` to convert any markdown planning document into a trackable dex t
 ## Supported Documents
 
 Any markdown file containing planning or design content:
+
 - Plan files from plan mode (`~/.claude/plans/*.md`)
 - Specification documents (`SPEC.md`, `REQUIREMENTS.md`)
 - Design documents (`DESIGN.md`, `ARCHITECTURE.md`)
@@ -46,21 +48,25 @@ Any markdown file containing planning or design content:
 ### Examples
 
 **From plan mode:**
+
 ```bash
 /dex-plan /home/user/.claude/plans/moonlit-brewing-lynx.md
 ```
 
 **From specification document:**
+
 ```bash
 /dex-plan @SPEC.md
 ```
 
 **From design document:**
+
 ```bash
 /dex-plan docs/AUTHENTICATION_DESIGN.md
 ```
 
 **From roadmap:**
+
 ```bash
 /dex-plan ROADMAP.md
 ```
@@ -78,21 +84,27 @@ Any markdown file containing planning or design content:
 ## Examples
 
 **From plan mode file:**
+
 ```markdown
 # Plan: Add JWT Authentication
 
 ## Summary
+
 ...
 ```
+
 → Task description: "Add JWT Authentication" (note: "Plan: " prefix stripped)
 
 **From specification document:**
+
 ```markdown
 # User Authentication Specification
 
 ## Requirements
+
 ...
 ```
+
 → Task description: "User Authentication Specification"
 
 ## Automatic Subtask Breakdown
@@ -103,21 +115,23 @@ After creating the main task, the skill analyzes the plan structure to determine
 
 The skill supports up to 3 levels (maximum depth enforced by dex):
 
-| Level | Name | Example |
-|-------|------|---------|
-| L0 | **Epic** | "Add user authentication system" |
-| L1 | **Task** | "Implement JWT middleware" |
-| L2 | **Subtask** | "Add token verification function" |
+| Level | Name        | Example                           |
+| ----- | ----------- | --------------------------------- |
+| L0    | **Epic**    | "Add user authentication system"  |
+| L1    | **Task**    | "Implement JWT middleware"        |
+| L2    | **Subtask** | "Add token verification function" |
 
 ### When Breakdown Happens
 
 The skill creates subtasks when the plan has:
+
 - 3-7 clearly separable work items (numbered steps, distinct sections, implementation phases)
 - Implementation across multiple files or components (different modules, layers, or areas)
 - Clear sequential dependencies (step 1 before step 2)
 - Independent items that benefit from separate tracking
 
 **Epic-level breakdown** (creates tasks, not subtasks) when:
+
 - Plan has major phases/sections with their own sub-items
 - 5+ distinct areas of work
 - Plan spans multiple systems or components
@@ -126,6 +140,7 @@ The skill creates subtasks when the plan has:
 ### When Breakdown Does NOT Happen
 
 The skill keeps a single task when:
+
 - Plan describes one cohesive task (even if detailed with multiple paragraphs)
 - Only 1-2 steps present (not enough to warrant breakdown)
 - Work items are tightly coupled (can't be separated meaningfully)
@@ -135,6 +150,7 @@ The skill keeps a single task when:
 ### What Each Subtask Contains
 
 When breakdown occurs, each subtask includes:
+
 - Description: Brief summary extracted from list item, heading, or section
 - Context: Relevant details from that section plus reference to parent task
 - Parent link: Automatically linked to main task via `--parent`
@@ -142,10 +158,12 @@ When breakdown occurs, each subtask includes:
 ### Example: With Breakdown
 
 **Input plan** (`auth-plan.md`):
+
 ```markdown
 # Plan: Add Authentication System
 
 ## Implementation
+
 1. Create database schema for users/tokens
 2. Implement auth controller with endpoints
 3. Add JWT middleware for route protection
@@ -154,6 +172,7 @@ When breakdown occurs, each subtask includes:
 ```
 
 **Output**:
+
 ```
 Created task abc123 from plan
 
@@ -171,17 +190,21 @@ View full structure: dex show abc123
 ### Example: Without Breakdown
 
 **Input plan** (`bugfix-plan.md`):
+
 ```markdown
 # Plan: Fix Login Validation Bug
 
 ## Problem
+
 Login fails when username has spaces
 
 ## Solution
+
 Update validation regex in auth.ts line 42 to allow spaces
 ```
 
 **Output**:
+
 ```
 Created task xyz789 from plan
 
@@ -193,27 +216,32 @@ View task: dex show xyz789
 ### Example: Epic-Level Breakdown (Two-Level Hierarchy)
 
 **Input plan** (`full-auth-plan.md`):
+
 ```markdown
 # Plan: Complete User Authentication System
 
 ## Phase 1: Backend Infrastructure
+
 1. Create database schema for users and sessions
 2. Implement password hashing with bcrypt
 3. Add JWT token generation and validation
 
 ## Phase 2: API Endpoints
+
 1. POST /auth/register - User registration
 2. POST /auth/login - User login
 3. POST /auth/logout - Session invalidation
 4. POST /auth/reset-password - Password reset flow
 
 ## Phase 3: Frontend Integration
+
 1. Login/register forms with validation
 2. Protected route components
 3. Session persistence with refresh tokens
 ```
 
 **Output**:
+
 ```
 Created epic abc123 from plan
 
@@ -236,8 +264,9 @@ View full structure: dex list abc123
 ## After Creating
 
 Once created, you can:
+
 - View the task: `dex show <task-id>`
-- Create additional subtasks: `dex create --parent <task-id> -d "..." --context "..."`
+- Create additional subtasks: `dex create "..." --parent <task-id> --description "..."`
 - Track progress through implementation
 - Complete the task: `dex complete <task-id> --result "..."`
 
@@ -283,40 +312,50 @@ Examine the context field (which contains the full markdown) for breakdown poten
 #### Look for these breakdown indicators:
 
 1. Numbered or bulleted implementation lists (3-7 items):
+
    ```markdown
    ## Implementation
+
    1. Create database schema → SUBTASK
    2. Build API endpoints → SUBTASK
    3. Add frontend components → SUBTASK
    ```
 
 2. Clear subsections under implementation/tasks/steps:
+
    ```markdown
    ### 1. Backend Changes
+
    - Modify server.ts
    - Add authentication
-   → SUBTASK: "Backend Changes" with this context
+     → SUBTASK: "Backend Changes" with this context
 
    ### 2. Frontend Updates
+
    - Update login form
    - Add error handling
-   → SUBTASK: "Frontend Updates" with this context
+     → SUBTASK: "Frontend Updates" with this context
    ```
 
 3. File-specific sections:
+
    ```markdown
    ### `src/auth.ts` - Add JWT validation
+
    [Details about changes]
    → SUBTASK: "Add JWT validation to auth.ts"
 
    ### `src/middleware.ts` - Create auth middleware
+
    [Details about changes]
    → SUBTASK: "Create auth middleware"
    ```
 
 4. Sequential phases:
+
    ```markdown
    ## Implementation Sequence
+
    **Phase 1: Database Layer**
    [Details] → SUBTASK
 
@@ -352,9 +391,9 @@ For each identified subtask:
 
 3. Create the subtask:
    ```bash
-   dex create --parent <parent-task-id> \
-     -d "<subtask-description>" \
-     --context "<extracted-context-with-parent-reference>"
+   dex create "<subtask-description>" \
+     --parent <parent-task-id> \
+     --description "<extracted-context-with-parent-reference>"
    ```
 
 ### Step 5: Report Results
@@ -390,52 +429,59 @@ Example 1: Numbered list
 
 ```markdown
 ## Implementation Steps
+
 1. Create User model with email, password fields
 2. Add POST /api/auth/register endpoint
 3. Implement JWT token generation
 ```
 
 Extracted subtasks:
+
 ```bash
-dex create --parent abc123 \
-  -d "Create User model with email, password fields" \
-  --context "Create a User model with email and password fields. This is part of 'Add Authentication System'."
+dex create "Create User model with email, password fields" \
+  --parent abc123 \
+  --description "Create a User model with email and password fields. This is part of 'Add Authentication System'."
 
-dex create --parent abc123 \
-  -d "Add POST /api/auth/register endpoint" \
-  --context "Add POST /api/auth/register endpoint to handle user registration. This is part of 'Add Authentication System'."
+dex create "Add POST /api/auth/register endpoint" \
+  --parent abc123 \
+  --description "Add POST /api/auth/register endpoint to handle user registration. This is part of 'Add Authentication System'."
 
-dex create --parent abc123 \
-  -d "Implement JWT token generation" \
-  --context "Implement JWT token generation for authenticated sessions. This is part of 'Add Authentication System'."
+dex create "Implement JWT token generation" \
+  --parent abc123 \
+  --description "Implement JWT token generation for authenticated sessions. This is part of 'Add Authentication System'."
 ```
 
 Example 2: Subsections with details
 
 ```markdown
 ### Frontend: Login Form Component
+
 Create a new React component at `src/components/LoginForm.tsx`:
+
 - Email and password inputs
 - Submit button with loading state
 - Error message display
 - Validation on submit
 
 ### Backend: Auth Routes
+
 Add to `src/routes/auth.ts`:
+
 - POST /login endpoint
 - Password verification using bcrypt
 - JWT token generation on success
 ```
 
 Extracted subtasks:
-```bash
-dex create --parent abc123 \
-  -d "Frontend: Login Form Component" \
-  --context "Create a new React component at src/components/LoginForm.tsx with email/password inputs, submit button with loading state, error message display, and validation on submit. This is part of 'Add Authentication System'."
 
-dex create --parent abc123 \
-  -d "Backend: Auth Routes" \
-  --context "Add to src/routes/auth.ts: POST /login endpoint, password verification using bcrypt, JWT token generation on success. This is part of 'Add Authentication System'."
+```bash
+dex create "Frontend: Login Form Component" \
+  --parent abc123 \
+  --description "Create a new React component at src/components/LoginForm.tsx with email/password inputs, submit button with loading state, error message display, and validation on submit. This is part of 'Add Authentication System'."
+
+dex create "Backend: Auth Routes" \
+  --parent abc123 \
+  --description "Add to src/routes/auth.ts: POST /login endpoint, password verification using bcrypt, JWT token generation on success. This is part of 'Add Authentication System'."
 ```
 
 Example 3: Should NOT break down
@@ -444,9 +490,11 @@ Example 3: Should NOT break down
 # Plan: Fix Typo in Error Message
 
 ## Problem
+
 Error message says 'Sucessful' instead of 'Successful'
 
 ## Solution
+
 Fix typo in src/messages.ts line 42
 ```
 

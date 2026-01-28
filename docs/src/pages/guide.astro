@@ -89,7 +89,7 @@ import Terminal from '../components/Terminal.astro';
   <p>Claude will create a task with rich context—not just "add auth" but the full requirements, approach, and acceptance criteria. Under the hood, it runs something like:</p>
 
   <Terminal>
-    <pre class="cli-output"><span class="cli-dim">$</span> dex create -d "Add JWT authentication" --context "Implement JWT-based
+    <pre class="cli-output"><span class="cli-dim">$</span> dex create "Add JWT authentication" --description "Implement JWT-based
 auth for the API. Need: token generation on login, verification
 middleware for protected routes, refresh token flow. Use jsonwebtoken
 library. Protect /api/users/* and /api/admin/* routes..."</pre>
@@ -98,9 +98,9 @@ library. Protect /api/users/* and /api/admin/* routes..."</pre>
   <p>For larger work, Claude breaks it into subtasks automatically:</p>
 
   <Terminal>
-    <pre class="cli-output"><span class="cli-dim">$</span> dex create -d "Create auth middleware" --parent abc123 --context "..."
-<span class="cli-dim">$</span> dex create -d "Add login endpoint" --parent abc123 --context "..."
-<span class="cli-dim">$</span> dex create -d "Add token refresh flow" --parent abc123 --context "..."</pre>
+    <pre class="cli-output"><span class="cli-dim">$</span> dex create "Create auth middleware" --parent abc123 --description "..."
+<span class="cli-dim">$</span> dex create "Add login endpoint" --parent abc123 --description "..."
+<span class="cli-dim">$</span> dex create "Add token refresh flow" --parent abc123 --description "..."</pre>
   </Terminal>
 
   <h3>Resuming Work</h3>
@@ -185,10 +185,10 @@ All 24 tests passing."</pre>
   <p>For rapid capture, you can also use the CLI directly:</p>
 
   <Terminal>
-    <pre class="cli-output"><span class="cli-dim">$</span> dex create -d "Migrate users table to v2 schema" --context "..."
-<span class="cli-dim">$</span> dex create -d "Update API serializers for v2 format" --context "..."
-<span class="cli-dim">$</span> dex create -d "Add v2 authentication endpoints" --context "..."
-<span class="cli-dim">$</span> dex create -d "Write migration guide for API consumers" --context "..."</pre>
+    <pre class="cli-output"><span class="cli-dim">$</span> dex create "Migrate users table to v2 schema" --description "..."
+<span class="cli-dim">$</span> dex create "Update API serializers for v2 format" --description "..."
+<span class="cli-dim">$</span> dex create "Add v2 authentication endpoints" --description "..."
+<span class="cli-dim">$</span> dex create "Write migration guide for API consumers" --description "..."</pre>
   </Terminal>
 
   <p>Then review your backlog and start working:</p>
