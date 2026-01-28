@@ -15,6 +15,10 @@ import {
   collectAncestors,
   getDepthFromParent,
   getMaxDescendantDepth,
+  getDepth,
+  getChildren,
+  getIncompleteBlockers,
+  getBlockedTasks,
 } from "./task-relationships.js";
 import { NotFoundError } from "../errors.js";
 
@@ -725,6 +729,175 @@ describe("task-relationships", () => {
 
       // child1 branch has depth 2, child2 branch has depth 1
       expect(getMaxDescendantDepth(tasks, "root")).toBe(2);
+    });
+  });
+
+  describe("getDepth", () => {
+    it("returns 0 for root task", () => {
+      const root = createTask({ id: "root" });
+      const tasks = [root];
+
+      expect(getDepth(tasks, "root")).toBe(0);
+    });
+
+    it("returns 1 for task under root", () => {
+      const root = createTask({ id: "root" });
+      const child = createTask({ id: "child", parent_id: "root" });
+      const tasks = [root, child];
+
+      expect(getDepth(tasks, "child")).toBe(1);
+    });
+
+    it("returns 2 for subtask", () => {
+      const root = createTask({ id: "root" });
+      const parent = createTask({ id: "parent", parent_id: "root" });
+      const child = createTask({ id: "child", parent_id: "parent" });
+      const tasks = [root, parent, child];
+
+      expect(getDepth(tasks, "child")).toBe(2);
+    });
+  });
+
+  describe("getChildren", () => {
+    it("returns empty array for task with no children", () => {
+      const task = createTask({ id: "task" });
+      const tasks = [task];
+
+      expect(getChildren(tasks, "task")).toEqual([]);
+    });
+
+    it("returns immediate children only", () => {
+      const parent = createTask({ id: "parent" });
+      const child1 = createTask({ id: "child1", parent_id: "parent" });
+      const child2 = createTask({ id: "child2", parent_id: "parent" });
+      const grandchild = createTask({ id: "grandchild", parent_id: "child1" });
+      const tasks = [parent, child1, child2, grandchild];
+
+      const children = getChildren(tasks, "parent");
+      expect(children).toHaveLength(2);
+      expect(children.map((c) => c.id)).toEqual(["child1", "child2"]);
+    });
+
+    it("returns empty array for non-existent parent", () => {
+      const task = createTask({ id: "task" });
+      const tasks = [task];
+
+      expect(getChildren(tasks, "nonexistent")).toEqual([]);
+    });
+  });
+
+  describe("getIncompleteBlockers", () => {
+    it("returns empty array for task with no blockers", () => {
+      const task = createTask({ id: "task" });
+      const tasks = [task];
+
+      expect(getIncompleteBlockers(tasks, task)).toEqual([]);
+    });
+
+    it("returns incomplete blocking tasks", () => {
+      const blocker = createTask({ id: "blocker", blocks: ["blocked"] });
+      const blocked = createTask({
+        id: "blocked",
+        blockedBy: ["blocker"],
+      });
+      const tasks = [blocker, blocked];
+
+      const blockers = getIncompleteBlockers(tasks, blocked);
+      expect(blockers).toHaveLength(1);
+      expect(blockers[0].id).toBe("blocker");
+    });
+
+    it("excludes completed blockers", () => {
+      const blocker = createTask({
+        id: "blocker",
+        completed: true,
+        blocks: ["blocked"],
+      });
+      const blocked = createTask({
+        id: "blocked",
+        blockedBy: ["blocker"],
+      });
+      const tasks = [blocker, blocked];
+
+      expect(getIncompleteBlockers(tasks, blocked)).toEqual([]);
+    });
+
+    it("returns multiple incomplete blockers", () => {
+      const blocker1 = createTask({ id: "blocker1", blocks: ["blocked"] });
+      const blocker2 = createTask({
+        id: "blocker2",
+        completed: true,
+        blocks: ["blocked"],
+      });
+      const blocker3 = createTask({ id: "blocker3", blocks: ["blocked"] });
+      const blocked = createTask({
+        id: "blocked",
+        blockedBy: ["blocker1", "blocker2", "blocker3"],
+      });
+      const tasks = [blocker1, blocker2, blocker3, blocked];
+
+      const blockers = getIncompleteBlockers(tasks, blocked);
+      expect(blockers).toHaveLength(2);
+      expect(blockers.map((b) => b.id)).toEqual(["blocker1", "blocker3"]);
+    });
+  });
+
+  describe("getBlockedTasks", () => {
+    it("returns empty array for task blocking nothing", () => {
+      const task = createTask({ id: "task" });
+      const tasks = [task];
+
+      expect(getBlockedTasks(tasks, task)).toEqual([]);
+    });
+
+    it("returns incomplete tasks being blocked", () => {
+      const blocker = createTask({ id: "blocker", blocks: ["blocked"] });
+      const blocked = createTask({
+        id: "blocked",
+        blockedBy: ["blocker"],
+      });
+      const tasks = [blocker, blocked];
+
+      const blockedTasks = getBlockedTasks(tasks, blocker);
+      expect(blockedTasks).toHaveLength(1);
+      expect(blockedTasks[0].id).toBe("blocked");
+    });
+
+    it("excludes completed blocked tasks", () => {
+      const blocker = createTask({ id: "blocker", blocks: ["blocked"] });
+      const blocked = createTask({
+        id: "blocked",
+        completed: true,
+        blockedBy: ["blocker"],
+      });
+      const tasks = [blocker, blocked];
+
+      expect(getBlockedTasks(tasks, blocker)).toEqual([]);
+    });
+
+    it("returns multiple blocked tasks", () => {
+      const blocker = createTask({
+        id: "blocker",
+        blocks: ["blocked1", "blocked2", "blocked3"],
+      });
+      const blocked1 = createTask({
+        id: "blocked1",
+        blockedBy: ["blocker"],
+      });
+      const blocked2 = createTask({
+        id: "blocked2",
+        completed: true,
+        blockedBy: ["blocker"],
+      });
+      const blocked3 = createTask({
+        id: "blocked3",
+        blockedBy: ["blocker"],
+      });
+      const tasks = [blocker, blocked1, blocked2, blocked3];
+
+      const blockedTasks = getBlockedTasks(tasks, blocker);
+      expect(blockedTasks).toHaveLength(2);
+      expect(blockedTasks.map((b) => b.id)).toEqual(["blocked1", "blocked3"]);
     });
   });
 });

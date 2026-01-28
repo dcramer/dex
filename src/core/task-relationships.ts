@@ -148,20 +148,26 @@ export function wouldCreateBlockingCycle(
 }
 
 /**
+ * Get incomplete tasks that are blocking a given task.
+ */
+export function getIncompleteBlockers(tasks: Task[], task: Task): Task[] {
+  return task.blockedBy
+    .map((blockerId) => tasks.find((t) => t.id === blockerId))
+    .filter((t): t is Task => t !== undefined && !t.completed);
+}
+
+/**
  * Get IDs of incomplete tasks that are blocking a given task.
  */
 export function getIncompleteBlockerIds(tasks: Task[], task: Task): string[] {
-  return task.blockedBy.filter((blockerId) => {
-    const blocker = tasks.find((t) => t.id === blockerId);
-    return blocker && !blocker.completed;
-  });
+  return getIncompleteBlockers(tasks, task).map((t) => t.id);
 }
 
 /**
  * Check if a task is blocked (has any incomplete tasks in blockedBy).
  */
 export function isBlocked(tasks: Task[], task: Task): boolean {
-  return getIncompleteBlockerIds(tasks, task).length > 0;
+  return getIncompleteBlockers(tasks, task).length > 0;
 }
 
 /**
@@ -178,10 +184,11 @@ export function hasIncompleteChildren(tasks: Task[], task: Task): boolean {
  * Check if a task is ready (pending with all blockers completed and no incomplete children).
  */
 export function isReady(tasks: Task[], task: Task): boolean {
-  if (task.completed) return false;
-  if (isBlocked(tasks, task)) return false;
-  if (hasIncompleteChildren(tasks, task)) return false;
-  return true;
+  return (
+    !task.completed &&
+    !isBlocked(tasks, task) &&
+    !hasIncompleteChildren(tasks, task)
+  );
 }
 
 /**
@@ -242,6 +249,31 @@ export function collectAncestors(tasks: Task[], id: string): Task[] {
 export function getDepthFromParent(tasks: Task[], parentId: string): number {
   const ancestors = collectAncestors(tasks, parentId);
   return ancestors.length + 1; // +1 because the new task will be one level below parent
+}
+
+/**
+ * Get the depth of a task (number of ancestors).
+ * 0 = root (epic), 1 = task under epic, 2 = subtask
+ */
+export function getDepth(tasks: Task[], id: string): number {
+  return collectAncestors(tasks, id).length;
+}
+
+/**
+ * Get immediate children of a task.
+ */
+export function getChildren(tasks: Task[], parentId: string): Task[] {
+  return tasks.filter((t) => t.parent_id === parentId);
+}
+
+/**
+ * Get tasks that are blocked by a given task (depend on this task completing).
+ * Returns only incomplete tasks.
+ */
+export function getBlockedTasks(tasks: Task[], task: Task): Task[] {
+  return task.blocks
+    .map((blockedId) => tasks.find((t) => t.id === blockedId))
+    .filter((t): t is Task => t !== undefined && !t.completed);
 }
 
 /**

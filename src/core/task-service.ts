@@ -27,6 +27,10 @@ import {
   collectAncestors,
   getDepthFromParent,
   getMaxDescendantDepth,
+  getDepth,
+  getChildren,
+  getIncompleteBlockers,
+  getBlockedTasks,
 } from "./task-relationships.js";
 
 const generateId = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 8);
@@ -420,7 +424,7 @@ export class TaskService {
 
   async getChildren(id: string): Promise<Task[]> {
     const store = await this.storage.readAsync();
-    return store.tasks.filter((t) => t.parent_id === id);
+    return getChildren(store.tasks, id);
   }
 
   /**
@@ -437,8 +441,8 @@ export class TaskService {
    * 0 = root (epic), 1 = task under epic, 2 = subtask
    */
   async getDepth(id: string): Promise<number> {
-    const ancestors = await this.getAncestors(id);
-    return ancestors.length;
+    const store = await this.storage.readAsync();
+    return getDepth(store.tasks, id);
   }
 
   async get(id: string): Promise<Task | null> {
@@ -611,10 +615,7 @@ export class TaskService {
     const store = await this.storage.readAsync();
     const task = store.tasks.find((t) => t.id === id);
     if (!task) return [];
-
-    return task.blockedBy
-      .map((blockerId) => store.tasks.find((t) => t.id === blockerId))
-      .filter((t): t is Task => t !== undefined && !t.completed);
+    return getIncompleteBlockers(store.tasks, task);
   }
 
   /**
@@ -624,10 +625,7 @@ export class TaskService {
     const store = await this.storage.readAsync();
     const task = store.tasks.find((t) => t.id === id);
     if (!task) return [];
-
-    return task.blocks
-      .map((blockedId) => store.tasks.find((t) => t.id === blockedId))
-      .filter((t): t is Task => t !== undefined && !t.completed);
+    return getBlockedTasks(store.tasks, task);
   }
 
   getStoragePath(): string {
