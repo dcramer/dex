@@ -25,6 +25,11 @@ export function createSubtaskId(parentId: string, index: number): string {
   return `${parentId}-${index}`;
 }
 
+/** Format a metadata comment line */
+function metaComment(key: string, value: string | number | boolean): string {
+  return `<!-- dex:subtask:${key}:${value} -->`;
+}
+
 /**
  * Render the metadata comments, description, and result sections for a task block.
  * @param task - The task to render metadata for
@@ -36,34 +41,32 @@ function renderTaskMetadataAndContent(
 ): string[] {
   const lines: string[] = [];
 
-  lines.push(`<!-- dex:subtask:id:${task.id} -->`);
+  lines.push(metaComment("id", task.id));
   if (parentId) {
-    lines.push(`<!-- dex:subtask:parent:${parentId} -->`);
+    lines.push(metaComment("parent", parentId));
   }
-  lines.push(`<!-- dex:subtask:priority:${task.priority} -->`);
-  lines.push(`<!-- dex:subtask:completed:${task.completed} -->`);
-  lines.push(`<!-- dex:subtask:created_at:${task.created_at} -->`);
-  lines.push(`<!-- dex:subtask:updated_at:${task.updated_at} -->`);
-  lines.push(
-    `<!-- dex:subtask:completed_at:${task.completed_at ?? "null"} -->`,
-  );
+  lines.push(metaComment("priority", task.priority));
+  lines.push(metaComment("completed", task.completed));
+  lines.push(metaComment("created_at", task.created_at));
+  lines.push(metaComment("updated_at", task.updated_at));
+  lines.push(metaComment("completed_at", task.completed_at ?? "null"));
 
   if (task.metadata?.commit) {
     const commit = task.metadata.commit;
-    lines.push(`<!-- dex:subtask:commit_sha:${commit.sha} -->`);
+    lines.push(metaComment("commit_sha", commit.sha));
     if (commit.message) {
       lines.push(
-        `<!-- dex:subtask:commit_message:${encodeMetadataValue(commit.message)} -->`,
+        metaComment("commit_message", encodeMetadataValue(commit.message)),
       );
     }
     if (commit.branch) {
-      lines.push(`<!-- dex:subtask:commit_branch:${commit.branch} -->`);
+      lines.push(metaComment("commit_branch", commit.branch));
     }
     if (commit.url) {
-      lines.push(`<!-- dex:subtask:commit_url:${commit.url} -->`);
+      lines.push(metaComment("commit_url", commit.url));
     }
     if (commit.timestamp) {
-      lines.push(`<!-- dex:subtask:commit_timestamp:${commit.timestamp} -->`);
+      lines.push(metaComment("commit_timestamp", commit.timestamp));
     }
   }
 
@@ -94,7 +97,8 @@ function renderTaskDetailsBlock(
   options?: { depth?: number; parentId?: string | null },
 ): string {
   const statusIndicator = task.completed ? "✅ " : "";
-  const treePrefix = options?.depth && options.depth > 0 ? "└─ " : "";
+  const depth = options?.depth ?? 0;
+  const treePrefix = depth > 0 ? "└─ " : "";
 
   return [
     "<details>",

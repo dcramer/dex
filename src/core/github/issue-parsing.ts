@@ -206,6 +206,14 @@ export interface ParsedHierarchicalIssueBody {
   subtasks: Array<EmbeddedSubtask & { parentId?: string }>;
 }
 
+/** All section headers to look for, in priority order */
+const SECTION_HEADERS = [
+  TASKS_HEADER,
+  SUBTASKS_HEADER,
+  LEGACY_TASK_TREE_HEADER,
+  LEGACY_TASK_DETAILS_HEADER,
+];
+
 /**
  * Find the first section header index in the body.
  * Returns the index and which header was found.
@@ -214,22 +222,16 @@ function findFirstSectionHeader(body: string): {
   index: number;
   header: string;
 } | null {
-  const headers = [
-    { header: TASKS_HEADER, index: body.indexOf(TASKS_HEADER) },
-    { header: SUBTASKS_HEADER, index: body.indexOf(SUBTASKS_HEADER) },
-    // Legacy headers for backwards compatibility
-    {
-      header: LEGACY_TASK_TREE_HEADER,
-      index: body.indexOf(LEGACY_TASK_TREE_HEADER),
-    },
-    {
-      header: LEGACY_TASK_DETAILS_HEADER,
-      index: body.indexOf(LEGACY_TASK_DETAILS_HEADER),
-    },
-  ].filter((h) => h.index !== -1);
+  let earliest: { index: number; header: string } | null = null;
 
-  if (headers.length === 0) return null;
-  return headers.reduce((min, h) => (h.index < min.index ? h : min));
+  for (const header of SECTION_HEADERS) {
+    const index = body.indexOf(header);
+    if (index !== -1 && (earliest === null || index < earliest.index)) {
+      earliest = { index, header };
+    }
+  }
+
+  return earliest;
 }
 
 /**
@@ -251,22 +253,27 @@ function extractBodySections(body: string): {
   // Find where subtask details begin
   // For current format (## Tasks) or legacy ## Subtasks, details follow the header
   // For old hierarchical format, details are in ## Task Details section
-  let subtasksSectionStart: number;
-  if (
+  const isCurrentFormat =
     firstSection.header === TASKS_HEADER ||
-    firstSection.header === SUBTASKS_HEADER
-  ) {
-    subtasksSectionStart = firstSection.index + firstSection.header.length;
-  } else {
-    // Legacy hierarchical format - look for Task Details section
-    const taskDetailsIndex = body.indexOf(LEGACY_TASK_DETAILS_HEADER);
-    subtasksSectionStart =
-      taskDetailsIndex !== -1
-        ? taskDetailsIndex + LEGACY_TASK_DETAILS_HEADER.length
-        : -1;
+    firstSection.header === SUBTASKS_HEADER;
+
+  if (isCurrentFormat) {
+    return {
+      description,
+      subtasksSectionStart: firstSection.index + firstSection.header.length,
+    };
   }
 
-  return { description, subtasksSectionStart };
+  // Legacy hierarchical format - look for Task Details section
+  const taskDetailsIndex = body.indexOf(LEGACY_TASK_DETAILS_HEADER);
+  if (taskDetailsIndex === -1) {
+    return { description, subtasksSectionStart: -1 };
+  }
+
+  return {
+    description,
+    subtasksSectionStart: taskDetailsIndex + LEGACY_TASK_DETAILS_HEADER.length,
+  };
 }
 
 /**
