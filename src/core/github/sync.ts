@@ -116,6 +116,33 @@ export class GitHubSyncService {
   }
 
   /**
+   * Get the remote ID (issue number) for a task from its metadata.
+   * Returns null if the task hasn't been synced to GitHub.
+   * Supports both new format (metadata.github.issueNumber) and legacy format (metadata.github_issue_number).
+   */
+  getRemoteId(task: Task): number | null {
+    return getGitHubIssueNumber(task);
+  }
+
+  /**
+   * Get the URL to the GitHub issue for a task.
+   * Returns null if the task hasn't been synced to GitHub.
+   * Supports both new format (metadata.github.issueUrl) and legacy format.
+   */
+  getRemoteUrl(task: Task): string | null {
+    // New format
+    if (task.metadata?.github?.issueUrl) {
+      return task.metadata.github.issueUrl;
+    }
+    // Legacy format - construct from issue number if we have it
+    const issueNumber = this.getRemoteId(task);
+    if (issueNumber) {
+      return `https://github.com/${this.owner}/${this.repo}/issues/${issueNumber}`;
+    }
+    return null;
+  }
+
+  /**
    * Sync a single task to GitHub.
    * For subtasks, syncs the parent issue instead.
    * Returns sync result with github metadata.
