@@ -4,7 +4,7 @@
  */
 
 import nock from "nock";
-import type { Task, TaskStore } from "../types.js";
+import type { ArchivedTask, Task, TaskStore } from "../types.js";
 
 // ============ GitHub API Mocking ============
 
@@ -358,4 +358,24 @@ export function createTask(overrides: Partial<Task> = {}): Task {
  */
 export function createStore(tasks: Task[] = []): TaskStore {
   return { tasks };
+}
+
+/**
+ * Create an ArchivedTask with sensible defaults for testing.
+ */
+export function createArchivedTask(
+  overrides: Partial<ArchivedTask> = {},
+): ArchivedTask {
+  return {
+    id: "test-id",
+    parent_id: null,
+    name: "Test archived task",
+    description: "",
+    result: null,
+    completed_at: null,
+    archived_at: new Date().toISOString(),
+    metadata: null,
+    archived_children: [],
+    ...overrides,
+  };
 }

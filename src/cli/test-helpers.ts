@@ -8,8 +8,6 @@ import * as os from "node:os";
 import { execSync } from "node:child_process";
 import { FileStorage } from "../core/storage/index.js";
 
-import type { ArchivedTask } from "../types.js";
-
 // Re-export shared test utilities from test-utils
 export {
   setupGitHubMock,
@@ -17,29 +15,10 @@ export {
   createIssueFixture,
   createTask,
   createStore,
+  createArchivedTask,
   type GitHubIssueFixture,
   type GitHubMock,
 } from "../test-utils/github-mock.js";
-
-/**
- * Create an ArchivedTask with sensible defaults for testing.
- */
-export function createArchivedTask(
-  overrides: Partial<ArchivedTask> = {},
-): ArchivedTask {
-  return {
-    id: "test-id",
-    parent_id: null,
-    name: "Test archived task",
-    description: "",
-    result: null,
-    completed_at: null,
-    archived_at: new Date().toISOString(),
-    metadata: null,
-    archived_children: [],
-    ...overrides,
-  };
-}
 
 // ============ CLI-specific utilities ============
 
