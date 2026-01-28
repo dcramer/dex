@@ -102,6 +102,7 @@ export async function listCommand(
       flat: { short: "f", hasValue: false },
       blocked: { short: "b", hasValue: false },
       ready: { short: "r", hasValue: false },
+      "in-progress": { short: "i", hasValue: false },
       issue: { hasValue: true },
       commit: { hasValue: true },
       json: { hasValue: false },
@@ -125,6 +126,7 @@ ${colors.bold}OPTIONS:${colors.reset}
   --archived                 List archived tasks instead of active tasks
   -b, --blocked              Show only blocked tasks (have incomplete blockers)
   -r, --ready                Show only ready tasks (pending with no blockers)
+  -i, --in-progress          Show only in-progress tasks (started but not completed)
   -q, --query <text>         Search in name and description (deprecated: use positional)
   -f, --flat                 Show flat list instead of tree view
   --issue <number>           Find task by GitHub issue number
@@ -147,6 +149,7 @@ ${colors.bold}EXAMPLES:${colors.reset}
   dex list --archived        # Show archived tasks
   dex list --ready           # Show tasks ready to work on
   dex list --blocked         # Show tasks waiting on dependencies
+  dex list --in-progress     # Show tasks currently in progress
   dex list --issue 42        # Find task linked to GitHub issue #42
   dex list --commit abc123   # Find task linked to commit abc123
   dex list --json | jq '.'   # Output JSON for scripting
@@ -208,6 +211,7 @@ ${colors.bold}EXAMPLES:${colors.reset}
     query,
     blocked: getBooleanFlag(flags, "blocked") || undefined,
     ready: getBooleanFlag(flags, "ready") || undefined,
+    in_progress: getBooleanFlag(flags, "in-progress") || undefined,
   });
 
   // Filter by GitHub issue number
@@ -266,6 +270,7 @@ ${colors.bold}EXAMPLES:${colors.reset}
     Boolean(query) ||
     getBooleanFlag(flags, "blocked") ||
     getBooleanFlag(flags, "ready") ||
+    getBooleanFlag(flags, "in-progress") ||
     issueFilter !== undefined ||
     commitFilter !== undefined;
 

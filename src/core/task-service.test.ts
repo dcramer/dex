@@ -536,6 +536,105 @@ describe("TaskService", () => {
       const completed = await service.complete(parent.id, "Done");
       expect(completed.completed).toBe(true);
     });
+
+    it("auto-sets started_at when completing a task that was never started", async () => {
+      const task = await service.create({
+        name: "Never started",
+        description: "Context",
+      });
+
+      expect(task.started_at).toBeNull();
+
+      const completed = await service.complete(task.id, "Done");
+
+      expect(completed.completed).toBe(true);
+      expect(completed.started_at).toBeTruthy();
+      // started_at should be set to approximately the same time as completed_at
+      expect(completed.started_at).toBe(completed.completed_at);
+    });
+
+    it("preserves started_at when completing a task that was already started", async () => {
+      const task = await service.create({
+        name: "Already started",
+        description: "Context",
+      });
+
+      await service.start(task.id);
+      const started = await service.get(task.id);
+      const originalStartedAt = started?.started_at;
+
+      // Wait a tiny bit
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      const completed = await service.complete(task.id, "Done");
+
+      expect(completed.completed).toBe(true);
+      expect(completed.started_at).toBe(originalStartedAt);
+    });
+  });
+
+  describe("start", () => {
+    it("marks a task as in progress", async () => {
+      const task = await service.create({
+        name: "To start",
+        description: "Context",
+      });
+
+      expect(task.started_at).toBeNull();
+
+      const started = await service.start(task.id);
+
+      expect(started.started_at).toBeTruthy();
+      expect(started.completed).toBe(false);
+    });
+
+    it("throws for nonexistent task", async () => {
+      await expect(
+        async () => await service.start("nonexistent"),
+      ).rejects.toThrow('Task "nonexistent" not found');
+    });
+
+    it("throws when starting a completed task", async () => {
+      const task = await service.create({
+        name: "To complete",
+        description: "Context",
+      });
+      await service.complete(task.id, "Done");
+
+      await expect(async () => await service.start(task.id)).rejects.toThrow(
+        "Cannot start a completed task",
+      );
+    });
+
+    it("throws when starting an already-started task without force", async () => {
+      const task = await service.create({
+        name: "To start",
+        description: "Context",
+      });
+      await service.start(task.id);
+
+      await expect(async () => await service.start(task.id)).rejects.toThrow(
+        "already in progress",
+      );
+    });
+
+    it("allows re-starting with force flag", async () => {
+      const task = await service.create({
+        name: "To start",
+        description: "Context",
+      });
+      await service.start(task.id);
+      const started = await service.get(task.id);
+      const originalStartedAt = started?.started_at;
+
+      // Wait a tiny bit
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      const restarted = await service.start(task.id, { force: true });
+
+      expect(restarted.started_at).toBeTruthy();
+      expect(restarted.started_at).not.toBe(originalStartedAt);
+    });
   });
 
   describe("getStoragePath", () => {

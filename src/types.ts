@@ -58,6 +58,7 @@ const TaskSchemaBase = z.object({
   metadata: TaskMetadataSchema.default(null),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
+  started_at: z.string().datetime().nullable().default(null),
   completed_at: z.string().datetime().nullable().default(null),
   // Bidirectional blocking relationships
   blockedBy: z.array(z.string().min(1)).default([]), // Tasks that block this one
@@ -92,6 +93,9 @@ export const TaskSchema = z.preprocess((data) => {
     if (!("blockedBy" in obj)) obj.blockedBy = [];
     if (!("blocks" in obj)) obj.blocks = [];
     if (!("children" in obj)) obj.children = [];
+
+    // Add default for started_at field (backward compatibility)
+    if (!("started_at" in obj)) obj.started_at = null;
 
     return obj;
   }
@@ -134,6 +138,7 @@ export const CreateTaskInputSchema = z.object({
   metadata: TaskMetadataSchema.optional(),
   created_at: z.string().datetime().optional(),
   updated_at: z.string().datetime().optional(),
+  started_at: z.string().datetime().nullable().optional(),
   completed_at: z.string().datetime().nullable().optional(),
 });
 
@@ -163,6 +168,7 @@ export const UpdateTaskInputSchema = z.object({
     .max(MAX_CONTENT_LENGTH, "Result exceeds maximum length")
     .optional(),
   metadata: TaskMetadataSchema.optional(),
+  started_at: z.string().datetime().nullable().optional(),
   delete: z.boolean().optional(),
   add_blocked_by: z.array(z.string().min(1)).optional(),
   remove_blocked_by: z.array(z.string().min(1)).optional(),
@@ -176,6 +182,7 @@ export const ListTasksInputSchema = z.object({
   all: z.boolean().optional(),
   blocked: z.boolean().optional(),
   ready: z.boolean().optional(),
+  in_progress: z.boolean().optional(), // If true, list only in-progress tasks
   archived: z.boolean().optional(), // If true, list only archived tasks
 });
 

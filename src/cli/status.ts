@@ -7,11 +7,13 @@ import { printGroupedTasks } from "./tree-display.js";
 import {
   getIncompleteBlockerIds,
   hasIncompleteChildren,
+  isInProgress,
 } from "../core/task-relationships.js";
 
 // Limits for displayed tasks in each section
 const READY_LIMIT = 5;
 const COMPLETED_LIMIT = 5;
+const IN_PROGRESS_LIMIT = 5;
 
 // Max description length for status view
 const STATUS_DESCRIPTION_MAX_LENGTH = 50;
@@ -22,10 +24,12 @@ interface StatusStats {
   completed: number;
   blocked: number;
   ready: number;
+  inProgress: number;
 }
 
 interface StatusData {
   stats: StatusStats;
+  inProgressTasks: Task[];
   readyTasks: Task[];
   blockedTasks: Task[];
   recentlyCompleted: Task[];
@@ -38,19 +42,31 @@ function calculateStatus(tasks: Task[]): StatusData {
   const pending = tasks.filter((t) => !t.completed);
   const completed = tasks.filter((t) => t.completed);
 
-  // Partition pending tasks into blocked and ready (single pass)
-  // A task is ready only if it has no incomplete blockers AND no incomplete children
+  // Partition pending tasks into in-progress, blocked, and ready
+  const inProgressTasks: Task[] = [];
   const blockedTasks: Task[] = [];
   const readyTasks: Task[] = [];
   for (const task of pending) {
+    const taskInProgress = isInProgress(task);
     const hasBlockers = getIncompleteBlockerIds(tasks, task).length > 0;
     const hasChildren = hasIncompleteChildren(tasks, task);
-    if (hasBlockers || hasChildren) {
+
+    if (taskInProgress) {
+      // In-progress tasks go to their own section
+      inProgressTasks.push(task);
+    } else if (hasBlockers || hasChildren) {
       blockedTasks.push(task);
     } else {
       readyTasks.push(task);
     }
   }
+
+  // Sort in-progress tasks by started_at (most recent first)
+  // All in-progress tasks have started_at set (filtered above via isInProgress)
+  inProgressTasks.sort(
+    (a, b) =>
+      new Date(b.started_at!).getTime() - new Date(a.started_at!).getTime(),
+  );
 
   // Sort ready tasks by priority
   readyTasks.sort((a, b) => a.priority - b.priority);
@@ -71,7 +87,9 @@ function calculateStatus(tasks: Task[]): StatusData {
       completed: completed.length,
       blocked: blockedTasks.length,
       ready: readyTasks.length,
+      inProgress: inProgressTasks.length,
     },
+    inProgressTasks,
     readyTasks,
     blockedTasks,
     recentlyCompleted,
@@ -103,7 +121,8 @@ ${colors.bold}OPTIONS:${colors.reset}
 
 ${colors.bold}DESCRIPTION:${colors.reset}
   Shows a dashboard-style overview of your tasks including:
-  • Statistics summary (total, pending, completed, blocked, ready)
+  • Statistics summary (total, pending, completed, in-progress, blocked, ready)
+  • In-progress tasks (started but not completed)
   • Tasks ready to work on (pending with no blockers)
   • Blocked tasks (waiting on dependencies)
   • Recently completed tasks
@@ -125,6 +144,10 @@ ${colors.bold}EXAMPLES:${colors.reset}
       JSON.stringify(
         {
           stats: statusData.stats,
+          inProgressTasks: statusData.inProgressTasks.slice(
+            0,
+            IN_PROGRESS_LIMIT,
+          ),
           readyTasks: statusData.readyTasks.slice(0, READY_LIMIT),
           blockedTasks: statusData.blockedTasks,
           recentlyCompleted: statusData.recentlyCompleted.slice(
@@ -147,7 +170,13 @@ ${colors.bold}EXAMPLES:${colors.reset}
     return;
   }
 
-  const { stats, readyTasks, blockedTasks, recentlyCompleted } = statusData;
+  const {
+    stats,
+    inProgressTasks,
+    readyTasks,
+    blockedTasks,
+    recentlyCompleted,
+  } = statusData;
 
   // ASCII art header
   console.log(`${colors.bold}${ASCII_BANNER}${colors.reset}`);
@@ -164,15 +193,36 @@ ${colors.bold}EXAMPLES:${colors.reset}
     return " ".repeat(left) + s + " ".repeat(pad - left);
   };
 
-  // Column widths match label lengths: "complete"=8, "ready"=5, "blocked"=7
+  // Column widths match label lengths: "complete"=8, "active"=6, "ready"=5, "blocked"=7
   const col1 = center(`${pct}%`, 8);
-  const col2 = center(String(stats.ready), 5);
-  const col3 = center(String(stats.blocked), 7);
+  const col2 = center(String(stats.inProgress), 6);
+  const col3 = center(String(stats.ready), 5);
+  const col4 = center(String(stats.blocked), 7);
 
   console.log(
-    `${colors.green}${colors.bold}${col1}${colors.reset}   ${colors.green}${colors.bold}${col2}${colors.reset}   ${colors.yellow}${col3}${colors.reset}`,
+    `${colors.green}${colors.bold}${col1}${colors.reset}   ${colors.blue}${colors.bold}${col2}${colors.reset}   ${colors.green}${colors.bold}${col3}${colors.reset}   ${colors.yellow}${col4}${colors.reset}`,
   );
-  console.log(`${colors.dim}complete   ready   blocked${colors.reset}`);
+  console.log(
+    `${colors.dim}complete   active   ready   blocked${colors.reset}`,
+  );
+
+  // In Progress section
+  if (inProgressTasks.length > 0) {
+    console.log("");
+    console.log(
+      `${colors.bold}In Progress (${inProgressTasks.length})${colors.reset}`,
+    );
+    console.log(`${colors.dim}────────────────────${colors.reset}`);
+    printGroupedTasks(inProgressTasks, allTasks, IN_PROGRESS_LIMIT, {
+      truncateName: STATUS_DESCRIPTION_MAX_LENGTH,
+    });
+    if (inProgressTasks.length > IN_PROGRESS_LIMIT) {
+      const remaining = inProgressTasks.length - IN_PROGRESS_LIMIT;
+      console.log(
+        `${colors.dim}... and ${remaining} more${colors.reset} ${colors.cyan}dex list --in-progress${colors.reset}`,
+      );
+    }
+  }
 
   // Ready to Work section
   if (readyTasks.length > 0) {

@@ -21,6 +21,7 @@ import { statusCommand } from "./status.js";
 import { configCommand } from "./config.js";
 import { dirCommand } from "./dir.js";
 import { archiveCommand } from "./archive.js";
+import { startCommand } from "./start.js";
 
 export type { CliOptions } from "./utils.js";
 
@@ -83,6 +84,8 @@ export async function runCli(
     case "complete":
     case "done":
       return await completeCommand(args.slice(1), options);
+    case "start":
+      return await startCommand(args.slice(1), options);
     case "delete":
     case "rm":
     case "remove":

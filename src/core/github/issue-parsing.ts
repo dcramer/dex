@@ -36,6 +36,7 @@ export interface ParsedRootTaskMetadata {
   completed?: boolean;
   created_at?: string;
   updated_at?: string;
+  started_at?: string | null;
   completed_at?: string | null;
   result?: string | null;
   commit?: CommitMetadata;
@@ -79,6 +80,9 @@ export function parseRootTaskMetadata(
         break;
       case "updated_at":
         metadata.updated_at = value;
+        break;
+      case "started_at":
+        metadata.started_at = value === "null" ? null : value;
         break;
       case "completed_at":
         metadata.completed_at = value === "null" ? null : value;
@@ -351,6 +355,7 @@ function parseDetailsBlock(content: string): EmbeddedSubtask | null {
     metadata: metadata.commit ? { commit: metadata.commit } : null,
     created_at: metadata.created_at ?? new Date().toISOString(),
     updated_at: metadata.updated_at ?? new Date().toISOString(),
+    started_at: metadata.started_at ?? null,
     completed_at: metadata.completed_at ?? null,
     blockedBy: [],
     blocks: [],
@@ -384,6 +389,7 @@ function parseMetadataComments(content: string): {
   completed?: boolean;
   created_at?: string;
   updated_at?: string;
+  started_at?: string | null;
   completed_at?: string | null;
   commit?: CommitMetadata;
 } {
@@ -421,6 +427,9 @@ function parseMetadataComments(content: string): {
         break;
       case "updated_at":
         metadata.updated_at = value;
+        break;
+      case "started_at":
+        metadata.started_at = rawValue === "null" ? null : value;
         break;
       case "completed_at":
         metadata.completed_at = rawValue === "null" ? null : value;

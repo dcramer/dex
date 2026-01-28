@@ -41,6 +41,14 @@ export const UpdateTaskArgsSchema = z.object({
     .boolean()
     .optional()
     .describe("Mark task as completed (true) or pending (false)"),
+  started_at: z
+    .string()
+    .datetime()
+    .nullable()
+    .optional()
+    .describe(
+      "Timestamp when task was started (ISO 8601). Set to mark as in-progress, null to clear.",
+    ),
   result: z
     .string()
     .max(MAX_CONTENT_LENGTH)

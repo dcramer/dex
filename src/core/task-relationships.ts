@@ -185,6 +185,13 @@ export function isReady(tasks: Task[], task: Task): boolean {
 }
 
 /**
+ * Check if a task is in progress (started but not completed).
+ */
+export function isInProgress(task: Task): boolean {
+  return task.started_at !== null && !task.completed;
+}
+
+/**
  * Collect all descendant IDs of a task recursively into a Set.
  */
 export function collectDescendantIds(

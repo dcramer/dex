@@ -27,6 +27,7 @@ function createTask(overrides: Partial<Task> = {}): Task {
     priority: 1,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    started_at: null,
     completed_at: null,
     result: null,
     blocks: [],

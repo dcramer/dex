@@ -3,7 +3,12 @@ import type { CliOptions } from "./utils.js";
 import { createService, exitIfTaskNotFound } from "./utils.js";
 import { colors, stripAnsi, terminalWidth } from "./colors.js";
 import { getBooleanFlag, parseArgs } from "./args.js";
-import { pluralize, truncateText, wrapText } from "./formatting.js";
+import {
+  getTaskStatusDisplay,
+  pluralize,
+  truncateText,
+  wrapText,
+} from "./formatting.js";
 import { isArchivedTask } from "../core/task-service.js";
 
 // Max name length for tree display
@@ -55,8 +60,8 @@ function formatTreeTask(
     truncateName = SHOW_TREE_NAME_MAX_LENGTH,
     childCount,
   } = options;
-  const statusIcon = task.completed ? "[x]" : "[ ]";
-  const statusColor = task.completed ? colors.green : colors.yellow;
+
+  const { icon: statusIcon, color: statusColor } = getTaskStatusDisplay(task);
   const name = truncateText(task.name, truncateName);
   const childInfo =
     childCount !== undefined && childCount > 0
@@ -181,8 +186,7 @@ export function formatTaskShow(
     lines.push(""); // Blank line after tree
   } else {
     // No hierarchy - just show the task header
-    const statusIcon = task.completed ? "[x]" : "[ ]";
-    const statusColor = task.completed ? colors.green : colors.yellow;
+    const { icon: statusIcon, color: statusColor } = getTaskStatusDisplay(task);
     lines.push(
       `${statusColor}${statusIcon}${colors.reset} ${colors.bold}${task.id}${colors.reset}${priority}: ${task.name}`,
     );
@@ -276,6 +280,11 @@ export function formatTaskShow(
   lines.push(
     `${"Updated:".padEnd(labelWidth)} ${colors.dim}${task.updated_at}${colors.reset}`,
   );
+  if (task.started_at) {
+    lines.push(
+      `${"Started:".padEnd(labelWidth)} ${colors.dim}${task.started_at}${colors.reset}`,
+    );
+  }
   if (task.completed_at) {
     lines.push(
       `${"Completed:".padEnd(labelWidth)} ${colors.dim}${task.completed_at}${colors.reset}`,

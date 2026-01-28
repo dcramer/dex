@@ -344,6 +344,7 @@ export function createTask(overrides: Partial<Task> = {}): Task {
     metadata: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    started_at: null,
     completed_at: null,
     blockedBy: [],
     blocks: [],

@@ -9,6 +9,24 @@ export interface FormatTaskOptions {
   githubIssue?: number; // GitHub issue number if linked (directly or via ancestor)
 }
 
+export interface TaskStatusDisplay {
+  icon: string;
+  color: string;
+}
+
+/**
+ * Get the status icon and color for a task based on its state.
+ */
+export function getTaskStatusDisplay(task: Task): TaskStatusDisplay {
+  if (task.completed) {
+    return { icon: "[x]", color: colors.green };
+  }
+  if (task.started_at) {
+    return { icon: "[>]", color: colors.blue };
+  }
+  return { icon: "[ ]", color: colors.yellow };
+}
+
 export function formatAge(isoDate: string): string {
   const ms = Date.now() - new Date(isoDate).getTime();
   const mins = Math.floor(ms / 60000);
@@ -124,8 +142,7 @@ export function formatTask(
     githubIssue,
   } = options;
 
-  const statusIcon = task.completed ? "[x]" : "[ ]";
-  const statusColor = task.completed ? colors.green : colors.yellow;
+  const { icon: statusIcon, color: statusColor } = getTaskStatusDisplay(task);
   const priority =
     task.priority !== 1
       ? ` ${colors.cyan}[p${task.priority}]${colors.reset}`
@@ -168,6 +185,9 @@ export function formatTask(
     }
     output += `\n${verbosePrefix}  ${"Created:".padEnd(labelWidth)} ${colors.dim}${task.created_at}${colors.reset}`;
     output += `\n${verbosePrefix}  ${"Updated:".padEnd(labelWidth)} ${colors.dim}${task.updated_at}${colors.reset}`;
+    if (task.started_at) {
+      output += `\n${verbosePrefix}  ${"Started:".padEnd(labelWidth)} ${colors.dim}${task.started_at}${colors.reset}`;
+    }
     if (task.completed_at) {
       output += `\n${verbosePrefix}  ${"Completed:".padEnd(labelWidth)} ${colors.dim}${task.completed_at}${colors.reset}`;
     }

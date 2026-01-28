@@ -21,6 +21,7 @@ import {
   wouldCreateBlockingCycle,
   isBlocked,
   isReady,
+  isInProgress,
   collectDescendantIds,
   isDescendant,
   collectAncestors,
@@ -233,6 +234,7 @@ export class TaskService {
       metadata: input.metadata ?? null,
       created_at: input.created_at ?? now,
       updated_at: input.updated_at ?? now,
+      started_at: input.started_at ?? null,
       completed_at: input.completed_at ?? null,
       blockedBy: [],
       blocks: [],
@@ -330,6 +332,7 @@ export class TaskService {
       task.completed = input.completed;
     }
     if (input.result !== undefined) task.result = input.result;
+    if (input.started_at !== undefined) task.started_at = input.started_at;
     if (input.metadata !== undefined) {
       task.metadata = input.metadata;
     }
@@ -486,6 +489,11 @@ export class TaskService {
       tasks = tasks.filter((t) => isReady(store.tasks, t));
     }
 
+    // Filter by in-progress status: tasks that have been started but not completed
+    if (input.in_progress === true) {
+      tasks = tasks.filter(isInProgress);
+    }
+
     return tasks.toSorted((a, b) => a.priority - b.priority);
   }
 
@@ -548,11 +556,55 @@ export class TaskService {
       );
     }
 
+    // Auto-set started_at if task was never started
+    const task = store.tasks.find((t) => t.id === id);
+    const now = new Date().toISOString();
+    const started_at = task && !task.started_at ? now : undefined;
+
     return await this.update({
       id,
       completed: true,
       result,
       metadata,
+      started_at,
+    });
+  }
+
+  /**
+   * Mark a task as in progress (started).
+   * @param id The task ID to start
+   * @param options Options for starting the task
+   * @param options.force If true, allows re-starting an already-started task
+   * @returns The updated task
+   * @throws NotFoundError if the task does not exist
+   * @throws ValidationError if the task is already completed or already started (without force)
+   */
+  async start(id: string, options?: { force?: boolean }): Promise<Task> {
+    const store = await this.storage.readAsync();
+    const task = store.tasks.find((t) => t.id === id);
+
+    if (!task) {
+      throw new NotFoundError("Task", id);
+    }
+
+    if (task.completed) {
+      throw new ValidationError(
+        "Cannot start a completed task",
+        "Use `dex edit` to uncomplete the task first if needed",
+      );
+    }
+
+    if (task.started_at && !options?.force) {
+      throw new ValidationError(
+        "Task is already in progress and may be being worked on by someone else",
+        "Use --force to re-claim the task",
+      );
+    }
+
+    const now = new Date().toISOString();
+    return await this.update({
+      id,
+      started_at: now,
     });
   }
 

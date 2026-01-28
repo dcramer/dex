@@ -70,12 +70,14 @@ dex create "Add token refresh" --parent abc123`}
       <li><code>--completed</code> — Only completed tasks</li>
       <li><code>--ready</code> — Only unblocked tasks</li>
       <li><code>--blocked</code> — Only blocked tasks</li>
+      <li><code>-i, --in-progress</code> — Only in-progress tasks</li>
       <li><code>--query &lt;text&gt;</code> — Search in name/description</li>
       <li><code>--issue &lt;number&gt;</code> — Find task by GitHub issue number</li>
       <li><code>--flat</code> — Plain list instead of tree</li>
     </ul>
     <p><strong>Indicators:</strong></p>
     <ul>
+      <li><code>[>]</code> — Task is in progress (blue)</li>
       <li><code>[B: xyz]</code> — Task is blocked by task xyz</li>
       <li><code>[GH-42]</code> — Task is linked to GitHub issue #42</li>
     </ul>
@@ -107,6 +109,23 @@ dex list --issue 42`}
         code={`dex show abc123                # Show task details
 dex show abc123 def456         # Show multiple tasks
 dex show abc123 --expand       # Show ancestor descriptions`}
+        lang="bash"
+        theme="vitesse-black"
+      />
+    </Terminal>
+  </div>
+
+  <div class="command-card">
+    <h3>dex start</h3>
+    <div class="synopsis">dex start &lt;id&gt; [options]</div>
+    <p>Mark a task as in progress. Use this to indicate you're actively working on a task.</p>
+    <ul>
+      <li><code>-f, --force</code> — Re-claim a task that's already in progress</li>
+    </ul>
+    <Terminal title="Terminal">
+      <Code
+        code={`dex start abc123           # Mark task as in progress
+dex start abc123 --force   # Re-claim a task already in progress`}
         lang="bash"
         theme="vitesse-black"
       />

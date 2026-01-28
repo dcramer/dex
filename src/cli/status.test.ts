@@ -49,9 +49,9 @@ describe("status command", () => {
 
     const out = output.stdout.join("\n");
     expect(out).toContain("|____/|_____|__|__|"); // ASCII art header
-    expect(out).toContain("complete   ready   blocked"); // metric labels
+    expect(out).toContain("complete   active   ready   blocked"); // metric labels
     expect(out).toContain("0%"); // 0 completed of 2
-    expect(out).toMatch(/ready.*blocked/); // metrics row
+    expect(out).toMatch(/active.*ready.*blocked/); // metrics row
   });
 
   it("shows ready tasks section", async () => {
@@ -223,7 +223,7 @@ describe("status command", () => {
 
     const out = output.stdout.join("\n");
     // Check the metric cards show correct counts (2 ready, 1 blocked)
-    expect(out).toContain("complete   ready   blocked");
+    expect(out).toContain("complete   active   ready   blocked");
     expect(out).toContain("Ready to Work (2)");
     expect(out).toContain("Blocked (1)");
   });
@@ -329,5 +329,70 @@ describe("status command", () => {
     expect(out).toContain("Ready to Work (1)");
     expect(out).toContain("Parent task");
     expect(out).not.toContain("Blocked (");
+  });
+
+  it("shows in-progress tasks section", async () => {
+    // Create a task and start it
+    await runCli(["create", "-n", "In progress task", "--description", "ctx"], {
+      storage,
+    });
+    const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    expect(taskId).toBeDefined();
+
+    await runCli(["start", taskId!], { storage });
+    output.stdout.length = 0;
+
+    await runCli(["status"], { storage });
+
+    const out = output.stdout.join("\n");
+    expect(out).toContain("In Progress (1)");
+    expect(out).toContain("In progress task");
+    // In-progress task should NOT be in ready section
+    expect(out).not.toContain("Ready to Work");
+  });
+
+  it("shows in-progress tasks in JSON output", async () => {
+    // Create a task and start it
+    await runCli(["create", "-n", "JSON in-progress", "--description", "ctx"], {
+      storage,
+    });
+    const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    expect(taskId).toBeDefined();
+
+    await runCli(["start", taskId!], { storage });
+    output.stdout.length = 0;
+
+    await runCli(["status", "--json"], { storage });
+
+    const parsed = JSON.parse(output.stdout.join("\n"));
+    expect(parsed.stats.inProgress).toBe(1);
+    expect(parsed).toHaveProperty("inProgressTasks");
+    expect(parsed.inProgressTasks).toHaveLength(1);
+    expect(parsed.inProgressTasks[0].name).toBe("JSON in-progress");
+  });
+
+  it("shows active count in stats row", async () => {
+    // Create tasks: 1 in-progress, 2 ready
+    await runCli(["create", "-n", "In progress task", "--description", "ctx"], {
+      storage,
+    });
+    const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    await runCli(["start", taskId!], { storage });
+
+    await runCli(["create", "-n", "Ready task 1", "--description", "ctx"], {
+      storage,
+    });
+    await runCli(["create", "-n", "Ready task 2", "--description", "ctx"], {
+      storage,
+    });
+    output.stdout.length = 0;
+
+    await runCli(["status"], { storage });
+
+    const out = output.stdout.join("\n");
+    // Verify the stats row includes active count
+    expect(out).toContain("complete   active   ready   blocked");
+    expect(out).toContain("In Progress (1)");
+    expect(out).toContain("Ready to Work (2)");
   });
 });

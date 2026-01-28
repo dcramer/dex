@@ -21,6 +21,7 @@ ${colors.bold}COMMANDS:${colors.reset}
   list --flat                      List without tree hierarchy
   list --all                       Include completed tasks
   list --archived                  List archived tasks
+  list --in-progress               List only in-progress tasks
   list --query "login"             Search name/description
   list --json                      Output as JSON (for scripts)
   show <id>...                     View task details (truncated)
@@ -29,6 +30,8 @@ ${colors.bold}COMMANDS:${colors.reset}
   show <id> --json                 Output as JSON (for scripts)
   edit <id> [-n "..."]             Edit task
   update                           Alias for edit command
+  start <id>                       Mark task as in progress
+  start <id> --force               Re-claim task already in progress
   complete <id> --result "..."     Mark completed with result
   done                             Alias for complete command
   delete <id>                      Remove task (prompts if has subtasks)
