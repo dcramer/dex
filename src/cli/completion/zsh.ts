@@ -54,7 +54,8 @@ _dex() {
                     case \$words[1] in
                         show)
                             _arguments \\
-                                '--full[Show full description and result]' \\
+                                '(-e --expand)'{-e,--expand}'[Show ancestor descriptions]' \\
+                                '(-f --full)'{-f,--full}'[Show full description and result]' \\
                                 '--json[Output as JSON]' \\
                                 '(-h --help)'{-h,--help}'[Show help]'
                             ;;
@@ -64,12 +65,14 @@ _dex() {
                                 '(-d --description)'{-d,--description}'[New description]:description:' \\
                                 '(-p --priority)'{-p,--priority}'[New priority]:priority:' \\
                                 '--parent[New parent task ID]:parent:_dex_task_ids' \\
-                                '(-s --status)'{-s,--status}'[New status]:status:(pending completed)' \\
+                                '--add-blocker[Add blocker task IDs]:blockers:_dex_task_ids' \\
+                                '--remove-blocker[Remove blocker task IDs]:blockers:_dex_task_ids' \\
                                 '(-h --help)'{-h,--help}'[Show help]'
                             ;;
                         complete|done)
                             _arguments \\
                                 '(-r --result)'{-r,--result}'[Completion result]:result:' \\
+                                '(-c --commit)'{-c,--commit}'[Git commit SHA]:commit:' \\
                                 '(-h --help)'{-h,--help}'[Show help]'
                             ;;
                         delete|rm|remove)
@@ -85,14 +88,21 @@ _dex() {
                         '(-d --description)'{-d,--description}'[Task description]:description:' \\
                         '(-p --priority)'{-p,--priority}'[Task priority]:priority:' \\
                         '--parent[Parent task ID]:parent:_dex_task_ids' \\
+                        '(-b --blocked-by)'{-b,--blocked-by}'[Blocker task IDs]:blockers:_dex_task_ids' \\
                         '(-h --help)'{-h,--help}'[Show help]'
                     ;;
                 list|ls)
                     _arguments \\
                         '(-a --all)'{-a,--all}'[Include completed tasks]' \\
-                        '(-s --status)'{-s,--status}'[Filter by status]:status:(pending completed)' \\
+                        '(-c --completed)'{-c,--completed}'[Show only completed tasks]' \\
+                        '--archived[List archived tasks]' \\
+                        '(-b --blocked)'{-b,--blocked}'[Show only blocked tasks]' \\
+                        '(-r --ready)'{-r,--ready}'[Show only ready tasks]' \\
+                        '(-i --in-progress)'{-i,--in-progress}'[Show only in-progress tasks]' \\
                         '(-q --query)'{-q,--query}'[Search query]:query:' \\
                         '(-f --flat)'{-f,--flat}'[Show flat list]' \\
+                        '--issue[Find by GitHub issue number]:issue:' \\
+                        '--commit[Find by commit SHA]:commit:' \\
                         '--json[Output as JSON]' \\
                         '(-h --help)'{-h,--help}'[Show help]'
                     ;;
