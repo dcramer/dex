@@ -32,6 +32,11 @@ import {
   getIncompleteBlockers,
   getBlockedTasks,
 } from "./task-relationships.js";
+import {
+  collectArchivableTasks,
+  compactTask,
+  type CollectedArchiveTasks,
+} from "./archive-compactor.js";
 
 const generateId = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 8);
 
@@ -67,6 +72,28 @@ export interface TaskServiceOptions {
   archiveStorage?: ArchiveStorage;
   syncService?: GitHubSyncService | null;
   syncConfig?: GitHubSyncConfig | null;
+}
+
+export interface BulkArchiveOptions {
+  /** Archive tasks completed more than this duration ago (e.g., "30d", "12w", "6m") */
+  olderThan?: string;
+  /** Archive ALL completed tasks (use with caution) */
+  archiveAllCompleted?: boolean;
+  /** Task IDs to exclude from bulk archive */
+  exceptIds?: string[];
+}
+
+export interface ArchiveResult {
+  /** Archived tasks (in compacted format) */
+  archivedTasks: ArchivedTask[];
+  /** Number of root tasks archived */
+  rootCount: number;
+  /** Total number of tasks archived (including descendants) */
+  totalCount: number;
+  /** Original size in bytes (approximate) */
+  originalSize: number;
+  /** Archived size in bytes (approximate) */
+  archivedSize: number;
 }
 
 export class TaskService {
@@ -630,5 +657,223 @@ export class TaskService {
 
   getStoragePath(): string {
     return this.storage.getIdentifier();
+  }
+
+  // ============ Archive Methods ============
+
+  /**
+   * Archive a single task and all its descendants.
+   * @param id The task ID to archive
+   * @returns Archive result with compacted tasks and stats
+   * @throws NotFoundError if task doesn't exist
+   * @throws ValidationError if task can't be archived
+   */
+  async archive(id: string): Promise<ArchiveResult> {
+    const store = await this.storage.readAsync();
+    const allTasks = store.tasks;
+
+    const collected = collectArchivableTasks(id, allTasks);
+    if (!collected) {
+      const task = allTasks.find((t) => t.id === id);
+      if (!task) {
+        throw new NotFoundError("Task", id);
+      }
+
+      if (!task.completed) {
+        throw new ValidationError(
+          `Task ${id} is not completed`,
+          `Complete the task with 'dex complete ${id} --result "..."' first`,
+        );
+      }
+
+      // Check for incomplete descendants
+      const descendants = new Set<string>();
+      collectDescendantIds(allTasks, id, descendants);
+      const incompleteDescendant = allTasks.find(
+        (t) => descendants.has(t.id) && !t.completed,
+      );
+      if (incompleteDescendant) {
+        throw new ValidationError(
+          `Task has incomplete subtasks`,
+          "Complete or delete all subtasks first",
+        );
+      }
+
+      // Check for active ancestors
+      const ancestors = collectAncestors(allTasks, id);
+      const activeAncestor = ancestors.find((t) => !t.completed);
+      if (activeAncestor) {
+        throw new ValidationError(
+          `Task has incomplete ancestor: ${activeAncestor.id}`,
+          "Archive from the root of the completed lineage",
+        );
+      }
+
+      throw new ValidationError(
+        `Cannot archive task ${id}`,
+        "Task must be completed with all descendants completed and no active ancestors",
+      );
+    }
+
+    return this.executeArchive([collected]);
+  }
+
+  /**
+   * Bulk archive completed tasks based on criteria.
+   * @param options Bulk archive options
+   * @returns Archive result with compacted tasks and stats, or null if no tasks to archive
+   */
+  async bulkArchive(
+    options: BulkArchiveOptions,
+  ): Promise<ArchiveResult | null> {
+    const { olderThan, archiveAllCompleted, exceptIds = [] } = options;
+
+    // Parse duration if provided
+    let cutoffTime: number | undefined;
+    if (olderThan) {
+      const durationMs = this.parseDuration(olderThan);
+      if (durationMs === null) {
+        throw new ValidationError(
+          `Invalid duration format: ${olderThan}`,
+          "Expected format: 30d (days), 12w (weeks), 6m (months)",
+        );
+      }
+      cutoffTime = Date.now() - durationMs;
+    }
+
+    const store = await this.storage.readAsync();
+    const allTasks = store.tasks;
+    const exceptSet = new Set(exceptIds);
+
+    // Find all archivable root tasks
+    const archivableRoots: Task[] = [];
+
+    for (const task of allTasks) {
+      // Skip if in except list
+      if (exceptSet.has(task.id)) continue;
+
+      // Must be completed
+      if (!task.completed) continue;
+
+      // Check time filter
+      if (cutoffTime && task.completed_at) {
+        const completedAt = new Date(task.completed_at).getTime();
+        if (completedAt > cutoffTime) continue;
+      } else if (cutoffTime && !archiveAllCompleted) {
+        // No completed_at timestamp - skip unless archiving all
+        continue;
+      }
+
+      // Check if this is an archivable root
+      const collected = collectArchivableTasks(task.id, allTasks);
+      if (collected) {
+        // Only archive root tasks (not tasks whose parent would also be archived)
+        const parent = task.parent_id
+          ? allTasks.find((t) => t.id === task.parent_id)
+          : null;
+        const parentWouldBeArchived =
+          parent &&
+          parent.completed &&
+          !exceptSet.has(parent.id) &&
+          collectArchivableTasks(parent.id, allTasks);
+
+        if (!parentWouldBeArchived) {
+          archivableRoots.push(task);
+        }
+      }
+    }
+
+    if (archivableRoots.length === 0) {
+      return null;
+    }
+
+    // Collect all tasks to archive
+    const archivableCollections: CollectedArchiveTasks[] = [];
+    for (const root of archivableRoots) {
+      const collected = collectArchivableTasks(root.id, allTasks)!;
+      archivableCollections.push(collected);
+    }
+
+    return this.executeArchive(archivableCollections);
+  }
+
+  /**
+   * Execute the archive operation for collected task sets.
+   */
+  private async executeArchive(
+    collections: CollectedArchiveTasks[],
+  ): Promise<ArchiveResult> {
+    const store = await this.storage.readAsync();
+    const allTasks = store.tasks;
+
+    // Compact all collections
+    const allArchivedTasks: ArchivedTask[] = [];
+    const allToArchive: Task[] = [];
+
+    for (const collection of collections) {
+      const { root, descendants } = collection;
+      allToArchive.push(root, ...descendants);
+
+      // Compact root with its direct children
+      const directChildren = descendants.filter((t) => t.parent_id === root.id);
+      const archivedRoot = compactTask(root, directChildren);
+      allArchivedTasks.push(archivedRoot);
+
+      // Compact descendants
+      for (const desc of descendants) {
+        const children = descendants.filter((t) => t.parent_id === desc.id);
+        allArchivedTasks.push(compactTask(desc, children));
+      }
+    }
+
+    // Calculate stats before modifying storage
+    const originalSize = JSON.stringify(allToArchive).length;
+    const archivedSize = JSON.stringify(allArchivedTasks).length;
+
+    // Append to archive
+    const archiveStorage = this.getArchiveStorage();
+    archiveStorage.appendArchive(allArchivedTasks);
+
+    // Remove from active tasks and clean up blocking references
+    const idsToRemove = new Set(allToArchive.map((t) => t.id));
+    const remainingTasks = allTasks.filter((t) => !idsToRemove.has(t.id));
+
+    const updatedStore: TaskStore = { tasks: remainingTasks };
+    for (const archivedId of idsToRemove) {
+      cleanupTaskReferences(updatedStore, archivedId);
+    }
+
+    await this.storage.writeAsync(updatedStore);
+
+    return {
+      archivedTasks: allArchivedTasks,
+      rootCount: collections.length,
+      totalCount: allToArchive.length,
+      originalSize,
+      archivedSize,
+    };
+  }
+
+  /**
+   * Parse a duration string like "30d", "12w", "6m" into milliseconds.
+   */
+  private parseDuration(duration: string): number | null {
+    const match = duration.match(/^(\d+)([dwm])$/);
+    if (!match) return null;
+
+    const value = parseInt(match[1], 10);
+    const unit = match[2];
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+    switch (unit) {
+      case "d":
+        return value * MS_PER_DAY;
+      case "w":
+        return value * 7 * MS_PER_DAY;
+      case "m":
+        return value * 30 * MS_PER_DAY;
+      default:
+        return null;
+    }
   }
 }

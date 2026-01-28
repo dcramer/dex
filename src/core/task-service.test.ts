@@ -1100,4 +1100,220 @@ describe("TaskService", () => {
       expect(savedSubtask?.metadata?.github).toBeUndefined();
     });
   });
+
+  describe("archive", () => {
+    it("archives a completed task", async () => {
+      const task = await service.create({
+        name: "Completed task",
+        description: "Context",
+      });
+      await service.complete(task.id, "Done");
+
+      const result = await service.archive(task.id);
+
+      expect(result.rootCount).toBe(1);
+      expect(result.totalCount).toBe(1);
+      expect(result.archivedTasks).toHaveLength(1);
+      expect(result.archivedTasks[0].id).toBe(task.id);
+      expect(result.archivedTasks[0].name).toBe("Completed task");
+
+      // Task should be removed from active storage
+      const retrieved = await service.get(task.id);
+      expect(retrieved).toBeNull();
+
+      // Task should be in archive
+      const archived = await service.getWithArchive(task.id);
+      expect(archived).not.toBeNull();
+      expect(archived?.name).toBe("Completed task");
+    });
+
+    it("archives task with descendants", async () => {
+      const parent = await service.create({
+        name: "Parent",
+        description: "Context",
+      });
+      const child = await service.create({
+        name: "Child",
+        description: "Context",
+        parent_id: parent.id,
+      });
+      await service.complete(child.id, "Child done");
+      await service.complete(parent.id, "Parent done");
+
+      const result = await service.archive(parent.id);
+
+      expect(result.rootCount).toBe(1);
+      expect(result.totalCount).toBe(2);
+      expect(result.archivedTasks).toHaveLength(2);
+
+      // Both tasks should be removed from active storage
+      expect(await service.get(parent.id)).toBeNull();
+      expect(await service.get(child.id)).toBeNull();
+    });
+
+    it("throws when task is not completed", async () => {
+      const task = await service.create({
+        name: "Pending task",
+        description: "Context",
+      });
+
+      await expect(service.archive(task.id)).rejects.toThrow("not completed");
+    });
+
+    it("throws when task has incomplete subtasks", async () => {
+      const parent = await service.create({
+        name: "Parent",
+        description: "Context",
+      });
+      await service.create({
+        name: "Child",
+        description: "Context",
+        parent_id: parent.id,
+      });
+      await service.update({ id: parent.id, completed: true });
+
+      await expect(service.archive(parent.id)).rejects.toThrow(
+        "incomplete subtasks",
+      );
+    });
+
+    it("throws when task has incomplete ancestor", async () => {
+      const parent = await service.create({
+        name: "Parent",
+        description: "Context",
+      });
+      const child = await service.create({
+        name: "Child",
+        description: "Context",
+        parent_id: parent.id,
+      });
+      await service.complete(child.id, "Done");
+      // Parent is not completed
+
+      await expect(service.archive(child.id)).rejects.toThrow(
+        "incomplete ancestor",
+      );
+    });
+
+    it("throws when task does not exist", async () => {
+      await expect(service.archive("nonexistent")).rejects.toThrow(
+        'Task "nonexistent" not found',
+      );
+    });
+  });
+
+  describe("bulkArchive", () => {
+    it("archives all completed tasks", async () => {
+      const task1 = await service.create({
+        name: "Task 1",
+        description: "Context",
+      });
+      const task2 = await service.create({
+        name: "Task 2",
+        description: "Context",
+      });
+      await service.create({
+        name: "Task 3 (pending)",
+        description: "Context",
+      });
+      await service.complete(task1.id, "Done");
+      await service.complete(task2.id, "Done");
+
+      const result = await service.bulkArchive({ archiveAllCompleted: true });
+
+      expect(result).not.toBeNull();
+      expect(result!.rootCount).toBe(2);
+      expect(result!.totalCount).toBe(2);
+
+      // Completed tasks should be archived
+      expect(await service.get(task1.id)).toBeNull();
+      expect(await service.get(task2.id)).toBeNull();
+
+      // Pending task should remain
+      const pending = await service.list();
+      expect(pending).toHaveLength(1);
+      expect(pending[0].name).toBe("Task 3 (pending)");
+    });
+
+    it("excludes specified task IDs", async () => {
+      const task1 = await service.create({
+        name: "Task 1",
+        description: "Context",
+      });
+      const task2 = await service.create({
+        name: "Task 2",
+        description: "Context",
+      });
+      await service.complete(task1.id, "Done");
+      await service.complete(task2.id, "Done");
+
+      const result = await service.bulkArchive({
+        archiveAllCompleted: true,
+        exceptIds: [task2.id],
+      });
+
+      expect(result).not.toBeNull();
+      expect(result!.rootCount).toBe(1);
+
+      // Task 1 should be archived
+      expect(await service.get(task1.id)).toBeNull();
+
+      // Task 2 should remain (excluded)
+      expect(await service.get(task2.id)).not.toBeNull();
+    });
+
+    it("returns null when no tasks to archive", async () => {
+      await service.create({
+        name: "Pending",
+        description: "Context",
+      });
+
+      const result = await service.bulkArchive({ archiveAllCompleted: true });
+
+      expect(result).toBeNull();
+    });
+
+    it("archives only tasks older than specified duration", async () => {
+      const oldTask = await service.create({
+        name: "Old task",
+        description: "Context",
+      });
+      const newTask = await service.create({
+        name: "New task",
+        description: "Context",
+      });
+
+      // Complete old task with an old timestamp
+      const oldDate = new Date();
+      oldDate.setDate(oldDate.getDate() - 40); // 40 days ago
+      await service.update({
+        id: oldTask.id,
+        completed: true,
+        result: "Done",
+      });
+      // Manually update completed_at to be old (via storage hack for testing)
+      const store = await service["storage"].readAsync();
+      const taskIndex = store.tasks.findIndex((t) => t.id === oldTask.id);
+      store.tasks[taskIndex].completed_at = oldDate.toISOString();
+      await service["storage"].writeAsync(store);
+
+      // Complete new task (just now)
+      await service.complete(newTask.id, "Done");
+
+      const result = await service.bulkArchive({ olderThan: "30d" });
+
+      expect(result).not.toBeNull();
+      expect(result!.rootCount).toBe(1);
+      expect(result!.archivedTasks[0].id).toBe(oldTask.id);
+
+      // New task should remain
+      expect(await service.get(newTask.id)).not.toBeNull();
+    });
+
+    it("throws on invalid duration format", async () => {
+      await expect(
+        service.bulkArchive({ olderThan: "invalid" }),
+      ).rejects.toThrow("Invalid duration format");
+    });
+  });
 });
