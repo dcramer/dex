@@ -10,6 +10,9 @@ import {
   createIssueFixture,
   createFullDexIssueBody,
   createLegacyIssueBody,
+  setupShortcutMock,
+  cleanupShortcutMock,
+  createMemberFixture,
 } from "./test-helpers.js";
 
 // Mock git remote detection to return a consistent repo
@@ -327,6 +330,28 @@ describe("import command", () => {
   });
 
   describe("--all flag", () => {
+    let shortcutMock: ReturnType<typeof setupShortcutMock>;
+    let originalShortcutToken: string | undefined;
+
+    beforeEach(() => {
+      // Set up Shortcut mock to return empty results
+      originalShortcutToken = process.env.SHORTCUT_API_TOKEN;
+      process.env.SHORTCUT_API_TOKEN = "test-shortcut-token";
+      shortcutMock = setupShortcutMock();
+      // Mock getCurrentMember (needed for getWorkspaceSlug)
+      shortcutMock.getCurrentMember(createMemberFixture());
+      shortcutMock.searchStories([]);
+    });
+
+    afterEach(() => {
+      cleanupShortcutMock();
+      if (originalShortcutToken !== undefined) {
+        process.env.SHORTCUT_API_TOKEN = originalShortcutToken;
+      } else {
+        delete process.env.SHORTCUT_API_TOKEN;
+      }
+    });
+
     it("imports all issues with dex label", async () => {
       githubMock.listIssues("test-owner", "test-repo", [
         createIssueFixture({

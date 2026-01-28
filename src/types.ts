@@ -22,17 +22,22 @@ export const GithubMetadataSchema = z.object({
 
 export type GithubMetadata = z.infer<typeof GithubMetadataSchema>;
 
+export const ShortcutMetadataSchema = z.object({
+  storyId: z.number().int().positive(),
+  storyUrl: z.string().url(),
+  workspace: z.string().min(1),
+  state: z.enum(["unstarted", "started", "done"]).optional(), // Last synced workflow state
+});
+
+export type ShortcutMetadata = z.infer<typeof ShortcutMetadataSchema>;
+
 /**
  * Container for integration-specific metadata.
  * Each integration stores its metadata under its provider key.
  */
 export const IntegrationsMetadataSchema = z.object({
   github: GithubMetadataSchema.optional(),
-  // Future integrations:
-  // gitlab: GitlabMetadataSchema.optional(),
-  // linear: LinearMetadataSchema.optional(),
-  // jira: JiraMetadataSchema.optional(),
-  // bitbucket: BitbucketMetadataSchema.optional(),
+  shortcut: ShortcutMetadataSchema.optional(),
 });
 
 export type IntegrationsMetadata = z.infer<typeof IntegrationsMetadataSchema>;
@@ -41,6 +46,7 @@ export const TaskMetadataSchema = z
   .object({
     commit: CommitMetadataSchema.optional(),
     github: GithubMetadataSchema.optional(), // Legacy location (for backward compat)
+    shortcut: ShortcutMetadataSchema.optional(), // Legacy location (for backward compat)
     integrations: IntegrationsMetadataSchema.optional(), // New multi-integration container
   })
   .nullable();
@@ -228,6 +234,7 @@ export const ArchivedTaskSchema = z.object({
   metadata: z
     .object({
       github: GithubMetadataSchema.optional(),
+      shortcut: ShortcutMetadataSchema.optional(),
       commit: CommitMetadataSchema.optional(),
     })
     .nullable()

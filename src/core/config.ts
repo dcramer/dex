@@ -38,11 +38,29 @@ export interface GitHubSyncConfig extends IntegrationSyncConfig {
 }
 
 /**
+ * Shortcut sync configuration.
+ */
+export interface ShortcutSyncConfig extends IntegrationSyncConfig {
+  /** Environment variable containing Shortcut API token (default: "SHORTCUT_API_TOKEN") */
+  token_env?: string;
+  /** Shortcut workspace slug (inferred from API if not set) */
+  workspace?: string;
+  /** Team ID or mention name for story creation (required for auto-sync) */
+  team?: string;
+  /** Workflow ID to use (uses team default if not set) */
+  workflow?: number;
+  /** Label name for dex stories (default: "dex") */
+  label?: string;
+}
+
+/**
  * Sync configuration
  */
 export interface SyncConfig {
   /** GitHub sync settings */
   github?: GitHubSyncConfig;
+  /** Shortcut sync settings */
+  shortcut?: ShortcutSyncConfig;
 }
 
 /**
@@ -147,16 +165,11 @@ function mergeIntegrationConfig<T extends IntegrationSyncConfig>(
   a: T | undefined,
   b: T | undefined,
 ): T | undefined {
-  if (b === undefined) return a;
-  if (a === undefined) return b;
+  if (!a) return b;
+  if (!b) return a;
 
-  const mergedAuto = b.auto !== undefined ? { ...a.auto, ...b.auto } : a.auto;
-
-  return {
-    ...a,
-    ...b,
-    auto: mergedAuto,
-  } as T;
+  const mergedAuto = b.auto ? { ...a.auto, ...b.auto } : a.auto;
+  return { ...a, ...b, auto: mergedAuto } as T;
 }
 
 /**
@@ -166,11 +179,11 @@ function mergeSyncConfig(
   a: SyncConfig | undefined,
   b: SyncConfig | undefined,
 ): SyncConfig | undefined {
-  if (b === undefined) return a;
-  if (a === undefined) return b;
-
+  if (!a) return b;
+  if (!b) return a;
   return {
     github: mergeIntegrationConfig(a.github, b.github),
+    shortcut: mergeIntegrationConfig(a.shortcut, b.shortcut),
   };
 }
 
@@ -181,13 +194,9 @@ function mergeArchiveConfig(
   a: ArchiveConfig | undefined,
   b: ArchiveConfig | undefined,
 ): ArchiveConfig | undefined {
-  if (b === undefined) return a;
-  if (a === undefined) return b;
-
-  return {
-    ...a,
-    ...b,
-  };
+  if (!a) return b;
+  if (!b) return a;
+  return { ...a, ...b };
 }
 
 /**

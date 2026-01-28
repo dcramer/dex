@@ -9,32 +9,33 @@ import {
   getMcpHelpText,
 } from "./bootstrap.js";
 
-const args = process.argv.slice(2);
-const { storagePath, configPath, filteredArgs } = parseGlobalOptions(args);
-const command = filteredArgs[0];
+async function main() {
+  const args = process.argv.slice(2);
+  const { storagePath, configPath, filteredArgs } = parseGlobalOptions(args);
+  const command = filteredArgs[0];
 
-if (
-  command === "mcp" &&
-  (filteredArgs.includes("--help") || filteredArgs.includes("-h"))
-) {
-  console.log(getMcpHelpText());
-  process.exit(0);
+  if (
+    command === "mcp" &&
+    (filteredArgs.includes("--help") || filteredArgs.includes("-h"))
+  ) {
+    console.log(getMcpHelpText());
+    process.exit(0);
+  }
+
+  const storage = createStorageEngine(storagePath, configPath);
+  const { syncRegistry, syncConfig } = await createSyncRegistry(
+    storage.getIdentifier(),
+    configPath,
+  );
+
+  if (command === "mcp") {
+    await startMcpServer(storage, syncRegistry, syncConfig);
+  } else {
+    await runCli(filteredArgs, { storage, syncRegistry, syncConfig });
+  }
 }
 
-const storage = createStorageEngine(storagePath, configPath);
-const { syncRegistry, syncConfig } = createSyncRegistry(
-  storage.getIdentifier(),
-  configPath,
-);
-
-if (command === "mcp") {
-  startMcpServer(storage, syncRegistry, syncConfig).catch((err) => {
-    console.error("MCP server error:", err);
-    process.exit(1);
-  });
-} else {
-  runCli(filteredArgs, { storage, syncRegistry, syncConfig }).catch((err) => {
-    console.error("Error:", err);
-    process.exit(1);
-  });
-}
+main().catch((err) => {
+  console.error("Error:", err);
+  process.exit(1);
+});

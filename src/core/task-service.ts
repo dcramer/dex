@@ -140,27 +140,44 @@ export class TaskService {
 
   /**
    * Sync a task to all registered integrations.
-   * Respects auto-sync settings (on_change and max_age).
+   * Respects auto-sync settings (on_change and max_age) for each integration.
    * Errors are caught and logged but don't fail the operation.
    */
   private async syncToIntegrations(task: Task): Promise<void> {
     if (!this.syncRegistry?.hasServices()) return;
 
-    // Check GitHub-specific auto config (for backward compatibility)
-    // TODO: Each integration should have its own auto config
-    const autoConfig = this.syncConfig?.github?.auto;
-    const onChange = autoConfig?.on_change !== false; // default: true
+    const services = this.syncRegistry.getAll();
 
-    if (onChange) {
-      await this.doSync(task);
-      return;
-    }
+    // Check auto-sync config for each registered service
+    for (const service of services) {
+      const integrationConfig = this.getIntegrationConfig(service.id);
+      const autoConfig = integrationConfig?.auto;
 
-    // on_change is false - check max_age
-    const maxAge = autoConfig?.max_age;
-    if (maxAge && isSyncStale(this.storage.getIdentifier(), maxAge)) {
-      await this.doSync(task);
+      // on_change defaults to true for enabled integrations
+      const onChange = autoConfig?.on_change !== false;
+      if (onChange) {
+        await this.doSync(task);
+        return;
+      }
+
+      // on_change is false - check max_age
+      const maxAge = autoConfig?.max_age;
+      if (maxAge && isSyncStale(this.storage.getIdentifier(), maxAge)) {
+        await this.doSync(task);
+        return;
+      }
     }
+  }
+
+  /**
+   * Get integration-specific config by service ID.
+   */
+  private getIntegrationConfig(
+    serviceId: string,
+  ): { auto?: { on_change?: boolean; max_age?: string } } | undefined {
+    if (!this.syncConfig) return undefined;
+    // Access syncConfig[serviceId] dynamically - works for 'github' and 'shortcut'
+    return this.syncConfig[serviceId as keyof SyncConfig];
   }
 
   /**
