@@ -3,7 +3,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { TaskService } from "./task-service.js";
-import { GitHubSyncService } from "./github/index.js";
+import { SyncRegistry } from "./sync/index.js";
+import type { RegisterableSyncService } from "./sync/index.js";
 import { ValidationError } from "../errors.js";
 
 describe("TaskService", () => {
@@ -886,21 +887,24 @@ describe("TaskService", () => {
   });
 
   describe("autosync", () => {
-    let mockSyncService: {
-      syncTask: ReturnType<typeof vi.fn>;
-      getRepo: ReturnType<typeof vi.fn>;
-    };
+    let mockSyncTask: ReturnType<typeof vi.fn>;
+    let mockRegistry: SyncRegistry;
 
     beforeEach(() => {
-      mockSyncService = {
-        syncTask: vi.fn(),
-        getRepo: vi.fn(() => ({ owner: "test", repo: "test" })),
-      };
+      mockSyncTask = vi.fn();
+      const mockSyncService = {
+        id: "github" as const,
+        displayName: "GitHub",
+        syncTask: mockSyncTask,
+        syncAll: vi.fn().mockResolvedValue([]),
+      } as unknown as RegisterableSyncService;
+      mockRegistry = new SyncRegistry();
+      mockRegistry.register(mockSyncService);
     });
 
     it("saves GitHub metadata when autosync creates an issue", async () => {
       // Mock syncTask to return the task ID it was called with
-      mockSyncService.syncTask.mockImplementation(async (task) => ({
+      mockSyncTask.mockImplementation(async (task) => ({
         taskId: task.id,
         github: {
           issueNumber: 42,
@@ -913,8 +917,8 @@ describe("TaskService", () => {
 
       const syncService = new TaskService({
         storage: storagePath,
-        syncService: mockSyncService as unknown as GitHubSyncService,
-        syncConfig: { enabled: true, auto: { on_change: true } },
+        syncRegistry: mockRegistry,
+        syncConfig: { github: { enabled: true, auto: { on_change: true } } },
       });
 
       const task = await syncService.create({
@@ -922,7 +926,7 @@ describe("TaskService", () => {
         description: "Test",
       });
 
-      expect(mockSyncService.syncTask).toHaveBeenCalled();
+      expect(mockSyncTask).toHaveBeenCalled();
 
       // Fetch the task from storage to verify metadata was saved
       const savedTask = await syncService.get(task.id);
@@ -943,7 +947,7 @@ describe("TaskService", () => {
       });
 
       // Now create a service with sync enabled
-      mockSyncService.syncTask.mockResolvedValue({
+      mockSyncTask.mockResolvedValue({
         taskId: task.id,
         github: {
           issueNumber: 99,
@@ -956,8 +960,8 @@ describe("TaskService", () => {
 
       const syncService = new TaskService({
         storage: storagePath,
-        syncService: mockSyncService as unknown as GitHubSyncService,
-        syncConfig: { enabled: true, auto: { on_change: true } },
+        syncRegistry: mockRegistry,
+        syncConfig: { github: { enabled: true, auto: { on_change: true } } },
       });
 
       await syncService.update({
@@ -984,7 +988,7 @@ describe("TaskService", () => {
       });
 
       // Now update with sync enabled
-      mockSyncService.syncTask.mockResolvedValue({
+      mockSyncTask.mockResolvedValue({
         taskId: task.id,
         github: {
           issueNumber: 55,
@@ -997,8 +1001,8 @@ describe("TaskService", () => {
 
       const syncService = new TaskService({
         storage: storagePath,
-        syncService: mockSyncService as unknown as GitHubSyncService,
-        syncConfig: { enabled: true, auto: { on_change: true } },
+        syncRegistry: mockRegistry,
+        syncConfig: { github: { enabled: true, auto: { on_change: true } } },
       });
 
       await syncService.update({
@@ -1026,7 +1030,7 @@ describe("TaskService", () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       // Sync returns skipped: true
-      mockSyncService.syncTask.mockResolvedValue({
+      mockSyncTask.mockResolvedValue({
         taskId: task.id,
         github: {
           issueNumber: 77,
@@ -1040,8 +1044,8 @@ describe("TaskService", () => {
 
       const syncService = new TaskService({
         storage: storagePath,
-        syncService: mockSyncService as unknown as GitHubSyncService,
-        syncConfig: { enabled: true, auto: { on_change: true } },
+        syncRegistry: mockRegistry,
+        syncConfig: { github: { enabled: true, auto: { on_change: true } } },
       });
 
       await syncService.update({
@@ -1068,7 +1072,7 @@ describe("TaskService", () => {
       });
 
       // Sync service returns parent's ID (subtasks sync their parent)
-      mockSyncService.syncTask.mockResolvedValue({
+      mockSyncTask.mockResolvedValue({
         taskId: parent.id, // Parent gets the GitHub issue, not subtask
         github: {
           issueNumber: 88,
@@ -1081,8 +1085,8 @@ describe("TaskService", () => {
 
       const syncService = new TaskService({
         storage: storagePath,
-        syncService: mockSyncService as unknown as GitHubSyncService,
-        syncConfig: { enabled: true, auto: { on_change: true } },
+        syncRegistry: mockRegistry,
+        syncConfig: { github: { enabled: true, auto: { on_change: true } } },
       });
 
       // Update subtask triggers sync

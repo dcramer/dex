@@ -22,10 +22,26 @@ export const GithubMetadataSchema = z.object({
 
 export type GithubMetadata = z.infer<typeof GithubMetadataSchema>;
 
+/**
+ * Container for integration-specific metadata.
+ * Each integration stores its metadata under its provider key.
+ */
+export const IntegrationsMetadataSchema = z.object({
+  github: GithubMetadataSchema.optional(),
+  // Future integrations:
+  // gitlab: GitlabMetadataSchema.optional(),
+  // linear: LinearMetadataSchema.optional(),
+  // jira: JiraMetadataSchema.optional(),
+  // bitbucket: BitbucketMetadataSchema.optional(),
+});
+
+export type IntegrationsMetadata = z.infer<typeof IntegrationsMetadataSchema>;
+
 export const TaskMetadataSchema = z
   .object({
     commit: CommitMetadataSchema.optional(),
-    github: GithubMetadataSchema.optional(),
+    github: GithubMetadataSchema.optional(), // Legacy location (for backward compat)
+    integrations: IntegrationsMetadataSchema.optional(), // New multi-integration container
   })
   .nullable();
 

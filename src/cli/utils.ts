@@ -1,7 +1,7 @@
 import { TaskService } from "../core/task-service.js";
 import type { StorageEngine } from "../core/storage/index.js";
-import { GitHubSyncService } from "../core/github/index.js";
-import type { GitHubSyncConfig } from "../core/config.js";
+import type { SyncRegistry } from "../core/sync/index.js";
+import type { SyncConfig } from "../core/config.js";
 import type { Task } from "../types.js";
 import { extractErrorInfo } from "../errors.js";
 import * as readline from "readline";
@@ -9,8 +9,8 @@ import { colors } from "./colors.js";
 
 export interface CliOptions {
   storage: StorageEngine;
-  syncService?: GitHubSyncService | null;
-  syncConfig?: GitHubSyncConfig | null;
+  syncRegistry?: SyncRegistry | null;
+  syncConfig?: SyncConfig | null;
 }
 
 // ASCII art banner for CLI headers
@@ -22,7 +22,7 @@ export const ASCII_BANNER = ` ____  _____ __ __
 export function createService(options: CliOptions): TaskService {
   return new TaskService({
     storage: options.storage,
-    syncService: options.syncService,
+    syncRegistry: options.syncRegistry,
     syncConfig: options.syncConfig,
   });
 }

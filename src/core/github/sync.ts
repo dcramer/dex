@@ -82,6 +82,11 @@ export interface SyncAllOptions {
  * before code changes are pushed.
  */
 export class GitHubSyncService {
+  /** Integration ID for the SyncRegistry */
+  readonly id = "github" as const;
+  /** Human-readable name for display */
+  readonly displayName = "GitHub";
+
   private octokit: Octokit;
   private owner: string;
   private repo: string;

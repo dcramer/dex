@@ -6,3 +6,6 @@ export type {
   SyncAllOptions,
   SyncService,
 } from "./interface.js";
+
+export { SyncRegistry } from "./registry.js";
+export type { RegisterableSyncService, LegacySyncResult } from "./registry.js";

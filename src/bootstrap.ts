@@ -1,11 +1,9 @@
-import type { GitHubSyncConfig } from "./core/config.js";
+import type { SyncConfig } from "./core/config.js";
 import { loadConfig } from "./core/config.js";
 import type { StorageEngine } from "./core/storage/index.js";
 import { JsonlStorage } from "./core/storage/index.js";
-import {
-  createGitHubSyncService,
-  GitHubSyncService,
-} from "./core/github/index.js";
+import { SyncRegistry } from "./core/sync/index.js";
+import { createGitHubSyncService } from "./core/github/index.js";
 
 export interface ParsedGlobalOptions {
   storagePath?: string;
@@ -99,23 +97,40 @@ export function createStorageEngine(
   });
 }
 
-export interface SyncServiceResult {
-  syncService: GitHubSyncService | null;
-  syncConfig: GitHubSyncConfig | null;
+export interface SyncRegistryResult {
+  syncRegistry: SyncRegistry | null;
+  syncConfig: SyncConfig | null;
 }
 
-export function createSyncService(
+/**
+ * Create a SyncRegistry from configuration.
+ * Registers all enabled sync services based on config.
+ */
+export function createSyncRegistry(
   storagePath: string,
   cliConfigPath?: string,
-): SyncServiceResult {
+): SyncRegistryResult {
   const config = loadConfig({ storagePath, configPath: cliConfigPath });
-  const githubConfig = config.sync?.github ?? null;
+  const syncConfig = config.sync ?? null;
+
+  const registry = new SyncRegistry();
+
+  // Register GitHub sync service if configured
+  const githubService = createGitHubSyncService(
+    syncConfig?.github ?? undefined,
+    storagePath,
+  );
+  if (githubService) {
+    registry.register(githubService);
+  }
+
+  // Future: Register other sync services here
+  // if (syncConfig?.gitlab) { registry.register(createGitlabSyncService(...)); }
+  // if (syncConfig?.linear) { registry.register(createLinearSyncService(...)); }
+
   return {
-    syncService: createGitHubSyncService(
-      githubConfig ?? undefined,
-      storagePath,
-    ),
-    syncConfig: githubConfig,
+    syncRegistry: registry.hasServices() ? registry : null,
+    syncConfig,
   };
 }
 

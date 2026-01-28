@@ -1,8 +1,13 @@
 import { customAlphabet } from "nanoid";
 import type { StorageEngine } from "./storage/index.js";
 import { JsonlStorage, ArchiveStorage } from "./storage/index.js";
-import { GitHubSyncService } from "./github/index.js";
-import type { GitHubSyncConfig } from "./config.js";
+import type {
+  RegisterableSyncService,
+  LegacySyncResult,
+} from "./sync/index.js";
+import { SyncRegistry } from "./sync/index.js";
+import type { SyncConfig } from "./config.js";
+import type { GithubMetadata } from "../types.js";
 import { isSyncStale, updateSyncState } from "./sync-state.js";
 import type {
   Task,
@@ -70,8 +75,8 @@ function resolveStorage(
 export interface TaskServiceOptions {
   storage?: StorageEngine | string;
   archiveStorage?: ArchiveStorage;
-  syncService?: GitHubSyncService | null;
-  syncConfig?: GitHubSyncConfig | null;
+  syncRegistry?: SyncRegistry | null;
+  syncConfig?: SyncConfig | null;
 }
 
 export interface BulkArchiveOptions {
@@ -101,25 +106,25 @@ export interface ArchiveResult {
 export class TaskService {
   private storage: StorageEngine;
   private archiveStorage: ArchiveStorage | null;
-  private syncService: GitHubSyncService | null;
-  private syncConfig: GitHubSyncConfig | null;
+  private syncRegistry: SyncRegistry | null;
+  private syncConfig: SyncConfig | null;
 
   constructor(options?: TaskServiceOptions | StorageEngine | string) {
     // Handle backward compatibility with old constructor signatures
     if (typeof options === "string" || options === undefined) {
       this.storage = new JsonlStorage(options);
       this.archiveStorage = null;
-      this.syncService = null;
+      this.syncRegistry = null;
       this.syncConfig = null;
     } else if (isStorageEngine(options)) {
       this.storage = options;
       this.archiveStorage = null;
-      this.syncService = null;
+      this.syncRegistry = null;
       this.syncConfig = null;
     } else {
       this.storage = resolveStorage(options.storage);
       this.archiveStorage = options.archiveStorage ?? null;
-      this.syncService = options.syncService ?? null;
+      this.syncRegistry = options.syncRegistry ?? null;
       this.syncConfig = options.syncConfig ?? null;
     }
   }
@@ -134,18 +139,19 @@ export class TaskService {
   }
 
   /**
-   * Sync a task to GitHub if sync service is configured.
+   * Sync a task to all registered integrations.
    * Respects auto-sync settings (on_change and max_age).
    * Errors are caught and logged but don't fail the operation.
    */
-  private async syncToGitHub(task: Task): Promise<void> {
-    if (!this.syncService) return;
+  private async syncToIntegrations(task: Task): Promise<void> {
+    if (!this.syncRegistry?.hasServices()) return;
 
-    const autoConfig = this.syncConfig?.auto;
+    // Check GitHub-specific auto config (for backward compatibility)
+    // TODO: Each integration should have its own auto config
+    const autoConfig = this.syncConfig?.github?.auto;
     const onChange = autoConfig?.on_change !== false; // default: true
 
     if (onChange) {
-      // Sync immediately
       await this.doSync(task);
       return;
     }
@@ -158,41 +164,84 @@ export class TaskService {
   }
 
   /**
-   * Perform the actual sync to GitHub and update sync state.
+   * Perform parallel sync to all registered integrations.
    */
   private async doSync(task: Task): Promise<void> {
-    if (!this.syncService) return;
+    if (!this.syncRegistry?.hasServices()) return;
 
-    try {
-      const store = await this.storage.readAsync();
-      const result = await this.syncService.syncTask(task, store);
+    const services = this.syncRegistry.getAll();
+    const store = await this.storage.readAsync();
 
-      // Save GitHub metadata to task (skip if sync was skipped or no result)
-      if (result && !result.skipped) {
-        const taskIndex = store.tasks.findIndex((t) => t.id === result.taskId);
-        if (taskIndex !== -1) {
-          const targetTask = store.tasks[taskIndex];
+    // Sync to all integrations in parallel
+    const results = await Promise.allSettled(
+      services.map((service) => this.syncWithService(service, task, store)),
+    );
+
+    // Log any failures
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      if (result.status === "rejected") {
+        const service = services[i];
+        console.warn(
+          `${service.displayName} sync failed:`,
+          result.reason instanceof Error
+            ? result.reason.message
+            : result.reason,
+        );
+      }
+    }
+
+    updateSyncState(this.storage.getIdentifier(), {
+      lastSync: new Date().toISOString(),
+    });
+  }
+
+  /**
+   * Sync a task with a specific service and save metadata.
+   */
+  private async syncWithService(
+    service: RegisterableSyncService,
+    task: Task,
+    store: TaskStore,
+  ): Promise<LegacySyncResult | null> {
+    const result = await service.syncTask(task, store);
+
+    // Save integration metadata to task (skip if sync was skipped or no result)
+    if (result && !result.skipped) {
+      const taskIndex = store.tasks.findIndex((t) => t.id === result.taskId);
+      if (taskIndex !== -1) {
+        const targetTask = store.tasks[taskIndex];
+
+        // Extract metadata from result - handle both new format (metadata) and
+        // legacy GitHub format (github)
+        const integrationMetadata =
+          (result.metadata as GithubMetadata | undefined) ??
+          (result.github as GithubMetadata | undefined) ??
+          null;
+
+        if (integrationMetadata) {
           store.tasks[taskIndex] = {
             ...targetTask,
             metadata: {
               ...targetTask.metadata,
-              github: result.github,
+              // Write to legacy location for GitHub (backward compatibility)
+              ...(service.id === "github"
+                ? { github: integrationMetadata }
+                : {}),
+              // Write to new integrations container
+              integrations: {
+                ...targetTask.metadata?.integrations,
+                [service.id]: integrationMetadata,
+              },
             },
             updated_at: new Date().toISOString(),
           };
           await this.storage.writeAsync(store);
         }
       }
-
-      updateSyncState(this.storage.getIdentifier(), {
-        lastSync: new Date().toISOString(),
-      });
-    } catch (err) {
-      console.warn(
-        "GitHub sync failed:",
-        err instanceof Error ? err.message : err,
-      );
     }
+
+    return result;
   }
 
   // ============ CRUD Methods ============
@@ -289,7 +338,7 @@ export class TaskService {
     await this.storage.writeAsync(store);
 
     // Sync to GitHub if enabled
-    await this.syncToGitHub(task);
+    await this.syncToIntegrations(task);
 
     return task;
   }
@@ -416,7 +465,7 @@ export class TaskService {
     await this.storage.writeAsync(store);
 
     // Sync to GitHub if enabled
-    await this.syncToGitHub(task);
+    await this.syncToIntegrations(task);
 
     return task;
   }

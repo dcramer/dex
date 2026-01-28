@@ -4,8 +4,8 @@ import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { ZodError, ZodType } from "zod";
 import { TaskService } from "../core/task-service.js";
 import type { StorageEngine } from "../core/storage/index.js";
-import { GitHubSyncService } from "../core/github/index.js";
-import type { GitHubSyncConfig } from "../core/config.js";
+import type { SyncRegistry } from "../core/sync/index.js";
+import type { SyncConfig } from "../core/config.js";
 import { CreateTaskArgsSchema, handleCreateTask } from "./tools/create-task.js";
 import { UpdateTaskArgsSchema, handleUpdateTask } from "./tools/update-task.js";
 import { ListTasksArgsSchema, handleListTasks } from "./tools/list-tasks.js";
@@ -45,10 +45,10 @@ function wrapHandler<T>(
  */
 export function createMcpServer(
   storage: StorageEngine,
-  syncService?: GitHubSyncService | null,
-  syncConfig?: GitHubSyncConfig | null,
+  syncRegistry?: SyncRegistry | null,
+  syncConfig?: SyncConfig | null,
 ): McpServer {
-  const service = new TaskService({ storage, syncService, syncConfig });
+  const service = new TaskService({ storage, syncRegistry, syncConfig });
   const server = new McpServer({
     name: "dex",
     version: "1.0.0",
@@ -84,10 +84,10 @@ export function createMcpServer(
  */
 export async function startMcpServer(
   storage: StorageEngine,
-  syncService?: GitHubSyncService | null,
-  syncConfig?: GitHubSyncConfig | null,
+  syncRegistry?: SyncRegistry | null,
+  syncConfig?: SyncConfig | null,
   transport?: Transport,
 ): Promise<void> {
-  const server = createMcpServer(storage, syncService, syncConfig);
+  const server = createMcpServer(storage, syncRegistry, syncConfig);
   await server.connect(transport ?? new StdioServerTransport());
 }
