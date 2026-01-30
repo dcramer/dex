@@ -143,6 +143,22 @@ export class GitHubSyncService {
   }
 
   /**
+   * Close the GitHub issue for a task (e.g., when the task is deleted locally).
+   * If the task has no associated issue, this is a no-op.
+   */
+  async closeRemote(task: Task): Promise<void> {
+    const issueNumber = this.getRemoteId(task);
+    if (!issueNumber) return;
+
+    await this.octokit.issues.update({
+      owner: this.owner,
+      repo: this.repo,
+      issue_number: issueNumber,
+      state: "closed",
+    });
+  }
+
+  /**
    * Sync a single task to GitHub.
    * For subtasks, syncs the parent issue instead.
    * Returns sync result with github metadata.
