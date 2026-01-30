@@ -340,7 +340,11 @@ export class TaskService {
     // Sync to GitHub if enabled
     await this.syncToIntegrations(task);
 
-    return task;
+    // Re-fetch task to get any metadata added by integrations
+    const updatedStore = await this.storage.readAsync();
+    const updatedTask = updatedStore.tasks.find((t) => t.id === task.id);
+
+    return updatedTask ?? task;
   }
 
   async update(input: UpdateTaskInput): Promise<Task> {
