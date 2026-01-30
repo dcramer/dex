@@ -28,6 +28,17 @@ export function decodeMetadataValue(value: string): string {
 }
 
 /**
+ * Safely parse a JSON array, returning empty array on parse failure.
+ */
+function safeParseJsonArray(value: string): string[] {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Parse a commit metadata field from a key-value pair.
  * Returns true if the key was a commit field and was processed.
  */
@@ -68,6 +79,8 @@ export interface ParsedRootTaskMetadata {
   updated_at?: string;
   started_at?: string | null;
   completed_at?: string | null;
+  blockedBy?: string[];
+  blocks?: string[];
   result?: string | null;
   commit?: CommitMetadata;
   github?: import("../../types.js").GithubMetadata;
@@ -121,6 +134,12 @@ export function parseRootTaskMetadata(
         break;
       case "completed_at":
         metadata.completed_at = value === "null" ? null : value;
+        break;
+      case "blockedBy":
+        metadata.blockedBy = safeParseJsonArray(value);
+        break;
+      case "blocks":
+        metadata.blocks = safeParseJsonArray(value);
         break;
       case "result":
         metadata.result = value;
@@ -437,8 +456,8 @@ function parseDetailsBlockWithContext(
     updated_at: metadata.updated_at ?? new Date().toISOString(),
     started_at: metadata.started_at ?? null,
     completed_at: metadata.completed_at ?? null,
-    blockedBy: [],
-    blocks: [],
+    blockedBy: metadata.blockedBy ?? [],
+    blocks: metadata.blocks ?? [],
     children: [],
   };
 }
@@ -455,6 +474,8 @@ function parseMetadataComments(content: string): {
   updated_at?: string;
   started_at?: string | null;
   completed_at?: string | null;
+  blockedBy?: string[];
+  blocks?: string[];
   commit?: CommitMetadata;
 } {
   const metadata: ReturnType<typeof parseMetadataComments> = {};
@@ -503,6 +524,12 @@ function parseMetadataComments(content: string): {
         break;
       case "completed_at":
         metadata.completed_at = rawValue === "null" ? null : value;
+        break;
+      case "blockedBy":
+        metadata.blockedBy = safeParseJsonArray(value);
+        break;
+      case "blocks":
+        metadata.blocks = safeParseJsonArray(value);
         break;
     }
   }
