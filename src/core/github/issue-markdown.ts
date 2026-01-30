@@ -30,4 +30,6 @@ export {
   createSubtaskId,
   renderIssueBody,
   renderHierarchicalIssueBody,
+  renderTaskMetadataComments,
+  type TaskLike,
 } from "./issue-rendering.js";

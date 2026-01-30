@@ -5,7 +5,7 @@ import type { HierarchicalTask } from "./issue-markdown.js";
 import {
   collectDescendants,
   renderHierarchicalIssueBody,
-  encodeMetadataValue,
+  renderTaskMetadataComments,
 } from "./issue-markdown.js";
 import { isCommitOnRemote } from "../git-utils.js";
 
@@ -140,6 +140,22 @@ export class GitHubSyncService {
       return `https://github.com/${this.owner}/${this.repo}/issues/${issueNumber}`;
     }
     return null;
+  }
+
+  /**
+   * Close the GitHub issue for a task (e.g., when the task is deleted locally).
+   * If the task has no associated issue, this is a no-op.
+   */
+  async closeRemote(task: Task): Promise<void> {
+    const issueNumber = this.getRemoteId(task);
+    if (!issueNumber) return;
+
+    await this.octokit.issues.update({
+      owner: this.owner,
+      repo: this.repo,
+      issue_number: issueNumber,
+      state: "closed",
+    });
   }
 
   /**
@@ -518,43 +534,7 @@ export class GitHubSyncService {
    * Includes root task metadata encoded in HTML comments for round-trip support.
    */
   private renderBody(task: Task, descendants: HierarchicalTask[]): string {
-    // Build root task metadata comments
-    const rootMeta: string[] = [
-      `<!-- dex:task:id:${task.id} -->`,
-      `<!-- dex:task:priority:${task.priority} -->`,
-      `<!-- dex:task:completed:${task.completed} -->`,
-      `<!-- dex:task:created_at:${task.created_at} -->`,
-      `<!-- dex:task:updated_at:${task.updated_at} -->`,
-      `<!-- dex:task:completed_at:${task.completed_at ?? "null"} -->`,
-    ];
-
-    // Add result if present (base64 encoded for multi-line support)
-    if (task.result) {
-      rootMeta.push(
-        `<!-- dex:task:result:${encodeMetadataValue(task.result)} -->`,
-      );
-    }
-
-    // Add commit metadata if present
-    if (task.metadata?.commit) {
-      const commit = task.metadata.commit;
-      rootMeta.push(`<!-- dex:task:commit_sha:${commit.sha} -->`);
-      if (commit.message) {
-        rootMeta.push(
-          `<!-- dex:task:commit_message:${encodeMetadataValue(commit.message)} -->`,
-        );
-      }
-      if (commit.branch) {
-        rootMeta.push(`<!-- dex:task:commit_branch:${commit.branch} -->`);
-      }
-      if (commit.url) {
-        rootMeta.push(`<!-- dex:task:commit_url:${commit.url} -->`);
-      }
-      if (commit.timestamp) {
-        rootMeta.push(`<!-- dex:task:commit_timestamp:${commit.timestamp} -->`);
-      }
-    }
-
+    const rootMeta = renderTaskMetadataComments(task, "task");
     const body = renderHierarchicalIssueBody(task.description, descendants);
     return `${rootMeta.join("\n")}\n${body}`;
   }

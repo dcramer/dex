@@ -1020,7 +1020,7 @@ describe("syncAll with issue cache", () => {
       createIssueFixture({
         number: 1,
         title: "Task 1",
-        body: `<!-- dex:task:id:task1 -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task1.created_at} -->\n<!-- dex:task:updated_at:${task1.updated_at} -->\n<!-- dex:task:completed_at:null -->\nSame context`,
+        body: `<!-- dex:task:id:task1 -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task1.created_at} -->\n<!-- dex:task:updated_at:${task1.updated_at} -->\n<!-- dex:task:started_at:null -->\n<!-- dex:task:completed_at:null -->\n<!-- dex:task:blockedBy:[] -->\n<!-- dex:task:blocks:[] -->\nSame context`,
         state: "open",
         labels: [
           { name: "dex" },
@@ -1031,7 +1031,7 @@ describe("syncAll with issue cache", () => {
       createIssueFixture({
         number: 2,
         title: "Task 2",
-        body: `<!-- dex:task:id:task2 -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task2.created_at} -->\n<!-- dex:task:updated_at:${task2.updated_at} -->\n<!-- dex:task:completed_at:null -->\nSame context`,
+        body: `<!-- dex:task:id:task2 -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task2.created_at} -->\n<!-- dex:task:updated_at:${task2.updated_at} -->\n<!-- dex:task:started_at:null -->\n<!-- dex:task:completed_at:null -->\n<!-- dex:task:blockedBy:[] -->\n<!-- dex:task:blocks:[] -->\nSame context`,
         state: "open",
         labels: [
           { name: "dex" },
@@ -1069,7 +1069,7 @@ describe("syncAll with issue cache", () => {
       createIssueFixture({
         number: 1,
         title: "Task 1 Old",
-        body: `<!-- dex:task:id:task1 -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task1.created_at} -->\n<!-- dex:task:updated_at:${task1.updated_at} -->\n<!-- dex:task:completed_at:null -->\nOld context`,
+        body: `<!-- dex:task:id:task1 -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task1.created_at} -->\n<!-- dex:task:updated_at:${task1.updated_at} -->\n<!-- dex:task:started_at:null -->\n<!-- dex:task:completed_at:null -->\n<!-- dex:task:blockedBy:[] -->\n<!-- dex:task:blocks:[] -->\nOld context`,
         state: "open",
         labels: [
           { name: "dex" },
@@ -1080,7 +1080,7 @@ describe("syncAll with issue cache", () => {
       createIssueFixture({
         number: 2,
         title: "Task 2",
-        body: `<!-- dex:task:id:task2 -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task2.created_at} -->\n<!-- dex:task:updated_at:${task2.updated_at} -->\n<!-- dex:task:completed_at:null -->\nSame context`,
+        body: `<!-- dex:task:id:task2 -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task2.created_at} -->\n<!-- dex:task:updated_at:${task2.updated_at} -->\n<!-- dex:task:started_at:null -->\n<!-- dex:task:completed_at:null -->\n<!-- dex:task:blockedBy:[] -->\n<!-- dex:task:blocks:[] -->\nSame context`,
         state: "open",
         labels: [
           { name: "dex" },
@@ -1123,7 +1123,7 @@ describe("syncAll with issue cache", () => {
       createIssueFixture({
         number: 1,
         title: "Existing",
-        body: `<!-- dex:task:id:existingtask -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task1.created_at} -->\n<!-- dex:task:updated_at:${task1.updated_at} -->\n<!-- dex:task:completed_at:null -->\nTest description`,
+        body: `<!-- dex:task:id:existingtask -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task1.created_at} -->\n<!-- dex:task:updated_at:${task1.updated_at} -->\n<!-- dex:task:started_at:null -->\n<!-- dex:task:completed_at:null -->\n<!-- dex:task:blockedBy:[] -->\n<!-- dex:task:blocks:[] -->\nTest description`,
         state: "open",
         labels: [
           { name: "dex" },
@@ -1184,7 +1184,7 @@ describe("hasIssueChangedFromCache change detection", () => {
       createIssueFixture({
         number: 1,
         title: "Test Task",
-        body: `<!-- dex:task:id:taskid -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task.created_at} -->\n<!-- dex:task:updated_at:${task.updated_at} -->\n<!-- dex:task:completed_at:null -->\nTest context`,
+        body: `<!-- dex:task:id:taskid -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task.created_at} -->\n<!-- dex:task:updated_at:${task.updated_at} -->\n<!-- dex:task:started_at:null -->\n<!-- dex:task:completed_at:null -->\n<!-- dex:task:blockedBy:[] -->\n<!-- dex:task:blocks:[] -->\nTest context`,
         state: "open",
         labels: [
           { name: "dex" },
@@ -1212,7 +1212,7 @@ describe("hasIssueChangedFromCache change detection", () => {
       createIssueFixture({
         number: 1,
         title: "Old Title",
-        body: `<!-- dex:task:id:taskid -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task.created_at} -->\n<!-- dex:task:updated_at:${task.updated_at} -->\n<!-- dex:task:completed_at:null -->\nTest context`,
+        body: `<!-- dex:task:id:taskid -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task.created_at} -->\n<!-- dex:task:updated_at:${task.updated_at} -->\n<!-- dex:task:started_at:null -->\n<!-- dex:task:completed_at:null -->\n<!-- dex:task:blockedBy:[] -->\n<!-- dex:task:blocks:[] -->\nTest context`,
         state: "open",
         labels: [
           { name: "dex" },
@@ -1246,7 +1246,7 @@ describe("hasIssueChangedFromCache change detection", () => {
       createIssueFixture({
         number: 1,
         title: "Test Task",
-        body: `<!-- dex:task:id:taskid -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task.created_at} -->\n<!-- dex:task:updated_at:${task.updated_at} -->\n<!-- dex:task:completed_at:null -->\nOld context`,
+        body: `<!-- dex:task:id:taskid -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task.created_at} -->\n<!-- dex:task:updated_at:${task.updated_at} -->\n<!-- dex:task:started_at:null -->\n<!-- dex:task:completed_at:null -->\n<!-- dex:task:blockedBy:[] -->\n<!-- dex:task:blocks:[] -->\nOld context`,
         state: "open",
         labels: [
           { name: "dex" },
@@ -1326,7 +1326,7 @@ describe("hasIssueChangedFromCache change detection", () => {
       createIssueFixture({
         number: 1,
         title: "Test Task",
-        body: `<!-- dex:task:id:taskid -->\n<!-- dex:task:priority:2 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task.created_at} -->\n<!-- dex:task:updated_at:${task.updated_at} -->\n<!-- dex:task:completed_at:null -->\nTest context`,
+        body: `<!-- dex:task:id:taskid -->\n<!-- dex:task:priority:2 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task.created_at} -->\n<!-- dex:task:updated_at:${task.updated_at} -->\n<!-- dex:task:started_at:null -->\n<!-- dex:task:completed_at:null -->\n<!-- dex:task:blockedBy:[] -->\n<!-- dex:task:blocks:[] -->\nTest context`,
         state: "open",
         labels: [
           { name: "dex" },
@@ -1361,7 +1361,7 @@ describe("hasIssueChangedFromCache change detection", () => {
       createIssueFixture({
         number: 1,
         title: "Test Task",
-        body: `<!-- dex:task:id:taskid -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task.created_at} -->\n<!-- dex:task:updated_at:${task.updated_at} -->\n<!-- dex:task:completed_at:null -->\nTest context  \n`,
+        body: `<!-- dex:task:id:taskid -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task.created_at} -->\n<!-- dex:task:updated_at:${task.updated_at} -->\n<!-- dex:task:started_at:null -->\n<!-- dex:task:completed_at:null -->\n<!-- dex:task:blockedBy:[] -->\n<!-- dex:task:blocks:[] -->\nTest context  \n`,
         state: "open",
         labels: [
           { name: "dex" },
@@ -1529,7 +1529,7 @@ describe("syncTask without cache (single-task sync)", () => {
       createIssueFixture({
         number: 77,
         title: "Check Change Task",
-        body: `<!-- dex:task:id:checkchange -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task.created_at} -->\n<!-- dex:task:updated_at:${task.updated_at} -->\n<!-- dex:task:completed_at:null -->\nTest description`,
+        body: `<!-- dex:task:id:checkchange -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task.created_at} -->\n<!-- dex:task:updated_at:${task.updated_at} -->\n<!-- dex:task:started_at:null -->\n<!-- dex:task:completed_at:null -->\n<!-- dex:task:blockedBy:[] -->\n<!-- dex:task:blocks:[] -->\nTest description`,
         state: "open",
         labels: [
           { name: "dex" },

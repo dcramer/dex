@@ -3,7 +3,7 @@ import type { EmbeddedSubtask, HierarchicalTask } from "./issue-parsing.js";
 import { encodeMetadataValue, SUBTASKS_HEADER } from "./issue-parsing.js";
 
 /** Common task fields needed for rendering metadata */
-interface TaskLike {
+export interface TaskLike {
   id: string;
   priority: number;
   completed: boolean;
@@ -11,7 +11,10 @@ interface TaskLike {
   result: string | null;
   created_at: string;
   updated_at: string;
+  started_at: string | null;
   completed_at: string | null;
+  blockedBy: string[];
+  blocks: string[];
   metadata: { commit?: CommitMetadata } | null;
 }
 
@@ -25,13 +28,74 @@ export function createSubtaskId(parentId: string, index: number): string {
   return `${parentId}-${index}`;
 }
 
-/** Format a metadata comment line */
-function metaComment(key: string, value: string | number | boolean): string {
-  return `<!-- dex:subtask:${key}:${value} -->`;
+/** Format a metadata comment line with the given prefix */
+function metaComment(
+  prefix: string,
+  key: string,
+  value: string | number | boolean,
+): string {
+  return `<!-- dex:${prefix}:${key}:${value} -->`;
 }
 
 /**
- * Render the metadata comments, description, and result sections for a task block.
+ * Render task metadata as HTML comments.
+ * @param task - The task to render metadata for
+ * @param prefix - The comment prefix ("task" for root, "subtask" for children)
+ * @param parentId - Optional parent ID for subtasks
+ * @returns Array of HTML comment lines
+ */
+export function renderTaskMetadataComments(
+  task: TaskLike,
+  prefix: string,
+  parentId?: string | null,
+): string[] {
+  const lines: string[] = [];
+
+  lines.push(metaComment(prefix, "id", task.id));
+  if (parentId) {
+    lines.push(metaComment(prefix, "parent", parentId));
+  }
+  lines.push(metaComment(prefix, "priority", task.priority));
+  lines.push(metaComment(prefix, "completed", task.completed));
+  lines.push(metaComment(prefix, "created_at", task.created_at));
+  lines.push(metaComment(prefix, "updated_at", task.updated_at));
+  lines.push(metaComment(prefix, "started_at", task.started_at ?? "null"));
+  lines.push(metaComment(prefix, "completed_at", task.completed_at ?? "null"));
+  lines.push(metaComment(prefix, "blockedBy", JSON.stringify(task.blockedBy)));
+  lines.push(metaComment(prefix, "blocks", JSON.stringify(task.blocks)));
+
+  if (task.result) {
+    lines.push(metaComment(prefix, "result", encodeMetadataValue(task.result)));
+  }
+
+  if (task.metadata?.commit) {
+    const commit = task.metadata.commit;
+    lines.push(metaComment(prefix, "commit_sha", commit.sha));
+    if (commit.message) {
+      lines.push(
+        metaComment(
+          prefix,
+          "commit_message",
+          encodeMetadataValue(commit.message),
+        ),
+      );
+    }
+    if (commit.branch) {
+      lines.push(metaComment(prefix, "commit_branch", commit.branch));
+    }
+    if (commit.url) {
+      lines.push(metaComment(prefix, "commit_url", commit.url));
+    }
+    if (commit.timestamp) {
+      lines.push(metaComment(prefix, "commit_timestamp", commit.timestamp));
+    }
+  }
+
+  return lines;
+}
+
+/**
+ * Render the metadata comments, description, and result sections for a subtask block.
  * @param task - The task to render metadata for
  * @param parentId - Optional parent ID for hierarchical tasks
  */
@@ -39,36 +103,7 @@ function renderTaskMetadataAndContent(
   task: TaskLike,
   parentId?: string | null,
 ): string[] {
-  const lines: string[] = [];
-
-  lines.push(metaComment("id", task.id));
-  if (parentId) {
-    lines.push(metaComment("parent", parentId));
-  }
-  lines.push(metaComment("priority", task.priority));
-  lines.push(metaComment("completed", task.completed));
-  lines.push(metaComment("created_at", task.created_at));
-  lines.push(metaComment("updated_at", task.updated_at));
-  lines.push(metaComment("completed_at", task.completed_at ?? "null"));
-
-  if (task.metadata?.commit) {
-    const commit = task.metadata.commit;
-    lines.push(metaComment("commit_sha", commit.sha));
-    if (commit.message) {
-      lines.push(
-        metaComment("commit_message", encodeMetadataValue(commit.message)),
-      );
-    }
-    if (commit.branch) {
-      lines.push(metaComment("commit_branch", commit.branch));
-    }
-    if (commit.url) {
-      lines.push(metaComment("commit_url", commit.url));
-    }
-    if (commit.timestamp) {
-      lines.push(metaComment("commit_timestamp", commit.timestamp));
-    }
-  }
+  const lines = renderTaskMetadataComments(task, "subtask", parentId);
 
   lines.push("");
 

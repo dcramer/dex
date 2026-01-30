@@ -89,6 +89,23 @@ ${colors.bold}EXAMPLE:${colors.reset}
       `${colors.green}Completed${colors.reset} task ${colors.bold}${id}${colors.reset}`,
     );
     console.log(formatTaskShow(task));
+
+    // Check if all sibling subtasks are now complete and hint about parent
+    if (task.parent_id) {
+      const siblings = await service.getChildren(task.parent_id);
+      const allSiblingsComplete = siblings.every((s) => s.completed);
+
+      if (allSiblingsComplete) {
+        const parent = await service.get(task.parent_id);
+        console.log("");
+        console.log(
+          `${colors.cyan}Hint:${colors.reset} All subtasks of ${colors.bold}${parent?.name || task.parent_id}${colors.reset} are now complete.`,
+        );
+        console.log(
+          `  ${colors.dim}•${colors.reset} Complete parent: ${colors.cyan}dex complete ${task.parent_id} --result "..."${colors.reset}`,
+        );
+      }
+    }
   } catch (err) {
     console.error(formatCliError(err));
     process.exit(1);

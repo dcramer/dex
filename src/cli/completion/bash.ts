@@ -42,11 +42,7 @@ _dex_completion() {
 
     # Flag completion
     case "\${prev}" in
-        --status|-s)
-            COMPREPLY=( \$(compgen -W "pending completed" -- "\${cur}") )
-            return 0
-            ;;
-        --parent|--priority|-p|--description|-d|--result|-r|--query|-q)
+        --parent|--priority|-p|--description|-d|--result|-r|--query|-q|--add-blocker|--remove-blocker|--blocked-by|-b|--issue|--commit|-c)
             # These flags expect a value, no completion
             return 0
             ;;
@@ -58,19 +54,19 @@ _dex_completion() {
         local flags=""
         case "\${cmd}" in
             create)
-                flags="--name -n --description -d --priority -p --parent --help -h"
+                flags="--name -n --description -d --priority -p --parent --blocked-by -b --help -h"
                 ;;
             list|ls)
-                flags="--all -a --status -s --query -q --flat -f --json --help -h"
+                flags="--all -a --completed -c --archived --blocked -b --ready -r --in-progress -i --query -q --flat -f --issue --commit --json --help -h"
                 ;;
             show)
-                flags="--full --json --help -h"
+                flags="--expand -e --full -f --json --help -h"
                 ;;
             edit|update)
-                flags="--name -n --description -d --priority -p --parent --status -s --help -h"
+                flags="--name -n --description -d --priority -p --parent --add-blocker --remove-blocker --help -h"
                 ;;
             complete|done)
-                flags="--result -r --help -h"
+                flags="--result -r --commit -c --help -h"
                 ;;
             delete|rm|remove)
                 flags="--force -f --help -h"
