@@ -476,6 +476,7 @@ export class TaskService {
 
   /**
    * Delete a task and all its descendants.
+   * Closes any associated remote issues (e.g., GitHub issues) before deleting.
    * @param id The task ID to delete
    * @returns The deleted task
    * @throws NotFoundError if the task does not exist
@@ -494,6 +495,9 @@ export class TaskService {
     const toDelete = new Set<string>([id]);
     collectDescendantIds(store.tasks, id, toDelete);
 
+    // Close remote issues for all tasks being deleted
+    await this.closeRemoteIssues(store, toDelete);
+
     // Clean up references to all deleted tasks
     for (const taskId of toDelete) {
       cleanupTaskReferences(store, taskId);
@@ -502,6 +506,40 @@ export class TaskService {
     store.tasks = store.tasks.filter((t) => !toDelete.has(t.id));
     await this.storage.writeAsync(store);
     return deletedTask;
+  }
+
+  /**
+   * Close remote issues for a set of tasks being deleted.
+   * Errors are caught and logged but don't fail the delete operation.
+   */
+  private async closeRemoteIssues(
+    store: TaskStore,
+    taskIds: Set<string>,
+  ): Promise<void> {
+    if (!this.syncRegistry?.hasServices()) return;
+
+    const services = this.syncRegistry
+      .getAll()
+      .filter((s) => s.closeRemote !== undefined);
+    if (services.length === 0) return;
+
+    const tasksToClose = store.tasks.filter((t) => taskIds.has(t.id));
+
+    // Close all issues in parallel - each task/service combination is independent
+    const closeOperations = tasksToClose.flatMap((task) =>
+      services.map(async (service) => {
+        try {
+          await service.closeRemote!(task);
+        } catch (err) {
+          console.warn(
+            `Failed to close ${service.displayName} issue for task ${task.id}:`,
+            err instanceof Error ? err.message : err,
+          );
+        }
+      }),
+    );
+
+    await Promise.all(closeOperations);
   }
 
   async getChildren(id: string): Promise<Task[]> {

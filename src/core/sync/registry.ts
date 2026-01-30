@@ -26,6 +26,11 @@ export interface RegisterableSyncService {
     store: TaskStore,
     options?: SyncAllOptions,
   ): Promise<LegacySyncResult[]>;
+  /**
+   * Close the remote item for a task (e.g., when the task is deleted locally).
+   * Optional - services that don't support this will be skipped.
+   */
+  closeRemote?(task: Task): Promise<void>;
 }
 
 /**
