@@ -253,7 +253,13 @@ export class GitHubSyncService {
     } = options;
 
     // Collect ALL descendants, not just immediate children
-    const descendants = collectDescendants(store.tasks, parent.id);
+    // Apply push-check: subtasks only show as completed when their commit is pushed
+    const descendants = collectDescendants(store.tasks, parent.id).map(
+      (item) => ({
+        ...item,
+        task: { ...item.task, completed: this.shouldMarkCompleted(item.task) },
+      }),
+    );
 
     // Check for existing issue: first metadata, then cache, then API fallback
     let issueNumber = getGitHubIssueNumber(parent);
