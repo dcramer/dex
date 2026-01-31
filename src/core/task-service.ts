@@ -229,11 +229,13 @@ export class TaskService {
       if (taskIndex !== -1) {
         const targetTask = store.tasks[taskIndex];
 
-        // Extract metadata from result - handle both new format (metadata) and
-        // legacy GitHub format (github)
+        // Extract metadata from result - services return either:
+        // - Generic SyncService interface: result.metadata
+        // - Integration-specific result types: result.github or result.shortcut
+        const legacyResult = result as unknown as Record<string, unknown>;
         const integrationMetadata =
           (result.metadata as GithubMetadata | undefined) ??
-          (result.github as GithubMetadata | undefined) ??
+          (legacyResult[service.id] as GithubMetadata | undefined) ??
           null;
 
         if (integrationMetadata) {
@@ -241,15 +243,7 @@ export class TaskService {
             ...targetTask,
             metadata: {
               ...targetTask.metadata,
-              // Write to legacy location for GitHub (backward compatibility)
-              ...(service.id === "github"
-                ? { github: integrationMetadata }
-                : {}),
-              // Write to new integrations container
-              integrations: {
-                ...targetTask.metadata?.integrations,
-                [service.id]: integrationMetadata,
-              },
+              [service.id]: integrationMetadata,
             },
             updated_at: new Date().toISOString(),
           };

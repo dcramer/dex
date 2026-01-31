@@ -31,23 +31,11 @@ export const ShortcutMetadataSchema = z.object({
 
 export type ShortcutMetadata = z.infer<typeof ShortcutMetadataSchema>;
 
-/**
- * Container for integration-specific metadata.
- * Each integration stores its metadata under its provider key.
- */
-export const IntegrationsMetadataSchema = z.object({
-  github: GithubMetadataSchema.optional(),
-  shortcut: ShortcutMetadataSchema.optional(),
-});
-
-export type IntegrationsMetadata = z.infer<typeof IntegrationsMetadataSchema>;
-
 export const TaskMetadataSchema = z
   .object({
     commit: CommitMetadataSchema.optional(),
-    github: GithubMetadataSchema.optional(), // Legacy location (for backward compat)
-    shortcut: ShortcutMetadataSchema.optional(), // Legacy location (for backward compat)
-    integrations: IntegrationsMetadataSchema.optional(), // New multi-integration container
+    github: GithubMetadataSchema.optional(),
+    shortcut: ShortcutMetadataSchema.optional(),
   })
   .nullable();
 
