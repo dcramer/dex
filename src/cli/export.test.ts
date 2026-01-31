@@ -146,6 +146,7 @@ describe("export command", () => {
       });
 
       // First sync to create GitHub metadata
+      // Disable auto-sync to prevent double-sync when saveMetadata calls service.update
       githubMock.listIssues("test-owner", "test-repo", []);
       githubMock.createIssue(
         "test-owner",
@@ -155,9 +156,11 @@ describe("export command", () => {
           title: "Synced task",
         }),
       );
+      const syncConfig = { github: { auto: { on_change: false } } };
       await runCli(["sync", taskId], {
         storage: fixture.storage,
         syncRegistry,
+        syncConfig,
       });
       fixture.output.stdout.length = 0;
 
@@ -221,15 +224,18 @@ describe("export command", () => {
       const taskId2 = await createTask("Task 2", { description: "ctx2" });
 
       // Sync first task so it gets skipped
+      // Disable auto-sync to prevent double-sync when saveMetadata calls service.update
       githubMock.listIssues("test-owner", "test-repo", []);
       githubMock.createIssue(
         "test-owner",
         "test-repo",
         createIssueFixture({ number: 301, title: "Task 1" }),
       );
+      const syncConfig = { github: { auto: { on_change: false } } };
       await runCli(["sync", taskId1], {
         storage: fixture.storage,
         syncRegistry,
+        syncConfig,
       });
       fixture.output.stdout.length = 0;
 

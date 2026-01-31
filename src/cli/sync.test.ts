@@ -87,7 +87,9 @@ describe("sync command", () => {
   }
 
   function run(args: string[]): Promise<void> {
-    return runCli(args, { storage: fixture.storage, syncRegistry });
+    // Disable auto-sync to prevent double-sync when saveMetadata calls service.update
+    const syncConfig = { github: { auto: { on_change: false } } };
+    return runCli(args, { storage: fixture.storage, syncRegistry, syncConfig });
   }
 
   it.each([["--help"], ["-h"]])("shows help with %s flag", async (flag) => {
@@ -121,6 +123,7 @@ describe("sync command", () => {
       });
 
       // Sync to create GitHub metadata
+      // findIssueByTaskId uses paginate - need empty list for "no existing issue"
       githubMock.listIssues("test-owner", "test-repo", []);
       githubMock.createIssue(
         "test-owner",
@@ -133,6 +136,7 @@ describe("sync command", () => {
       await run(["sync", taskId]);
       fixture.output.stdout.length = 0;
 
+      // Dry-run doesn't make HTTP calls - just reads metadata
       // Dry-run should show update
       await run(["sync", "--dry-run"]);
 
@@ -209,13 +213,16 @@ describe("sync command", () => {
       await createTask("Task 1", { description: "ctx1" });
       await createTask("Task 2", { description: "ctx2" });
 
+      // syncAll calls fetchAllDexIssues once at start for cache (paginate may make multiple requests)
       githubMock.listIssues("test-owner", "test-repo", []);
+      githubMock.listIssues("test-owner", "test-repo", []);
+      githubMock.listIssues("test-owner", "test-repo", []);
+      // Then creates issues for each task
       githubMock.createIssue(
         "test-owner",
         "test-repo",
         createIssueFixture({ number: 201, title: "Task 1" }),
       );
-      githubMock.listIssues("test-owner", "test-repo", []);
       githubMock.createIssue(
         "test-owner",
         "test-repo",
@@ -234,7 +241,10 @@ describe("sync command", () => {
       const rootId = await createTask("Root task");
       await createTask("Subtask", { parent: rootId });
 
+      // syncAll calls fetchAllDexIssues once at start for cache (paginate may make multiple requests)
       githubMock.listIssues("test-owner", "test-repo", []);
+      githubMock.listIssues("test-owner", "test-repo", []);
+      // Then creates issue for root task only
       githubMock.createIssue(
         "test-owner",
         "test-repo",
@@ -390,7 +400,9 @@ describe("sync command --shortcut", () => {
   }
 
   function run(args: string[]): Promise<void> {
-    return runCli(args, { storage: fixture.storage, syncRegistry });
+    // Disable auto-sync to prevent double-sync when saveMetadata calls service.update
+    const syncConfig = { shortcut: { auto: { on_change: false } } };
+    return runCli(args, { storage: fixture.storage, syncRegistry, syncConfig });
   }
 
   /** Setup common Shortcut mocks for sync operations */
