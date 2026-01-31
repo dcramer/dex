@@ -681,25 +681,25 @@ describe("createGitHubSyncService", () => {
     }
   });
 
-  it("returns null when sync is disabled", () => {
-    const result = createGitHubSyncService({ enabled: false });
+  it("returns null when sync is disabled", async () => {
+    const result = await createGitHubSyncService({ enabled: false });
 
     expect(result).toBeNull();
   });
 
-  it("returns null when config is undefined", () => {
-    const result = createGitHubSyncService(undefined);
+  it("returns null when config is undefined", async () => {
+    const result = await createGitHubSyncService(undefined);
 
     expect(result).toBeNull();
   });
 
-  it("returns null when no token available", () => {
+  it("returns null when no token available", async () => {
     delete process.env.GITHUB_TOKEN;
 
     // Suppress console.warn for this test
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    const result = createGitHubSyncService({ enabled: true });
+    const result = await createGitHubSyncService({ enabled: true });
 
     expect(result).toBeNull();
     expect(warnSpy).toHaveBeenCalledWith(
@@ -709,10 +709,10 @@ describe("createGitHubSyncService", () => {
     warnSpy.mockRestore();
   });
 
-  it("creates service when properly configured", () => {
+  it("creates service when properly configured", async () => {
     process.env.GITHUB_TOKEN = "valid-token";
 
-    const result = createGitHubSyncService({ enabled: true });
+    const result = await createGitHubSyncService({ enabled: true });
 
     expect(result).not.toBeNull();
     expect(result?.getRepoString()).toBe("test-owner/test-repo");
@@ -735,39 +735,43 @@ describe("createGitHubSyncServiceOrThrow", () => {
     }
   });
 
-  it("throws when no token available", () => {
+  it("throws when no token available", async () => {
     delete process.env.GITHUB_TOKEN;
 
-    expect(() => createGitHubSyncServiceOrThrow()).toThrow(
+    await expect(createGitHubSyncServiceOrThrow()).rejects.toThrow(
       /GitHub token not found/,
     );
   });
 
-  it("throws with helpful message mentioning token env var", () => {
+  it("throws with helpful message mentioning token env var", async () => {
     delete process.env.GITHUB_TOKEN;
 
-    expect(() => createGitHubSyncServiceOrThrow()).toThrow(/GITHUB_TOKEN/);
+    await expect(createGitHubSyncServiceOrThrow()).rejects.toThrow(
+      /GITHUB_TOKEN/,
+    );
   });
 
-  it("throws with helpful message mentioning gh auth", () => {
+  it("throws with helpful message mentioning gh auth", async () => {
     delete process.env.GITHUB_TOKEN;
 
-    expect(() => createGitHubSyncServiceOrThrow()).toThrow(/gh auth login/);
+    await expect(createGitHubSyncServiceOrThrow()).rejects.toThrow(
+      /gh auth login/,
+    );
   });
 
-  it("creates service when token available", () => {
+  it("creates service when token available", async () => {
     process.env.GITHUB_TOKEN = "valid-token";
 
-    const result = createGitHubSyncServiceOrThrow();
+    const result = await createGitHubSyncServiceOrThrow();
 
     expect(result).not.toBeNull();
     expect(result.getRepoString()).toBe("test-owner/test-repo");
   });
 
-  it("uses custom token env var from config", () => {
+  it("uses custom token env var from config", async () => {
     process.env.CUSTOM_GH_TOKEN = "custom-token";
 
-    const result = createGitHubSyncServiceOrThrow({
+    const result = await createGitHubSyncServiceOrThrow({
       enabled: true,
       token_env: "CUSTOM_GH_TOKEN",
     });

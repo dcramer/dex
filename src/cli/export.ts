@@ -69,7 +69,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
 
   let syncService: GitHubSyncService;
   try {
-    syncService = createGitHubSyncServiceOrThrow(config.sync?.github);
+    syncService = await createGitHubSyncServiceOrThrow(config.sync?.github);
   } catch (err) {
     console.error(formatCliError(err));
     process.exit(1);

@@ -117,8 +117,8 @@ export async function createSyncRegistry(
   const registry = new SyncRegistry();
 
   // Register GitHub sync service if configured
-  const githubService = createGitHubSyncService(
-    syncConfig?.github ?? undefined,
+  const githubService = await createGitHubSyncService(
+    syncConfig?.github,
     storagePath,
   );
   if (githubService) {

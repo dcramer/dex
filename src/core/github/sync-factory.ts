@@ -10,10 +10,10 @@ import { getGitHubToken } from "./token.js";
  * @param config Sync config from dex.toml
  * @param storagePath Path to task storage (default: ".dex")
  */
-export function createGitHubSyncService(
+export async function createGitHubSyncService(
   config: GitHubSyncConfig | undefined,
   storagePath?: string,
-): GitHubSyncService | null {
+): Promise<GitHubSyncService | null> {
   if (!config?.enabled) {
     return null;
   }
@@ -51,10 +51,10 @@ export function createGitHubSyncService(
  * @param config Optional sync config for label_prefix and token_env
  * @param storagePath Path to task storage (default: ".dex")
  */
-export function createGitHubSyncServiceOrThrow(
+export async function createGitHubSyncServiceOrThrow(
   config?: GitHubSyncConfig,
   storagePath?: string,
-): GitHubSyncService {
+): Promise<GitHubSyncService> {
   const repo = getGitHubRepo();
   if (!repo) {
     throw new Error(
