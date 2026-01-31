@@ -75,6 +75,12 @@ describe("export command", () => {
     });
   }
 
+  /** Run sync with auto-sync disabled to prevent double API calls in tests */
+  function runSync(args: string[]): Promise<void> {
+    const syncConfig = { github: { auto: { on_change: false } } };
+    return runCli(args, { storage: fixture.storage, syncRegistry, syncConfig });
+  }
+
   it.each([["--help"], ["-h"]])("shows help with %s flag", async (flag) => {
     await runCli(["export", flag], { storage: fixture.storage });
     const out = fixture.output.stdout.join("\n");
@@ -146,7 +152,6 @@ describe("export command", () => {
       });
 
       // First sync to create GitHub metadata
-      // Disable auto-sync to prevent double-sync when saveMetadata calls service.update
       githubMock.listIssues("test-owner", "test-repo", []);
       githubMock.createIssue(
         "test-owner",
@@ -156,12 +161,7 @@ describe("export command", () => {
           title: "Synced task",
         }),
       );
-      const syncConfig = { github: { auto: { on_change: false } } };
-      await runCli(["sync", taskId], {
-        storage: fixture.storage,
-        syncRegistry,
-        syncConfig,
-      });
+      await runSync(["sync", taskId]);
       fixture.output.stdout.length = 0;
 
       // Export should skip because task already has GitHub metadata
@@ -224,19 +224,13 @@ describe("export command", () => {
       const taskId2 = await createTask("Task 2", { description: "ctx2" });
 
       // Sync first task so it gets skipped
-      // Disable auto-sync to prevent double-sync when saveMetadata calls service.update
       githubMock.listIssues("test-owner", "test-repo", []);
       githubMock.createIssue(
         "test-owner",
         "test-repo",
         createIssueFixture({ number: 301, title: "Task 1" }),
       );
-      const syncConfig = { github: { auto: { on_change: false } } };
-      await runCli(["sync", taskId1], {
-        storage: fixture.storage,
-        syncRegistry,
-        syncConfig,
-      });
+      await runSync(["sync", taskId1]);
       fixture.output.stdout.length = 0;
 
       // Export both - first should be skipped, second exported
