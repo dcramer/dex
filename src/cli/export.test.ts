@@ -7,7 +7,9 @@ import {
   setupGitHubMock,
   cleanupGitHubMock,
   createIssueFixture,
+  createTestSyncRegistry,
 } from "./test-helpers.js";
+import type { SyncRegistry } from "../core/sync/index.js";
 
 // Mock git remote detection
 vi.mock("../core/github/remote.js", async (importOriginal) => {
@@ -43,12 +45,14 @@ describe("export command", () => {
   let fixture: CliTestFixture;
   let githubMock: GitHubMock;
   let originalEnv: string | undefined;
+  let syncRegistry: SyncRegistry;
 
   beforeEach(() => {
     fixture = createCliTestFixture();
     originalEnv = process.env.GITHUB_TOKEN;
     process.env.GITHUB_TOKEN = "test-token";
     githubMock = setupGitHubMock();
+    syncRegistry = createTestSyncRegistry({ github: {} });
   });
 
   afterEach(() => {
@@ -151,7 +155,10 @@ describe("export command", () => {
           title: "Synced task",
         }),
       );
-      await runCli(["sync", taskId], { storage: fixture.storage });
+      await runCli(["sync", taskId], {
+        storage: fixture.storage,
+        syncRegistry,
+      });
       fixture.output.stdout.length = 0;
 
       // Export should skip because task already has GitHub metadata
@@ -220,7 +227,10 @@ describe("export command", () => {
         "test-repo",
         createIssueFixture({ number: 301, title: "Task 1" }),
       );
-      await runCli(["sync", taskId1], { storage: fixture.storage });
+      await runCli(["sync", taskId1], {
+        storage: fixture.storage,
+        syncRegistry,
+      });
       fixture.output.stdout.length = 0;
 
       // Export both - first should be skipped, second exported

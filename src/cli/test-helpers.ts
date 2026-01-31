@@ -20,6 +20,18 @@ export {
   type GitHubMock,
 } from "../test-utils/github-mock.js";
 
+export {
+  setupShortcutMock,
+  cleanupShortcutMock,
+  createStoryFixture,
+  createWorkflowFixture,
+  createTeamFixture,
+  createMemberFixture,
+  type ShortcutStoryFixture,
+  type ShortcutStoryLinkFixture,
+  type ShortcutMock,
+} from "../test-utils/shortcut-mock.js";
+
 // ============ CLI-specific utilities ============
 
 // Task IDs are 8 lowercase alphanumeric characters
@@ -361,4 +373,55 @@ export async function createTaskAndGetId(
   fixture.output.stderr.length = 0;
 
   return taskId;
+}
+
+// ============ Sync Registry Test Helpers ============
+
+import { SyncRegistry } from "../core/sync/index.js";
+import { GitHubSyncService } from "../core/github/index.js";
+import { ShortcutSyncService } from "../core/shortcut/index.js";
+
+export interface TestSyncRegistryOptions {
+  github?: {
+    owner?: string;
+    repo?: string;
+    token?: string;
+  };
+  shortcut?: {
+    workspace?: string;
+    team?: string;
+    token?: string;
+  };
+}
+
+/**
+ * Create a SyncRegistry with configured services for testing.
+ * Services are created directly without validation, suitable for use with mocks.
+ */
+export function createTestSyncRegistry(
+  options: TestSyncRegistryOptions = {},
+): SyncRegistry {
+  const registry = new SyncRegistry();
+
+  if (options.github) {
+    const githubService = new GitHubSyncService({
+      repo: {
+        owner: options.github.owner ?? "test-owner",
+        repo: options.github.repo ?? "test-repo",
+      },
+      token: options.github.token ?? "test-token",
+    });
+    registry.register(githubService);
+  }
+
+  if (options.shortcut) {
+    const shortcutService = new ShortcutSyncService({
+      workspace: options.shortcut.workspace ?? "test-workspace",
+      team: options.shortcut.team ?? "test-team",
+      token: options.shortcut.token ?? "test-token",
+    });
+    registry.register(shortcutService);
+  }
+
+  return registry;
 }

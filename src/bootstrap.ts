@@ -4,6 +4,7 @@ import type { StorageEngine } from "./core/storage/index.js";
 import { JsonlStorage } from "./core/storage/index.js";
 import { SyncRegistry } from "./core/sync/index.js";
 import { createGitHubSyncService } from "./core/github/index.js";
+import { createShortcutSyncService } from "./core/shortcut/sync-factory.js";
 
 export interface ParsedGlobalOptions {
   storagePath?: string;
@@ -106,27 +107,29 @@ export interface SyncRegistryResult {
  * Create a SyncRegistry from configuration.
  * Registers all enabled sync services based on config.
  */
-export function createSyncRegistry(
+export async function createSyncRegistry(
   storagePath: string,
   cliConfigPath?: string,
-): SyncRegistryResult {
+): Promise<SyncRegistryResult> {
   const config = loadConfig({ storagePath, configPath: cliConfigPath });
   const syncConfig = config.sync ?? null;
 
   const registry = new SyncRegistry();
 
   // Register GitHub sync service if configured
-  const githubService = createGitHubSyncService(
-    syncConfig?.github ?? undefined,
+  const githubService = await createGitHubSyncService(
+    syncConfig?.github,
     storagePath,
   );
   if (githubService) {
     registry.register(githubService);
   }
 
-  // Future: Register other sync services here
-  // if (syncConfig?.gitlab) { registry.register(createGitlabSyncService(...)); }
-  // if (syncConfig?.linear) { registry.register(createLinearSyncService(...)); }
+  // Register Shortcut sync service if configured
+  const shortcutService = await createShortcutSyncService(syncConfig?.shortcut);
+  if (shortcutService) {
+    registry.register(shortcutService);
+  }
 
   return {
     syncRegistry: registry.hasServices() ? registry : null,

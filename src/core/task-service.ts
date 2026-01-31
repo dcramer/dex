@@ -1,13 +1,9 @@
 import { customAlphabet } from "nanoid";
 import type { StorageEngine } from "./storage/index.js";
 import { JsonlStorage, ArchiveStorage } from "./storage/index.js";
-import type {
-  RegisterableSyncService,
-  LegacySyncResult,
-} from "./sync/index.js";
+import type { RegisterableSyncService, SyncResult } from "./sync/index.js";
 import { SyncRegistry } from "./sync/index.js";
 import type { SyncConfig } from "./config.js";
-import type { GithubMetadata } from "../types.js";
 import { isSyncStale, updateSyncState } from "./sync-state.js";
 import type {
   Task,
@@ -140,27 +136,44 @@ export class TaskService {
 
   /**
    * Sync a task to all registered integrations.
-   * Respects auto-sync settings (on_change and max_age).
+   * Respects auto-sync settings (on_change and max_age) for each integration.
    * Errors are caught and logged but don't fail the operation.
    */
   private async syncToIntegrations(task: Task): Promise<void> {
     if (!this.syncRegistry?.hasServices()) return;
 
-    // Check GitHub-specific auto config (for backward compatibility)
-    // TODO: Each integration should have its own auto config
-    const autoConfig = this.syncConfig?.github?.auto;
-    const onChange = autoConfig?.on_change !== false; // default: true
+    const services = this.syncRegistry.getAll();
 
-    if (onChange) {
-      await this.doSync(task);
-      return;
-    }
+    // Check auto-sync config for each registered service
+    for (const service of services) {
+      const integrationConfig = this.getIntegrationConfig(service.id);
+      const autoConfig = integrationConfig?.auto;
 
-    // on_change is false - check max_age
-    const maxAge = autoConfig?.max_age;
-    if (maxAge && isSyncStale(this.storage.getIdentifier(), maxAge)) {
-      await this.doSync(task);
+      // on_change defaults to true for enabled integrations
+      const onChange = autoConfig?.on_change !== false;
+      if (onChange) {
+        await this.doSync(task);
+        return;
+      }
+
+      // on_change is false - check max_age
+      const maxAge = autoConfig?.max_age;
+      if (maxAge && isSyncStale(this.storage.getIdentifier(), maxAge)) {
+        await this.doSync(task);
+        return;
+      }
     }
+  }
+
+  /**
+   * Get integration-specific config by service ID.
+   */
+  private getIntegrationConfig(
+    serviceId: string,
+  ): { auto?: { on_change?: boolean; max_age?: string } } | undefined {
+    if (!this.syncConfig) return undefined;
+    // Access syncConfig[serviceId] dynamically - works for 'github' and 'shortcut'
+    return this.syncConfig[serviceId as keyof SyncConfig];
   }
 
   /**
@@ -203,7 +216,7 @@ export class TaskService {
     service: RegisterableSyncService,
     task: Task,
     store: TaskStore,
-  ): Promise<LegacySyncResult | null> {
+  ): Promise<SyncResult | null> {
     const result = await service.syncTask(task, store);
 
     // Save integration metadata to task (skip if sync was skipped or no result)
@@ -212,32 +225,15 @@ export class TaskService {
       if (taskIndex !== -1) {
         const targetTask = store.tasks[taskIndex];
 
-        // Extract metadata from result - handle both new format (metadata) and
-        // legacy GitHub format (github)
-        const integrationMetadata =
-          (result.metadata as GithubMetadata | undefined) ??
-          (result.github as GithubMetadata | undefined) ??
-          null;
-
-        if (integrationMetadata) {
-          store.tasks[taskIndex] = {
-            ...targetTask,
-            metadata: {
-              ...targetTask.metadata,
-              // Write to legacy location for GitHub (backward compatibility)
-              ...(service.id === "github"
-                ? { github: integrationMetadata }
-                : {}),
-              // Write to new integrations container
-              integrations: {
-                ...targetTask.metadata?.integrations,
-                [service.id]: integrationMetadata,
-              },
-            },
-            updated_at: new Date().toISOString(),
-          };
-          await this.storage.writeAsync(store);
-        }
+        store.tasks[taskIndex] = {
+          ...targetTask,
+          metadata: {
+            ...targetTask.metadata,
+            [service.id]: result.metadata,
+          },
+          updated_at: new Date().toISOString(),
+        };
+        await this.storage.writeAsync(store);
       }
     }
 

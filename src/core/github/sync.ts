@@ -8,18 +8,7 @@ import {
   renderTaskMetadataComments,
 } from "./issue-markdown.js";
 import { isCommitOnRemote } from "../git-utils.js";
-
-/**
- * Result of syncing a task to GitHub.
- * Contains the github metadata that should be saved to the task.
- */
-export interface SyncResult {
-  taskId: string;
-  github: GithubMetadata;
-  created: boolean;
-  /** True if task was skipped because nothing changed */
-  skipped?: boolean;
-}
+import type { SyncResult } from "../sync/registry.js";
 
 /**
  * Progress callback for sync operations.
@@ -229,7 +218,7 @@ export class GitHubSyncService {
   ): SyncResult {
     return {
       taskId,
-      github: {
+      metadata: {
         issueNumber,
         issueUrl: `https://github.com/${this.owner}/${this.repo}/issues/${issueNumber}`,
         repo: this.getRepoString(),
@@ -366,8 +355,8 @@ export class GitHubSyncService {
         phase: "creating",
       });
 
-      const github = await this.createIssue(parent, descendants, shouldClose);
-      return { taskId: parent.id, github, created: true };
+      const metadata = await this.createIssue(parent, descendants, shouldClose);
+      return { taskId: parent.id, metadata, created: true };
     }
   }
 

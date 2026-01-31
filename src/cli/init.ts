@@ -136,6 +136,14 @@ engine = "file"
 # enabled = true
 # token_env = "GITHUB_TOKEN"    # Environment variable containing GitHub token (or use gh CLI)
 # label_prefix = "dex"           # Prefix for dex-related labels
+
+# Shortcut sync (optional - sync tasks with Shortcut Stories)
+# [sync.shortcut]
+# enabled = true
+# token_env = "SHORTCUT_API_TOKEN"  # Environment variable containing Shortcut API token
+# team = "engineering"               # Team mention name or UUID (required)
+# workspace = "mycompany"            # Workspace slug (auto-detected if not set)
+# label = "dex"                      # Label for dex stories
 `;
 
   fs.writeFileSync(configPath, defaultConfig, "utf-8");

@@ -9,7 +9,8 @@ export {
   getGitHubRepo,
   parseGitHubIssueRef,
 } from "./remote.js";
-export type { SyncResult, SyncProgress } from "./sync.js";
+export type { SyncProgress } from "./sync.js";
+export type { SyncResult } from "../sync/registry.js";
 export { GitHubSyncService, getGitHubIssueNumber } from "./sync.js";
 export {
   createGitHubSyncService,

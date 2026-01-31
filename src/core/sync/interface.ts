@@ -6,6 +6,7 @@ import type { Task, TaskStore } from "../../types.js";
  */
 export type IntegrationId =
   | "github"
+  | "shortcut"
   | "gitlab"
   | "linear"
   | "jira"
