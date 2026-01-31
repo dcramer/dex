@@ -123,6 +123,23 @@ export class ShortcutSyncService {
   }
 
   /**
+   * Close the Shortcut story for a task (e.g., when the task is deleted locally).
+   * Moves the story to the "done" workflow state.
+   * If the task has no associated story, this is a no-op.
+   */
+  async closeRemote(task: Task): Promise<void> {
+    const storyId = this.getRemoteId(task);
+    if (!storyId) return;
+
+    const workflowId = await this.getWorkflowId();
+    const doneStateId = await this.api.getDoneState(workflowId);
+
+    await this.api.updateStory(storyId, {
+      workflow_state_id: doneStateId,
+    });
+  }
+
+  /**
    * Resolve the team ID (handles mention names).
    */
   private async resolveTeamId(): Promise<string> {
