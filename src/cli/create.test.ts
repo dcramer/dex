@@ -162,4 +162,24 @@ describe("create command", () => {
     expect(task.created_at).toBeTruthy();
     expect(task.updated_at).toBeTruthy();
   });
+
+  it("fails when multiple positional arguments are provided", async () => {
+    await expect(
+      runCli(
+        [
+          "create",
+          "Task name",
+          "This looks like a description but is a second positional arg",
+        ],
+        { storage: fixture.storage },
+      ),
+    ).rejects.toThrow("process.exit");
+
+    expect(fixture.output.stderr.join("\n")).toContain(
+      "unexpected positional argument",
+    );
+
+    const tasks = await fixture.storage.readAsync();
+    expect(tasks.tasks).toHaveLength(0);
+  });
 });

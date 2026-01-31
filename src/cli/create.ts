@@ -55,6 +55,16 @@ ${colors.bold}EXAMPLES:${colors.reset}
   const name = positional[0] || getStringFlag(flags, "name");
   const description = getStringFlag(flags, "description");
 
+  // Error if extra positional arguments are provided
+  if (positional.length > 1) {
+    console.error(
+      `${colors.red}Error:${colors.reset} unexpected positional argument: "${positional[1]}"`,
+    );
+    console.error(`Usage: dex create "task name" [--description "details"]`);
+    console.error(`Hint: Use --description or -d to provide a description`);
+    process.exit(1);
+  }
+
   if (!name) {
     console.error(`${colors.red}Error:${colors.reset} name is required`);
     console.error(`Usage: dex create "task name" [--description "details"]`);
