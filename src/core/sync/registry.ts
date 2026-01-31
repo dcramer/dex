@@ -2,30 +2,25 @@ import type { Task, TaskStore } from "../../types.js";
 import type { IntegrationId, SyncAllOptions } from "./interface.js";
 
 /**
- * Result from a sync operation - loose type to support both
- * new interface format (metadata) and legacy GitHub format (github).
+ * Result from a sync operation with integration-specific metadata.
  */
-export interface LegacySyncResult {
+export interface SyncResult {
   taskId: string;
+  metadata: unknown;
   created: boolean;
   skipped?: boolean;
-  metadata?: unknown;
-  github?: unknown;
+  /** Results for subtasks (used by integrations like Shortcut that sync subtasks separately) */
+  subtaskResults?: SyncResult[];
 }
 
 /**
  * A sync service that can be registered.
- * This is a looser type than SyncService to allow legacy services
- * that don't fully implement the new interface yet.
  */
 export interface RegisterableSyncService {
   readonly id: IntegrationId;
   readonly displayName: string;
-  syncTask(task: Task, store: TaskStore): Promise<LegacySyncResult | null>;
-  syncAll(
-    store: TaskStore,
-    options?: SyncAllOptions,
-  ): Promise<LegacySyncResult[]>;
+  syncTask(task: Task, store: TaskStore): Promise<SyncResult | null>;
+  syncAll(store: TaskStore, options?: SyncAllOptions): Promise<SyncResult[]>;
   /**
    * Close the remote item for a task (e.g., when the task is deleted locally).
    * Optional - services that don't support this will be skipped.

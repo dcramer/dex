@@ -16,10 +16,10 @@ export type {
 
 export {
   ShortcutSyncService,
-  type SyncResult,
   type SyncProgress,
   getShortcutStoryId,
 } from "./sync.js";
+export type { SyncResult } from "../sync/registry.js";
 export {
   createShortcutSyncService,
   createShortcutSyncServiceOrThrow,

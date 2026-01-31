@@ -1,13 +1,9 @@
 import { customAlphabet } from "nanoid";
 import type { StorageEngine } from "./storage/index.js";
 import { JsonlStorage, ArchiveStorage } from "./storage/index.js";
-import type {
-  RegisterableSyncService,
-  LegacySyncResult,
-} from "./sync/index.js";
+import type { RegisterableSyncService, SyncResult } from "./sync/index.js";
 import { SyncRegistry } from "./sync/index.js";
 import type { SyncConfig } from "./config.js";
-import type { GithubMetadata } from "../types.js";
 import { isSyncStale, updateSyncState } from "./sync-state.js";
 import type {
   Task,
@@ -220,7 +216,7 @@ export class TaskService {
     service: RegisterableSyncService,
     task: Task,
     store: TaskStore,
-  ): Promise<LegacySyncResult | null> {
+  ): Promise<SyncResult | null> {
     const result = await service.syncTask(task, store);
 
     // Save integration metadata to task (skip if sync was skipped or no result)
@@ -229,26 +225,15 @@ export class TaskService {
       if (taskIndex !== -1) {
         const targetTask = store.tasks[taskIndex];
 
-        // Extract metadata from result - services return either:
-        // - Generic SyncService interface: result.metadata
-        // - Integration-specific result types: result.github or result.shortcut
-        const legacyResult = result as unknown as Record<string, unknown>;
-        const integrationMetadata =
-          (result.metadata as GithubMetadata | undefined) ??
-          (legacyResult[service.id] as GithubMetadata | undefined) ??
-          null;
-
-        if (integrationMetadata) {
-          store.tasks[taskIndex] = {
-            ...targetTask,
-            metadata: {
-              ...targetTask.metadata,
-              [service.id]: integrationMetadata,
-            },
-            updated_at: new Date().toISOString(),
-          };
-          await this.storage.writeAsync(store);
-        }
+        store.tasks[taskIndex] = {
+          ...targetTask,
+          metadata: {
+            ...targetTask.metadata,
+            [service.id]: result.metadata,
+          },
+          updated_at: new Date().toISOString(),
+        };
+        await this.storage.writeAsync(store);
       }
     }
 

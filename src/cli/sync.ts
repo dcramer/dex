@@ -4,10 +4,10 @@ import { colors } from "./colors.js";
 import { getBooleanFlag, parseArgs } from "./args.js";
 import { truncateText } from "./formatting.js";
 import type { Task } from "../types.js";
-import type { IntegrationId, SyncProgress } from "../core/sync/interface.js";
+import type { SyncProgress } from "../core/sync/interface.js";
 import type {
   RegisterableSyncService,
-  LegacySyncResult,
+  SyncResult,
 } from "../core/sync/registry.js";
 import { GitHubSyncService } from "../core/github/index.js";
 import { ShortcutSyncService } from "../core/shortcut/index.js";
@@ -139,7 +139,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
         if (result) {
           await saveMetadata(service, syncService.id, result);
           const target = getServiceTarget(syncService);
-          const url = getResultUrl(syncService.id, result);
+          const url = getResultUrl(result);
           console.log(
             `${colors.green}Synced${colors.reset} task ${colors.bold}${rootTask.id}${colors.reset} to ${syncService.displayName} ${colors.cyan}${target}${colors.reset}`,
           );
@@ -207,28 +207,11 @@ function getServiceTarget(syncService: RegisterableSyncService): string {
 }
 
 /**
- * Extract URL from a sync result based on integration type.
+ * Extract URL from a sync result.
  */
-function getResultUrl(
-  integrationId: IntegrationId,
-  result: LegacySyncResult,
-): string | null {
-  // Check for new-style metadata first
-  if (result.metadata && typeof result.metadata === "object") {
-    const meta = result.metadata as { remoteUrl?: string };
-    if (meta.remoteUrl) return meta.remoteUrl;
-  }
-  // Check for legacy integration-specific fields
-  const legacyResult = result as unknown as Record<string, unknown>;
-  if (integrationId === "github" && legacyResult.github) {
-    const github = legacyResult.github as { issueUrl?: string };
-    return github.issueUrl ?? null;
-  }
-  if (integrationId === "shortcut" && legacyResult.shortcut) {
-    const shortcut = legacyResult.shortcut as { storyUrl?: string };
-    return shortcut.storyUrl ?? null;
-  }
-  return null;
+function getResultUrl(result: SyncResult): string | null {
+  const meta = result.metadata as { issueUrl?: string; storyUrl?: string };
+  return meta.issueUrl ?? meta.storyUrl ?? null;
 }
 
 /**
@@ -294,7 +277,7 @@ async function syncAllWithProgress(
   syncService: RegisterableSyncService,
   store: { tasks: Task[] },
   service: ReturnType<typeof createService>,
-): Promise<LegacySyncResult[]> {
+): Promise<SyncResult[]> {
   const isTTY = process.stdout.isTTY;
 
   const onProgress = (progress: SyncProgress): void => {
@@ -384,51 +367,28 @@ function printSyncSummary(
 
 /**
  * Save metadata to a task after syncing.
- * Handles both new-style metadata and legacy integration-specific fields.
  */
 async function saveMetadata(
   service: ReturnType<typeof createService>,
-  integrationId: IntegrationId,
-  result: LegacySyncResult,
+  integrationId: string,
+  result: SyncResult,
 ): Promise<void> {
   const task = await service.get(result.taskId);
   if (!task) return;
 
-  // Extract the metadata to save based on result format
-  let integrationMetadata: unknown;
+  const metadata = {
+    ...task.metadata,
+    [integrationId]: result.metadata,
+  };
 
-  // Check for new-style metadata first
-  if (result.metadata) {
-    integrationMetadata = result.metadata;
-  } else {
-    // Check for legacy integration-specific fields
-    const legacyResult = result as unknown as Record<string, unknown>;
-    if (integrationId === "github" && legacyResult.github) {
-      integrationMetadata = legacyResult.github;
-    } else if (integrationId === "shortcut" && legacyResult.shortcut) {
-      integrationMetadata = legacyResult.shortcut;
-    }
-  }
-
-  if (integrationMetadata) {
-    const metadata = {
-      ...task.metadata,
-      [integrationId]: integrationMetadata,
-    };
-
-    await service.update({
-      id: result.taskId,
-      metadata,
-    });
-  }
+  await service.update({
+    id: result.taskId,
+    metadata,
+  });
 
   // Handle subtask results for integrations that support them (like Shortcut)
-  const legacyResult = result as unknown as Record<string, unknown>;
-  if (
-    legacyResult.subtaskResults &&
-    Array.isArray(legacyResult.subtaskResults)
-  ) {
-    for (const subtaskResult of legacyResult.subtaskResults) {
+  if (result.subtaskResults) {
+    for (const subtaskResult of result.subtaskResults) {
       await saveMetadata(service, integrationId, subtaskResult);
     }
   }

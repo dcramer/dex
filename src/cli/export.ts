@@ -7,6 +7,7 @@ import {
   getGitHubIssueNumber,
   GitHubSyncService,
 } from "../core/github/index.js";
+import type { GithubMetadata } from "../types.js";
 import { loadConfig } from "../core/config.js";
 
 export async function exportCommand(
@@ -118,10 +119,11 @@ ${colors.bold}EXAMPLE:${colors.reset}
       const result = await syncService.syncTask(rootTask, store);
 
       if (result) {
+        const metadata = result.metadata as GithubMetadata;
         console.log(
           `${colors.green}Exported${colors.reset} task ${colors.bold}${rootTask.id}${colors.reset} to ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}`,
         );
-        console.log(`  ${colors.dim}${result.github.issueUrl}${colors.reset}`);
+        console.log(`  ${colors.dim}${metadata.issueUrl}${colors.reset}`);
         exportedCount++;
       }
     } catch (err) {

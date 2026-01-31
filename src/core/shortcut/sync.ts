@@ -2,21 +2,7 @@ import type { ShortcutMetadata, Task, TaskStore } from "../../types.js";
 import { ShortcutApi } from "./api.js";
 import type { Workflow, WorkflowState } from "@shortcut/client";
 import { renderStoryDescription, parseTaskMetadata } from "./story-markdown.js";
-import type { IntegrationId } from "../sync/index.js";
-
-/**
- * Result of syncing a task to Shortcut.
- * Contains the shortcut metadata that should be saved to the task.
- */
-export interface SyncResult {
-  taskId: string;
-  shortcut: ShortcutMetadata;
-  created: boolean;
-  /** True if task was skipped because nothing changed */
-  skipped?: boolean;
-  /** Results for subtasks (only present on parent task results) */
-  subtaskResults?: SyncResult[];
-}
+import type { IntegrationId, SyncResult } from "../sync/index.js";
 
 /**
  * Progress callback for sync operations.
@@ -314,7 +300,7 @@ export class ShortcutSyncService {
   ): SyncResult {
     return {
       taskId,
-      shortcut: {
+      metadata: {
         storyId,
         storyUrl,
         workspace: this.workspace,
@@ -484,7 +470,11 @@ export class ShortcutSyncService {
       // Sync blocker relationships
       await this.syncBlockers(parent, shortcut.storyId, store);
 
-      const result: SyncResult = { taskId: parent.id, shortcut, created: true };
+      const result: SyncResult = {
+        taskId: parent.id,
+        metadata: shortcut,
+        created: true,
+      };
       if (subtaskResults.length > 0) {
         result.subtaskResults = subtaskResults;
       }
@@ -538,7 +528,7 @@ export class ShortcutSyncService {
       const stateType = subtask.completed ? "done" : "unstarted";
       results.push({
         taskId: subtask.id,
-        shortcut: {
+        metadata: {
           storyId: subtaskStoryId,
           storyUrl,
           workspace: this.workspace,

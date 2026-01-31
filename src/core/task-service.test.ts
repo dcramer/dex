@@ -906,7 +906,7 @@ describe("TaskService", () => {
       // Mock syncTask to return the task ID it was called with
       mockSyncTask.mockImplementation(async (task) => ({
         taskId: task.id,
-        github: {
+        metadata: {
           issueNumber: 42,
           issueUrl: "https://github.com/test/test/issues/42",
           repo: "test/test",
@@ -949,7 +949,7 @@ describe("TaskService", () => {
       // Now create a service with sync enabled
       mockSyncTask.mockResolvedValue({
         taskId: task.id,
-        github: {
+        metadata: {
           issueNumber: 99,
           issueUrl: "https://github.com/test/test/issues/99",
           repo: "test/test",
@@ -990,7 +990,7 @@ describe("TaskService", () => {
       // Now update with sync enabled
       mockSyncTask.mockResolvedValue({
         taskId: task.id,
-        github: {
+        metadata: {
           issueNumber: 55,
           issueUrl: "https://github.com/test/test/issues/55",
           repo: "test/test",
@@ -1032,7 +1032,7 @@ describe("TaskService", () => {
       // Sync returns skipped: true
       mockSyncTask.mockResolvedValue({
         taskId: task.id,
-        github: {
+        metadata: {
           issueNumber: 77,
           issueUrl: "https://github.com/test/test/issues/77",
           repo: "test/test",
@@ -1074,7 +1074,7 @@ describe("TaskService", () => {
       // Sync service returns parent's ID (subtasks sync their parent)
       mockSyncTask.mockResolvedValue({
         taskId: parent.id, // Parent gets the GitHub issue, not subtask
-        github: {
+        metadata: {
           issueNumber: 88,
           issueUrl: "https://github.com/test/test/issues/88",
           repo: "test/test",

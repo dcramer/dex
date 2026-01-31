@@ -5,7 +5,17 @@ import {
   createGitHubSyncService,
   createGitHubSyncServiceOrThrow,
 } from "./github/index.js";
-import type { TaskStore } from "../types.js";
+import type { TaskStore, GithubMetadata } from "../types.js";
+import type { SyncResult } from "./sync/registry.js";
+
+/**
+ * Cast SyncResult metadata to GithubMetadata for test assertions.
+ */
+function getGitHubMetadata(
+  result: SyncResult | null | undefined,
+): GithubMetadata | undefined {
+  return result?.metadata as GithubMetadata | undefined;
+}
 import type { GitHubMock } from "../test-utils/github-mock.js";
 import {
   setupGitHubMock,
@@ -151,7 +161,7 @@ describe("GitHubSyncService", () => {
 
         expect(result).not.toBeNull();
         expect(result?.created).toBe(true);
-        expect(result?.github.issueNumber).toBe(1001);
+        expect(getGitHubMetadata(result)?.issueNumber).toBe(1001);
       });
 
       it("throws when tracked issue returns 404 during update check", async () => {
@@ -262,7 +272,7 @@ describe("GitHubSyncService", () => {
 
         expect(result).not.toBeNull();
         expect(result?.skipped).toBeFalsy();
-        expect(result?.github.state).toBe("closed");
+        expect(getGitHubMetadata(result)?.state).toBe("closed");
       });
 
       it("skips completed task when already synced as closed", async () => {
@@ -285,7 +295,7 @@ describe("GitHubSyncService", () => {
 
         expect(result).not.toBeNull();
         expect(result?.skipped).toBe(true);
-        expect(result?.github.state).toBe("closed");
+        expect(getGitHubMetadata(result)?.state).toBe("closed");
       });
 
       it("checks API for open task even with matching state", async () => {
@@ -331,7 +341,7 @@ describe("GitHubSyncService", () => {
         // Open task was checked and updated (not fast-pathed)
         expect(result).not.toBeNull();
         expect(result?.skipped).toBeFalsy();
-        expect(result?.github.state).toBe("open");
+        expect(getGitHubMetadata(result)?.state).toBe("open");
       });
     });
 
@@ -379,7 +389,7 @@ describe("GitHubSyncService", () => {
         const result = await service.syncTask(task, store);
 
         expect(result).not.toBeNull();
-        expect(result?.github.state).toBe("open");
+        expect(getGitHubMetadata(result)?.state).toBe("open");
       });
 
       it("closes issue when task has pushed commit", async () => {
@@ -435,7 +445,7 @@ describe("GitHubSyncService", () => {
         const result = await service.syncTask(task, store);
 
         expect(result).not.toBeNull();
-        expect(result?.github.state).toBe("closed");
+        expect(getGitHubMetadata(result)?.state).toBe("closed");
       });
 
       it("closes issue when task has no commit SHA (uses local status)", async () => {
@@ -472,7 +482,7 @@ describe("GitHubSyncService", () => {
         const result = await service.syncTask(task, store);
 
         expect(result).not.toBeNull();
-        expect(result?.github.state).toBe("closed");
+        expect(getGitHubMetadata(result)?.state).toBe("closed");
       });
     });
   });
@@ -1310,7 +1320,7 @@ describe("hasIssueChangedFromCache change detection", () => {
     const results = await service.syncAll(store);
 
     expect(results[0].skipped).toBeFalsy();
-    expect(results[0].github.state).toBe("closed");
+    expect(getGitHubMetadata(results[0])?.state).toBe("closed");
   });
 
   it("detects change when labels differ", async () => {
@@ -1437,7 +1447,7 @@ describe("syncTask without cache (single-task sync)", () => {
     const result = await service.syncTask(task, store);
 
     expect(result).not.toBeNull();
-    expect(result?.github.issueNumber).toBe(42);
+    expect(getGitHubMetadata(result)?.issueNumber).toBe(42);
     expect(result?.created).toBe(false);
   });
 
@@ -1479,7 +1489,7 @@ describe("syncTask without cache (single-task sync)", () => {
     const result = await service.syncTask(task, store);
 
     expect(result).not.toBeNull();
-    expect(result?.github.issueNumber).toBe(99);
+    expect(getGitHubMetadata(result)?.issueNumber).toBe(99);
     expect(result?.created).toBe(false);
   });
 
@@ -1503,7 +1513,7 @@ describe("syncTask without cache (single-task sync)", () => {
     const result = await service.syncTask(task, store);
 
     expect(result).not.toBeNull();
-    expect(result?.github.issueNumber).toBe(100);
+    expect(getGitHubMetadata(result)?.issueNumber).toBe(100);
     expect(result?.created).toBe(true);
   });
 
