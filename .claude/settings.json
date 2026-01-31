@@ -56,5 +56,9 @@
       "Bash(dex mcp:*)"
     ],
     "deny": []
+  },
+  "enabledPlugins": {
+    "sentry-skills@sentry-skills": true,
+    "dex@dex": true
   }
 }
