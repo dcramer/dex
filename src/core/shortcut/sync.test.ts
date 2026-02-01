@@ -337,7 +337,8 @@ describe("ShortcutSyncService", () => {
       });
 
       setupBaseMocks();
-      // Return existing stories including the subtask (simulates cache hit)
+      // searchStories is called by syncAll to build the story cache
+      // Return existing stories including the subtask
       shortcutMock.searchStories([
         createStoryFixture({
           id: 2000,
@@ -384,13 +385,13 @@ describe("ShortcutSyncService", () => {
         }),
       );
 
-      const result = await service.syncTask(parent, {
-        tasks: [parent, subtask],
-      });
+      // Use syncAll which builds and uses the story cache
+      const results = await service.syncAll({ tasks: [parent, subtask] });
 
-      expect(result).not.toBeNull();
-      expect(result!.taskId).toBe("parent02");
-      expect(result!.created).toBe(false); // Updated, not created
+      // syncAll only returns results for parent tasks (subtasks are nested)
+      expect(results).toHaveLength(1);
+      expect(results[0].taskId).toBe("parent02");
+      expect(results[0].created).toBe(false); // Updated, not created
       // No createStory mock was set up for subtask, so if it tried to create
       // the mock would fail - passing means it used the cached story
     });
