@@ -38,8 +38,16 @@ dex show <id>
 ## Complete a Task
 
 ```bash
-dex complete <id> --result "What was accomplished"
+dex complete <id> --result "What was accomplished" --commit <sha>
+dex complete <id> --result "No code changes needed" --no-commit
 ```
+
+**For GitHub/Shortcut-linked tasks**, you must specify either:
+
+- `--commit <sha>` - Links the commit; issue closes when commit is merged to remote
+- `--no-commit` - Completes without a commit; issue stays open (close manually)
+
+Tasks without remote links (no GitHub/Shortcut metadata) don't require either flag.
 
 ### Linking Commits
 
@@ -49,7 +57,7 @@ When completing a task that involved creating a commit, link it:
 dex complete abc123 --result "Implemented feature X" --commit a1b2c3d
 ```
 
-This captures commit SHA, message, and branch automatically.
+This captures commit SHA, message, and branch automatically. The linked GitHub/Shortcut issue will be closed **only when the commit is pushed to the remote**.
 
 **GitHub Issue References**: If the task is linked to a GitHub issue (visible in `dex show` output), include issue references in your commit message. Use `Fixes #N` for root tasks (closes the issue) or `Refs #N` for subtasks (links without closing).
 

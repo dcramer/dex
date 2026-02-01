@@ -32,7 +32,8 @@ ${colors.bold}COMMANDS:${colors.reset}
   update                           Alias for edit command
   start <id>                       Mark task as in progress
   start <id> --force               Re-claim task already in progress
-  complete <id> --result "..."     Mark completed with result
+  complete <id> --result "..." [--commit <sha>|--no-commit]
+                                     Mark completed with result
   done                             Alias for complete command
   delete <id>                      Remove task (prompts if has subtasks)
   delete <id> -f                   Force delete without confirmation
@@ -75,12 +76,15 @@ ${colors.bold}EXAMPLES:${colors.reset}
   ${colors.dim}# Create simple task (description optional):${colors.reset}
   dex create "Fix login bug"
 
-  ${colors.dim}# Complete with detailed result (what, decisions, follow-ups):${colors.reset}
+  ${colors.dim}# Complete with detailed result and commit link:${colors.reset}
   dex complete abc123 --result "Added JWT auth:
     - /login, /register, /logout endpoints
     - bcrypt cost=12, 15min access tokens
     Decisions: JWT over sessions for scaling
-    Follow-up: add email verification"
+    Follow-up: add email verification" --commit a1b2c3d
+
+  ${colors.dim}# Complete without code changes (issue stays open):${colors.reset}
+  dex complete abc123 --result "Planning complete" --no-commit
 
   ${colors.dim}# Create task from planning session:${colors.reset}
   dex plan ~/.claude/plans/my-plan.md

@@ -3,6 +3,7 @@ import { ShortcutApi } from "./api.js";
 import type { Workflow, WorkflowState } from "@shortcut/client";
 import { renderStoryDescription, parseTaskMetadata } from "./story-markdown.js";
 import type { IntegrationId, SyncResult } from "../sync/index.js";
+import { isCommitOnRemote } from "../git-utils.js";
 
 /**
  * Progress callback for sync operations.
@@ -186,14 +187,23 @@ export class ShortcutSyncService {
 
   /**
    * Get the appropriate workflow state ID for a task.
+   *
+   * @param task - The task to get state for
+   * @param workflowId - The workflow ID
+   * @param shouldBeCompleted - Optional override for completion status. If not provided,
+   *                           falls back to task.completed (for backward compatibility).
    */
   private async getWorkflowStateId(
     task: Task,
     workflowId: number,
+    shouldBeCompleted?: boolean,
   ): Promise<number> {
     const workflow = await this.getWorkflow(workflowId);
 
-    if (task.completed) {
+    // Use the provided shouldBeCompleted or fall back to task.completed
+    const isCompleted = shouldBeCompleted ?? task.completed;
+
+    if (isCompleted) {
       const doneState = workflow.states.find(
         (s: WorkflowState) => s.type === "done",
       );
@@ -204,7 +214,8 @@ export class ShortcutSyncService {
     }
 
     // For started but not completed tasks, use started state
-    if (task.started_at) {
+    // Also use started state for tasks completed locally but not yet pushed
+    if (task.started_at || task.completed) {
       const startedState = workflow.states.find(
         (s: WorkflowState) => s.type === "started",
       );
@@ -362,9 +373,11 @@ export class ShortcutSyncService {
     }
 
     const workflowId = await this.getWorkflowId();
-    const expectedStateType = parent.completed
+    // Use shouldMarkCompleted to determine if story should be in "done" state
+    const shouldComplete = this.shouldMarkCompleted(parent, store);
+    const expectedStateType = shouldComplete
       ? "done"
-      : parent.started_at
+      : parent.started_at || parent.completed
         ? "started"
         : "unstarted";
 
@@ -405,13 +418,13 @@ export class ShortcutSyncService {
               cached,
               parent.name,
               expectedDescription,
-              parent.completed,
+              shouldComplete,
             )
           : await this.hasStoryChanged(
               storyId,
               parent.name,
               expectedDescription,
-              parent.completed,
+              shouldComplete,
             );
 
         if (!hasChanges) {
@@ -434,7 +447,7 @@ export class ShortcutSyncService {
           phase: "updating",
         });
 
-        await this.updateStory(parent, storyId, workflowId);
+        await this.updateStory(parent, storyId, workflowId, store);
       }
 
       // Sync subtasks as Shortcut Sub-tasks
@@ -470,7 +483,7 @@ export class ShortcutSyncService {
         phase: "creating",
       });
 
-      const shortcut = await this.createStory(parent, workflowId);
+      const shortcut = await this.createStory(parent, workflowId, store);
 
       // Sync subtasks as Shortcut Sub-tasks
       const subtaskResults = await this.syncSubtasks(
@@ -525,13 +538,20 @@ export class ShortcutSyncService {
       }
       let created = false;
 
+      // Determine completion status based on commit verification
+      const shouldComplete = this.shouldMarkCompleted(subtask, store);
+
       if (subtaskStoryId) {
         // Update existing subtask
-        await this.updateStory(subtask, subtaskStoryId, workflowId);
+        await this.updateStory(subtask, subtaskStoryId, workflowId, store);
       } else {
         // Create new subtask with same team as parent
         const description = renderStoryDescription(subtask);
-        const stateId = await this.getWorkflowStateId(subtask, workflowId);
+        const stateId = await this.getWorkflowStateId(
+          subtask,
+          workflowId,
+          shouldComplete,
+        );
 
         const story = await this.api.createSubtask(parentStoryId, {
           name: subtask.name,
@@ -549,11 +569,11 @@ export class ShortcutSyncService {
       // Sync blocker relationships for this subtask
       await this.syncBlockers(subtask, subtaskStoryId, store);
 
-      // Build result for this subtask
+      // Build result for this subtask - use verified completion status
       const storyUrl = await this.api.buildStoryUrl(subtaskStoryId);
-      const stateType = subtask.completed
+      const stateType = shouldComplete
         ? "done"
-        : subtask.started_at
+        : subtask.started_at || subtask.completed
           ? "started"
           : "unstarted";
       results.push({
@@ -712,10 +732,16 @@ export class ShortcutSyncService {
   private async createStory(
     task: Task,
     workflowId: number,
+    store?: TaskStore,
   ): Promise<ShortcutMetadata> {
     const teamId = await this.resolveTeamId();
     const description = renderStoryDescription(task);
-    const stateId = await this.getWorkflowStateId(task, workflowId);
+    const shouldComplete = this.shouldMarkCompleted(task, store);
+    const stateId = await this.getWorkflowStateId(
+      task,
+      workflowId,
+      shouldComplete,
+    );
 
     const story = await this.api.createStory({
       name: task.name,
@@ -744,9 +770,15 @@ export class ShortcutSyncService {
     task: Task,
     storyId: number,
     workflowId: number,
+    store?: TaskStore,
   ): Promise<void> {
     const description = renderStoryDescription(task);
-    const stateId = await this.getWorkflowStateId(task, workflowId);
+    const shouldComplete = this.shouldMarkCompleted(task, store);
+    const stateId = await this.getWorkflowStateId(
+      task,
+      workflowId,
+      shouldComplete,
+    );
 
     await this.api.updateStory(storyId, {
       name: task.name,
@@ -754,6 +786,40 @@ export class ShortcutSyncService {
       workflow_state_id: stateId,
       labels: [{ name: this.label }],
     });
+  }
+
+  /**
+   * Determine if a task should be marked as completed in Shortcut.
+   *
+   * - If task has a commit SHA: only mark completed if that commit is pushed to origin
+   * - If task has no commit SHA: don't mark completed (can't verify work is merged)
+   *
+   * This ensures Shortcut stories are only moved to "done" when the actual work has been pushed.
+   * Tasks completed with --no-commit will remain in "started" state until manually moved.
+   */
+  private shouldMarkCompleted(task: Task, store?: TaskStore): boolean {
+    // Task must be locally completed first
+    if (!task.completed) {
+      return false;
+    }
+
+    // If task has a commit SHA, verify it's been pushed
+    const commitSha = task.metadata?.commit?.sha;
+    if (commitSha) {
+      return isCommitOnRemote(commitSha);
+    }
+
+    // For parent tasks (with store context): check if all descendants have verified commits
+    if (store) {
+      const descendants = store.tasks.filter((t) => t.parent_id === task.id);
+      if (descendants.length > 0) {
+        // Parent is "completed" only when ALL descendants have verified commits on remote
+        return descendants.every((d) => this.shouldMarkCompleted(d, store));
+      }
+    }
+
+    // Leaf task with no commit SHA - can't verify, don't mark as done
+    return false;
   }
 
   /**

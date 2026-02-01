@@ -78,6 +78,11 @@ dex show <id>             # Full details
 dex complete <id> --result "What was accomplished" --commit <sha>
 ```
 
+**GitHub/Shortcut-linked tasks** require either `--commit <sha>` or `--no-commit`:
+
+- Use `--commit <sha>` when you have code changes (issue closes when merged)
+- Use `--no-commit` for non-code tasks like planning or design (issue stays open)
+
 **Always verify before completing.** Results must include evidence: test counts, build status, manual testing outcomes. See [verification.md](verification.md) for the full checklist.
 
 ### Edit and Delete

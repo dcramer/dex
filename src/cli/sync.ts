@@ -117,9 +117,14 @@ ${colors.bold}EXAMPLE:${colors.reset}
       // Sync specific task
       const task = await service.get(taskId);
       if (!task) {
-        console.error(
-          `${colors.red}Error:${colors.reset} Task ${taskId} not found`,
-        );
+        let errorMsg = `${colors.red}Error:${colors.reset} Task ${taskId} not found`;
+
+        // Provide helpful tip if it looks like a URL
+        if (taskId.startsWith("http://") || taskId.startsWith("https://")) {
+          errorMsg += `\nDid you mean: ${colors.cyan}dex import ${taskId}${colors.reset}`;
+        }
+
+        console.error(errorMsg);
         process.exit(1);
       }
 

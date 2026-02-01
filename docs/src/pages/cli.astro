@@ -134,18 +134,20 @@ dex start abc123 --force   # Re-claim a task already in progress`}
 
   <div class="command-card">
     <h3>dex complete</h3>
-    <div class="synopsis">dex complete &lt;id&gt; --result &lt;result&gt; [options]</div>
+    <div class="synopsis">dex complete &lt;id&gt; --result &lt;result&gt; [--commit &lt;sha&gt;|--no-commit]</div>
     <p>Mark a task as completed with a result summary.</p>
     <ul>
       <li><code>--result</code> — What was accomplished (required)</li>
-      <li><code>--commit &lt;sha&gt;</code> — Link to git commit</li>
+      <li><code>--commit &lt;sha&gt;</code> — Link to git commit (closes linked issue when merged)</li>
+      <li><code>--no-commit</code> — Complete without a commit (linked issue stays open)</li>
     </ul>
+    <p><strong>Note:</strong> For tasks linked to GitHub issues or Shortcut stories, you must specify either <code>--commit</code> or <code>--no-commit</code>. This ensures issues are only closed when code is actually merged.</p>
     <Terminal title="Terminal">
       <Code
         code={`dex complete abc123 --result "Implemented JWT middleware with token refresh.
-All 42 tests passing."
+All 42 tests passing." --commit a1b2c3d
 
-dex complete abc123 --result "..." --commit a1b2c3d`}
+dex complete abc123 --result "Planning complete, no code changes" --no-commit`}
         lang="bash"
         theme="vitesse-black"
       />

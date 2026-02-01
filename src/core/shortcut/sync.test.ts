@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ShortcutSyncService } from "./sync.js";
 import { renderStoryDescription } from "./story-markdown.js";
 import type { Task } from "../../types.js";
@@ -11,6 +11,21 @@ import {
   createTeamFixture,
   createMemberFixture,
 } from "../../test-utils/shortcut-mock.js";
+
+// Mock execSync for git operations (commit verification)
+vi.mock("node:child_process", async (importOriginal) => {
+  const original = await importOriginal<typeof import("node:child_process")>();
+  return {
+    ...original,
+    execSync: vi.fn((cmd: string) => {
+      // Default: commits are NOT on remote (most tests don't have commits)
+      if (cmd.includes("git merge-base --is-ancestor")) {
+        throw new Error("not ancestor");
+      }
+      return "";
+    }),
+  };
+});
 
 function createTask(overrides: Partial<Task> = {}): Task {
   const now = new Date().toISOString();
@@ -50,6 +65,7 @@ describe("ShortcutSyncService", () => {
 
   afterEach(() => {
     cleanupShortcutMock();
+    vi.restoreAllMocks();
   });
 
   function setupBaseMocks() {
@@ -268,12 +284,62 @@ describe("ShortcutSyncService", () => {
       expect(result!.taskId).toBe("existing");
     });
 
-    it("moves story to done state when task is completed", async () => {
+    it("keeps story in started state when task is completed without commit SHA", async () => {
+      // Task completed without a commit SHA (completed with --no-commit)
+      // Should stay in "started" state because we can't verify the work is merged
       const task = createTask({
         id: "completed",
         name: "Completed Task",
         completed: true,
         completed_at: new Date().toISOString(),
+        // No commit metadata
+      });
+
+      setupBaseMocks();
+      shortcutMock.searchStories([]);
+      shortcutMock.listLabels([{ id: 1, name: "dex" }]);
+      shortcutMock.createStory(
+        createStoryFixture({
+          id: 500,
+          name: "Completed Task",
+          completed: false,
+          workflow_state_id: 500000002, // started state (not done)
+          labels: [{ name: "dex" }],
+        }),
+      );
+
+      const result = await service.syncTask(task, { tasks: [task] });
+
+      expect(result).not.toBeNull();
+      // Should be "started" not "done" because no commit SHA to verify
+      expect(result!.metadata).toMatchObject({
+        state: "started",
+      });
+    });
+
+    it("moves story to done state when task is completed with pushed commit", async () => {
+      const { execSync } = await import("node:child_process");
+      vi.mocked(execSync).mockImplementation((cmd: unknown) => {
+        if (
+          typeof cmd === "string" &&
+          cmd.includes("git merge-base --is-ancestor")
+        ) {
+          return Buffer.from(""); // Success = commit is on remote
+        }
+        throw new Error("unexpected command");
+      });
+
+      const task = createTask({
+        id: "completed",
+        name: "Completed Task",
+        completed: true,
+        completed_at: new Date().toISOString(),
+        metadata: {
+          commit: {
+            sha: "abc123",
+            message: "Fix bug",
+          },
+        },
       });
 
       setupBaseMocks();
@@ -552,6 +618,17 @@ describe("ShortcutSyncService", () => {
     });
 
     it("skips unchanged tasks when skipUnchanged is true", async () => {
+      const { execSync } = await import("node:child_process");
+      vi.mocked(execSync).mockImplementation((cmd: unknown) => {
+        if (
+          typeof cmd === "string" &&
+          cmd.includes("git merge-base --is-ancestor")
+        ) {
+          return Buffer.from(""); // Success = commit is on remote
+        }
+        throw new Error("unexpected command");
+      });
+
       const task = createTask({
         id: "unchanged",
         name: "Unchanged Task",
@@ -562,6 +639,10 @@ describe("ShortcutSyncService", () => {
             storyUrl: "https://app.shortcut.com/test-workspace/story/888",
             workspace: "test-workspace",
             state: "done", // Already synced as done
+          },
+          commit: {
+            sha: "abc123",
+            message: "Fix bug",
           },
         },
       });
