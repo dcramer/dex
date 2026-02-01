@@ -34,6 +34,7 @@ ${colors.bold}COMMANDS:${colors.reset}
   start <id> --force               Re-claim task already in progress
   complete <id> --result "..." [--commit <sha>|--no-commit]
                                      Mark completed with result
+  complete <id> ... --force        Bypass validation (e.g., incomplete subtasks)
   done                             Alias for complete command
   delete <id>                      Remove task (prompts if has subtasks)
   delete <id> -f                   Force delete without confirmation

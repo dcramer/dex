@@ -78,7 +78,7 @@ No `--commit` or `--no-commit` required.
 
 Before completing a task:
 
-1. **Subtasks must be complete** - Cannot complete a parent with pending children
+1. **Subtasks must be complete** - Cannot complete a parent with pending children (use `--force` to bypass)
 2. **Blockers warn but don't prevent** - Completing a blocked task shows a warning but proceeds
 
 ## Syncing After Completion

@@ -62,8 +62,19 @@ describe("complete command", () => {
       }),
     ).rejects.toThrow("process.exit");
 
-    expect(fixture.output.stderr.join("\n")).toContain("subtask");
-    expect(fixture.output.stderr.join("\n")).toContain("pending");
+    expect(fixture.output.stderr.join("\n")).toContain("incomplete subtask");
+    expect(fixture.output.stderr.join("\n")).toContain("--force");
+  });
+
+  it("allows completing task with pending children when --force is used", async () => {
+    const parentId = await createTaskAndGetId(fixture, "Parent task");
+    await createTaskAndGetId(fixture, "Child task", { parent: parentId });
+
+    await runCli(["complete", parentId, "-r", "Done", "--force"], {
+      storage: fixture.storage,
+    });
+
+    expect(fixture.output.stdout.join("\n")).toContain("Completed");
   });
 
   it("fails for nonexistent task", async () => {

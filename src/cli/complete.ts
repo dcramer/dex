@@ -15,6 +15,7 @@ export async function completeCommand(
       result: { short: "r", hasValue: true },
       commit: { short: "c", hasValue: true },
       "no-commit": { hasValue: false },
+      force: { short: "f", hasValue: false },
       help: { short: "h", hasValue: false },
     },
     "complete",
@@ -33,11 +34,14 @@ ${colors.bold}OPTIONS:${colors.reset}
   -r, --result <text>        Completion result/notes (required)
   -c, --commit <sha>         Git commit SHA that implements this task
   --no-commit                Complete without linking a commit (issue stays open)
+  -f, --force                Bypass validation checks (e.g., incomplete subtasks)
   -h, --help                 Show this help message
 
 ${colors.bold}NOTES:${colors.reset}
   For tasks linked to GitHub issues or Shortcut stories, you must specify either
   --commit or --no-commit. This ensures issues are only closed when code is merged.
+
+  A task with incomplete subtasks cannot be completed unless --force is used.
 
 ${colors.bold}EXAMPLE:${colors.reset}
   dex complete abc123 --result "Fixed by updating auth token refresh logic" --commit a1b2c3d
@@ -51,6 +55,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
   const result = getStringFlag(flags, "result");
   const commitSha = getStringFlag(flags, "commit");
   const hasNoCommit = getBooleanFlag(flags, "no-commit");
+  const hasForce = getBooleanFlag(flags, "force");
 
   if (!id) {
     console.error(`${colors.red}Error:${colors.reset} Task ID is required`);
@@ -88,6 +93,29 @@ ${colors.bold}EXAMPLE:${colors.reset}
     );
     const subtasks = await service.getChildren(id);
     const isLeafTask = subtasks.length === 0;
+
+    // Check for incomplete subtasks
+    const incompleteSubtasks = subtasks.filter((s) => !s.completed);
+    if (incompleteSubtasks.length > 0 && !hasForce) {
+      console.error(
+        `${colors.red}Error:${colors.reset} Cannot complete task with ${incompleteSubtasks.length} incomplete subtask(s):`,
+      );
+      for (const subtask of incompleteSubtasks.slice(0, 5)) {
+        console.error(
+          `  ${colors.dim}•${colors.reset} ${colors.bold}${subtask.id}${colors.reset}: ${subtask.name}`,
+        );
+      }
+      if (incompleteSubtasks.length > 5) {
+        console.error(
+          `  ${colors.dim}... and ${incompleteSubtasks.length - 5} more${colors.reset}`,
+        );
+      }
+      console.error("");
+      console.error(
+        `Use ${colors.cyan}--force${colors.reset} to complete anyway.`,
+      );
+      process.exit(1);
+    }
 
     // Only require --commit/--no-commit for leaf tasks with remote links
     if (hasRemoteLink && isLeafTask && !commitSha && !hasNoCommit) {
@@ -129,7 +157,9 @@ ${colors.bold}EXAMPLE:${colors.reset}
         }
       : undefined;
 
-    const task = await service.complete(id, result, metadata);
+    const task = await service.complete(id, result, metadata, {
+      force: hasForce,
+    });
 
     console.log(
       `${colors.green}Completed${colors.reset} task ${colors.bold}${id}${colors.reset}`,
