@@ -275,7 +275,7 @@ export class GitHubSyncService {
     }
 
     // Determine if task should be marked completed based on remote state
-    const shouldClose = this.shouldMarkCompleted(parent);
+    const shouldClose = this.shouldMarkCompleted(parent, store);
 
     // Determine expected state for GitHub issue
     const expectedState = shouldClose ? "closed" : "open";
@@ -548,12 +548,13 @@ export class GitHubSyncService {
   /**
    * Determine if a task should be marked as completed in GitHub.
    *
-   * If task has a commit SHA: only mark completed if that commit is pushed to origin
-   * If task has no commit SHA: use local completion status (can't verify push status)
+   * - If task has a commit SHA: only mark completed if that commit is pushed to origin
+   * - If task has no commit SHA: don't mark completed (can't verify work is merged)
    *
    * This ensures GitHub issues are only closed when the actual work has been pushed.
+   * Tasks completed with --no-commit will remain open in GitHub until manually closed.
    */
-  private shouldMarkCompleted(task: Task): boolean {
+  private shouldMarkCompleted(task: Task, store?: TaskStore): boolean {
     // Task must be locally completed first
     if (!task.completed) {
       return false;
@@ -565,8 +566,17 @@ export class GitHubSyncService {
       return isCommitOnRemote(commitSha);
     }
 
-    // No commit SHA - use local completion status (can't verify push)
-    return true;
+    // For parent tasks (with store context): check if all descendants have verified commits
+    if (store) {
+      const descendants = collectDescendants(store.tasks, task.id);
+      if (descendants.length > 0) {
+        // Parent is "completed" only when ALL descendants have verified commits on remote
+        return descendants.every((d) => this.shouldMarkCompleted(d.task));
+      }
+    }
+
+    // Leaf task with no commit SHA - can't verify, don't close the issue
+    return false;
   }
 
   /**

@@ -227,11 +227,26 @@ describe("GitHubSyncService", () => {
     });
 
     describe("fast-path state tracking", () => {
-      // Tasks without commit SHA use local completion status directly
+      // Tasks without commit SHA don't close issues (can't verify merge)
       // Tasks with commit SHA require the commit to be on origin/HEAD
 
-      it("syncs completed task when previously synced as open", async () => {
-        // Bug scenario: task synced while pending (state: "open"), then completed locally
+      it("syncs completed task with pushed commit when previously synced as open", async () => {
+        const { execSync } = await import("node:child_process");
+        vi.mocked(execSync).mockImplementation((cmd: string) => {
+          if (typeof cmd === "string" && cmd.includes("gh auth token")) {
+            throw new Error("gh not authenticated");
+          }
+          // Commit IS on remote
+          if (
+            typeof cmd === "string" &&
+            cmd.includes("git merge-base --is-ancestor")
+          ) {
+            return ""; // Success
+          }
+          return "";
+        });
+
+        // Task synced while pending (state: "open"), then completed with pushed commit
         // The sync should update the issue to close it
         const task = createTask({
           completed: true,
@@ -241,6 +256,10 @@ describe("GitHubSyncService", () => {
               issueUrl: "https://github.com/test-owner/test-repo/issues/100",
               repo: "test-owner/test-repo",
               state: "open", // Previously synced as open
+            },
+            commit: {
+              sha: "abc123",
+              message: "Fix bug",
             },
           },
         });
@@ -275,8 +294,23 @@ describe("GitHubSyncService", () => {
         expect(getGitHubMetadata(result)?.state).toBe("closed");
       });
 
-      it("skips completed task when already synced as closed", async () => {
-        // Fast-path: completed task with state: "closed" should skip API call
+      it("skips completed task with pushed commit when already synced as closed", async () => {
+        const { execSync } = await import("node:child_process");
+        vi.mocked(execSync).mockImplementation((cmd: string) => {
+          if (typeof cmd === "string" && cmd.includes("gh auth token")) {
+            throw new Error("gh not authenticated");
+          }
+          // Commit IS on remote
+          if (
+            typeof cmd === "string" &&
+            cmd.includes("git merge-base --is-ancestor")
+          ) {
+            return ""; // Success
+          }
+          return "";
+        });
+
+        // Fast-path: completed task with pushed commit and state: "closed" should skip API call
         const task = createTask({
           completed: true,
           metadata: {
@@ -285,6 +319,10 @@ describe("GitHubSyncService", () => {
               issueUrl: "https://github.com/test-owner/test-repo/issues/101",
               repo: "test-owner/test-repo",
               state: "closed", // Already synced as closed
+            },
+            commit: {
+              sha: "abc123",
+              message: "Fix bug",
             },
           },
         });
@@ -448,16 +486,16 @@ describe("GitHubSyncService", () => {
         expect(getGitHubMetadata(result)?.state).toBe("closed");
       });
 
-      it("closes issue when task has no commit SHA (uses local status)", async () => {
+      it("keeps issue open when task has no commit SHA (can't verify merge)", async () => {
         // Task is completed locally without a commit SHA
-        // Should use local completion status directly
+        // Should keep issue OPEN because we can't verify the work is merged
         const task = createTask({
           completed: true,
-          // No commit metadata
+          // No commit metadata - completed with --no-commit
         });
         const store = createStore([task]);
 
-        // Should create issue as CLOSED because local status is completed
+        // Should create issue as OPEN because there's no commit to verify
         githubMock.listIssues("test-owner", "test-repo", []);
         githubMock.createIssue(
           "test-owner",
@@ -468,21 +506,11 @@ describe("GitHubSyncService", () => {
             state: "open",
           }),
         );
-        githubMock.updateIssue(
-          "test-owner",
-          "test-repo",
-          1,
-          createIssueFixture({
-            number: 1,
-            title: task.name,
-            state: "closed",
-          }),
-        );
 
         const result = await service.syncTask(task, store);
 
         expect(result).not.toBeNull();
-        expect(getGitHubMetadata(result)?.state).toBe("closed");
+        expect(getGitHubMetadata(result)?.state).toBe("open");
       });
     });
   });
@@ -1282,14 +1310,21 @@ describe("hasIssueChangedFromCache change detection", () => {
     expect(results[0].skipped).toBeFalsy();
   });
 
-  it("detects change when state differs", async () => {
-    // Mock gitignored storage so local completion status is used
+  it("detects change when state differs (with pushed commit)", async () => {
+    // Task with a pushed commit should close the issue
     const { execSync } = await import("node:child_process");
     vi.mocked(execSync).mockImplementation((cmd: string) => {
-      if (typeof cmd === "string" && cmd.includes("git check-ignore")) {
-        return ""; // Storage is gitignored
+      if (typeof cmd === "string" && cmd.includes("gh auth token")) {
+        throw new Error("gh not authenticated");
       }
-      throw new Error("unexpected command");
+      // Commit IS on remote
+      if (
+        typeof cmd === "string" &&
+        cmd.includes("git merge-base --is-ancestor")
+      ) {
+        return ""; // Success
+      }
+      return "";
     });
 
     const task = createTask({
@@ -1297,6 +1332,12 @@ describe("hasIssueChangedFromCache change detection", () => {
       name: "Test Task",
       description: "Test context",
       completed: true,
+      metadata: {
+        commit: {
+          sha: "abc123",
+          message: "Fix bug",
+        },
+      },
     });
     const store = createStore([task]);
 
