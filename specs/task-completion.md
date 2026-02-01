@@ -28,13 +28,23 @@ dex complete <id> --result "..." --commit <sha>
 dex complete <id> --result "..." --no-commit
 ```
 
-**Why?** This prevents accidentally closing GitHub issues before code is merged. The linked issue only closes when the commit is verified on the remote (pushed and merged).
+**Why?** This prevents accidentally closing GitHub issues before code is merged. The linked issue only closes when the commit is merged to the default branch.
 
-| Flag                          | Task Status | Remote Issue |
-| ----------------------------- | ----------- | ------------ |
-| `--commit <sha>` (not pushed) | Completed   | Stays open   |
-| `--commit <sha>` (pushed)     | Completed   | Closes       |
-| `--no-commit`                 | Completed   | Stays open   |
+### What "merged" means
+
+A commit is considered merged when it's an ancestor of `origin/HEAD` (typically `main` or `master`). This means:
+
+- Pushing to a feature branch does **not** close the issue
+- Opening a pull request does **not** close the issue
+- Only merging the PR to the default branch closes the issue
+
+This is intentional - you don't want issues closing while code is still in review.
+
+| Flag                            | Task Status | Remote Issue |
+| ------------------------------- | ----------- | ------------ |
+| `--commit <sha>` (on PR branch) | Completed   | Stays open   |
+| `--commit <sha>` (merged)       | Completed   | Closes       |
+| `--no-commit`                   | Completed   | Stays open   |
 
 If you forget to specify, dex shows an error:
 
@@ -83,9 +93,9 @@ The sync respects the completion rules above - issues only close when commits ar
 
 ## Summary
 
-| Scenario                    | Flags Required              | Issue Closes When             |
-| --------------------------- | --------------------------- | ----------------------------- |
-| Local task (no remote link) | None                        | N/A                           |
-| Remote-linked leaf task     | `--commit` or `--no-commit` | Commit pushed to remote       |
-| Remote-linked parent task   | None                        | All descendant commits pushed |
-| `--no-commit` completion    | Required for remote leaf    | Never (manual close)          |
+| Scenario                    | Flags Required              | Issue Closes When               |
+| --------------------------- | --------------------------- | ------------------------------- |
+| Local task (no remote link) | None                        | N/A                             |
+| Remote-linked leaf task     | `--commit` or `--no-commit` | Commit merged to default branch |
+| Remote-linked parent task   | None                        | All descendant commits merged   |
+| `--no-commit` completion    | Required for remote leaf    | Never (manual close)            |
