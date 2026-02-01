@@ -4,6 +4,7 @@ import type { Workflow, WorkflowState } from "@shortcut/client";
 import { renderStoryDescription, parseTaskMetadata } from "./story-markdown.js";
 import type { IntegrationId, SyncResult } from "../sync/index.js";
 import { isCommitOnRemote } from "../git-utils.js";
+import { collectDescendants } from "../github/issue-parsing.js";
 
 /**
  * Progress callback for sync operations.
@@ -809,12 +810,12 @@ export class ShortcutSyncService {
       return isCommitOnRemote(commitSha);
     }
 
-    // For parent tasks (with store context): check if all descendants have verified commits
+    // For parent tasks (with store context): check if ALL descendants have verified commits
     if (store) {
-      const descendants = store.tasks.filter((t) => t.parent_id === task.id);
+      const descendants = collectDescendants(store.tasks, task.id);
       if (descendants.length > 0) {
         // Parent is "completed" only when ALL descendants have verified commits on remote
-        return descendants.every((d) => this.shouldMarkCompleted(d, store));
+        return descendants.every((d) => this.shouldMarkCompleted(d.task));
       }
     }
 
