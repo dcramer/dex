@@ -304,13 +304,15 @@ export class GitHubSyncService {
         );
       }
 
+      // Get cached data for change detection and current state
+      const cached = issueCache?.get(parent.id);
+      const currentState = cached?.state ?? "open";
+
       // Check if we can skip this update by comparing with GitHub
       if (skipUnchanged) {
         const expectedBody = this.renderBody(parent, descendants);
         const expectedLabels = this.buildLabels(parent, shouldClose);
 
-        // Use cached data for change detection when available
-        const cached = issueCache?.get(parent.id);
         const hasChanges = cached
           ? this.hasIssueChangedFromCache(
               cached,
@@ -351,7 +353,13 @@ export class GitHubSyncService {
         phase: "updating",
       });
 
-      await this.updateIssue(parent, descendants, issueNumber, shouldClose);
+      await this.updateIssue(
+        parent,
+        descendants,
+        issueNumber,
+        shouldClose,
+        currentState,
+      );
       return this.buildSyncResult(parent.id, issueNumber, false, expectedState);
     } else {
       onProgress?.({
@@ -504,14 +512,32 @@ export class GitHubSyncService {
 
   /**
    * Update an existing GitHub issue.
+   *
+   * @param currentState - The current state of the issue on GitHub.
+   *                       Used to prevent reopening closed issues.
    */
   private async updateIssue(
     parent: Task,
     descendants: HierarchicalTask[],
     issueNumber: number,
     shouldClose: boolean,
+    currentState: "open" | "closed",
   ): Promise<void> {
     const body = this.renderBody(parent, descendants);
+
+    // Determine the state to set:
+    // - If shouldClose is true, always close (even if already closed)
+    // - If shouldClose is false and currently open, keep open
+    // - If shouldClose is false and currently closed, DON'T reopen
+    //   (this prevents reopening issues that were closed elsewhere)
+    let state: "open" | "closed" | undefined;
+    if (shouldClose) {
+      state = "closed";
+    } else if (currentState === "open") {
+      state = "open";
+    }
+    // If currentState is "closed" and shouldClose is false, don't set state
+    // (keeps the issue closed, doesn't reopen it)
 
     await this.octokit.issues.update({
       owner: this.owner,
@@ -520,7 +546,7 @@ export class GitHubSyncService {
       title: parent.name,
       body,
       labels: this.buildLabels(parent, shouldClose),
-      state: shouldClose ? "closed" : "open",
+      ...(state !== undefined && { state }),
     });
   }
 
