@@ -295,6 +295,105 @@ describe("ShortcutSyncService", () => {
         state: "done",
       });
     });
+
+    it("moves story to started state when task has started_at", async () => {
+      const task = createTask({
+        id: "started1",
+        name: "Started Task",
+        started_at: new Date().toISOString(),
+        completed: false,
+      });
+
+      setupBaseMocks();
+      shortcutMock.searchStories([]);
+      shortcutMock.listLabels([{ id: 1, name: "dex" }]);
+      shortcutMock.createStory(
+        createStoryFixture({
+          id: 501,
+          name: "Started Task",
+          workflow_state_id: 500000002, // started state
+          labels: [{ name: "dex" }],
+        }),
+      );
+
+      const result = await service.syncTask(task, { tasks: [task] });
+
+      expect(result).not.toBeNull();
+      expect(result!.metadata).toMatchObject({
+        state: "started",
+      });
+    });
+
+    it("does not recreate subtask when found in story cache", async () => {
+      const parent = createTask({
+        id: "parent02",
+        name: "Parent with cached subtask",
+        description: "ctx",
+      });
+      const subtask = createTask({
+        id: "subtask2",
+        name: "Cached Subtask",
+        parent_id: "parent02",
+      });
+
+      setupBaseMocks();
+      // Return existing stories including the subtask (simulates cache hit)
+      shortcutMock.searchStories([
+        createStoryFixture({
+          id: 2000,
+          name: "Parent with cached subtask",
+          description: `<!-- dex:task:id:parent02 -->\n\nctx`,
+          labels: [{ name: "dex" }],
+        }),
+        createStoryFixture({
+          id: 2001,
+          name: "Cached Subtask",
+          description: `<!-- dex:task:id:subtask2 -->\n\n`,
+          labels: [{ name: "dex" }],
+        }),
+      ]);
+      shortcutMock.listLabels([{ id: 1, name: "dex" }]);
+      // Mock getStory for fetching parent to verify subtasks
+      shortcutMock.getStory(
+        2000,
+        createStoryFixture({
+          id: 2000,
+          name: "Parent with cached subtask",
+          description: `<!-- dex:task:id:parent02 -->\n\nctx`,
+          sub_task_ids: [2001],
+          labels: [{ name: "dex" }],
+        }),
+      );
+      // Mock updateStory for parent (should not create new subtask)
+      shortcutMock.updateStory(
+        2000,
+        createStoryFixture({
+          id: 2000,
+          name: "Parent with cached subtask",
+          sub_task_ids: [2001],
+          labels: [{ name: "dex" }],
+        }),
+      );
+      // Mock updateStory for subtask (update, not create)
+      shortcutMock.updateStory(
+        2001,
+        createStoryFixture({
+          id: 2001,
+          name: "Cached Subtask",
+          labels: [{ name: "dex" }],
+        }),
+      );
+
+      const result = await service.syncTask(parent, {
+        tasks: [parent, subtask],
+      });
+
+      expect(result).not.toBeNull();
+      expect(result!.taskId).toBe("parent02");
+      expect(result!.created).toBe(false); // Updated, not created
+      // No createStory mock was set up for subtask, so if it tried to create
+      // the mock would fail - passing means it used the cached story
+    });
   });
 
   describe("syncAll", () => {

@@ -203,7 +203,18 @@ export class ShortcutSyncService {
       return doneState.id;
     }
 
-    // For non-completed tasks, use unstarted state
+    // For started but not completed tasks, use started state
+    if (task.started_at) {
+      const startedState = workflow.states.find(
+        (s: WorkflowState) => s.type === "started",
+      );
+      if (startedState) {
+        return startedState.id;
+      }
+      // Fall through to unstarted if no started state exists
+    }
+
+    // For non-started tasks, use unstarted state
     const unstartedState = workflow.states.find(
       (s: WorkflowState) => s.type === "unstarted",
     );
@@ -351,7 +362,11 @@ export class ShortcutSyncService {
     }
 
     const workflowId = await this.getWorkflowId();
-    const expectedStateType = parent.completed ? "done" : "unstarted";
+    const expectedStateType = parent.completed
+      ? "done"
+      : parent.started_at
+        ? "started"
+        : "unstarted";
 
     if (storyId) {
       // Fast path: skip completed tasks that are already synced as done
@@ -432,6 +447,7 @@ export class ShortcutSyncService {
         storyId,
         store,
         workflowId,
+        storyCache,
       );
 
       // Sync blocker relationships
@@ -465,6 +481,7 @@ export class ShortcutSyncService {
         shortcut.storyId,
         store,
         workflowId,
+        storyCache,
       );
 
       // Sync blocker relationships
@@ -491,12 +508,24 @@ export class ShortcutSyncService {
     parentStoryId: number,
     store: TaskStore,
     workflowId: number,
+    storyCache?: Map<string, CachedStory>,
   ): Promise<SyncResult[]> {
     const teamId = await this.resolveTeamId();
     const results: SyncResult[] = [];
 
     for (const subtask of subtasks) {
+      // Check for existing story: first metadata, then cache, then API fallback
       let subtaskStoryId = getShortcutStoryId(subtask);
+      if (!subtaskStoryId && storyCache) {
+        const cached = storyCache.get(subtask.id);
+        if (cached) {
+          subtaskStoryId = cached.id;
+        }
+      }
+      if (!subtaskStoryId) {
+        // Fallback search by task ID in description
+        subtaskStoryId = await this.findStoryByTaskId(subtask.id);
+      }
       let created = false;
 
       if (subtaskStoryId) {
@@ -525,7 +554,11 @@ export class ShortcutSyncService {
 
       // Build result for this subtask
       const storyUrl = await this.api.buildStoryUrl(subtaskStoryId);
-      const stateType = subtask.completed ? "done" : "unstarted";
+      const stateType = subtask.completed
+        ? "done"
+        : subtask.started_at
+          ? "started"
+          : "unstarted";
       results.push({
         taskId: subtask.id,
         metadata: {
@@ -547,6 +580,7 @@ export class ShortcutSyncService {
           subtaskStoryId,
           store,
           workflowId,
+          storyCache,
         );
         results.push(...nestedResults);
       }
