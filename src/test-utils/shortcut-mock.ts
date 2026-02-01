@@ -15,6 +15,7 @@ export interface ShortcutStoryFixture {
   app_url: string;
   labels: Array<{ name: string }>;
   workflow_state_id?: number;
+  sub_task_ids?: number[];
 }
 
 export interface ShortcutWorkflowFixture {
