@@ -394,6 +394,7 @@ export class ShortcutSyncService {
       }
 
       // Check if we can skip this update by comparing with Shortcut
+      let parentSkipped = false;
       if (skipUnchanged) {
         const expectedDescription = renderStoryDescription(parent);
 
@@ -414,32 +415,27 @@ export class ShortcutSyncService {
             );
 
         if (!hasChanges) {
-          onProgress?.({
-            current: currentIndex,
-            total,
-            task: parent,
-            phase: "skipped",
-          });
-          const storyUrl = await this.api.buildStoryUrl(storyId);
-          return this.buildSyncResult(
-            parent.id,
-            storyId,
-            storyUrl,
-            false,
-            expectedStateType,
-            true,
-          );
+          parentSkipped = true;
         }
       }
 
-      onProgress?.({
-        current: currentIndex,
-        total,
-        task: parent,
-        phase: "updating",
-      });
+      if (parentSkipped) {
+        onProgress?.({
+          current: currentIndex,
+          total,
+          task: parent,
+          phase: "skipped",
+        });
+      } else {
+        onProgress?.({
+          current: currentIndex,
+          total,
+          task: parent,
+          phase: "updating",
+        });
 
-      await this.updateStory(parent, storyId, workflowId);
+        await this.updateStory(parent, storyId, workflowId);
+      }
 
       // Sync subtasks as Shortcut Sub-tasks
       const subtaskResults = await this.syncSubtasks(
@@ -460,6 +456,7 @@ export class ShortcutSyncService {
         storyUrl,
         false,
         expectedStateType,
+        parentSkipped,
       );
       if (subtaskResults.length > 0) {
         result.subtaskResults = subtaskResults;

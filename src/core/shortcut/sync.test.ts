@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShortcutSyncService } from "./sync.js";
+import { renderStoryDescription } from "./story-markdown.js";
 import type { Task } from "../../types.js";
 import type { ShortcutMock } from "../../test-utils/shortcut-mock.js";
 import {
@@ -394,6 +395,92 @@ describe("ShortcutSyncService", () => {
       expect(results[0].created).toBe(false); // Updated, not created
       // No createStory mock was set up for subtask, so if it tried to create
       // the mock would fail - passing means it used the cached story
+    });
+
+    it("syncs subtasks even when parent is unchanged", async () => {
+      // Use fixed timestamps so description comparisons work
+      const fixedTime = "2024-01-01T00:00:00.000Z";
+
+      // Parent task with existing story that hasn't changed
+      const parent = createTask({
+        id: "parent03",
+        name: "Unchanged Parent",
+        description: "ctx",
+        created_at: fixedTime,
+        updated_at: fixedTime,
+        metadata: {
+          shortcut: {
+            storyId: 3000,
+            storyUrl: "https://app.shortcut.com/test/story/3000",
+            workspace: "test-workspace",
+            state: "unstarted",
+          },
+        },
+      });
+      // Subtask that has been started (should be synced to started state)
+      const subtask = createTask({
+        id: "subtask03",
+        name: "Started Subtask",
+        parent_id: "parent03",
+        created_at: fixedTime,
+        updated_at: fixedTime,
+        started_at: fixedTime,
+        metadata: {
+          shortcut: {
+            storyId: 3001,
+            storyUrl: "https://app.shortcut.com/test/story/3001",
+            workspace: "test-workspace",
+            state: "unstarted", // Still shows unstarted in metadata
+          },
+        },
+      });
+
+      // Generate expected descriptions using the same function the sync uses
+      const parentDescription = renderStoryDescription(parent);
+      const subtaskDescription = renderStoryDescription(subtask);
+
+      setupBaseMocks();
+      shortcutMock.listLabels([{ id: 1, name: "dex" }]);
+      // searchStories returns both stories in cache with matching descriptions
+      shortcutMock.searchStories([
+        createStoryFixture({
+          id: 3000,
+          name: "Unchanged Parent",
+          description: parentDescription,
+          labels: [{ name: "dex" }],
+          sub_task_ids: [3001],
+        }),
+        createStoryFixture({
+          id: 3001,
+          name: "Started Subtask",
+          description: subtaskDescription,
+          labels: [{ name: "dex" }],
+        }),
+      ]);
+
+      // Subtask update (should happen even though parent is unchanged)
+      shortcutMock.updateStory(
+        3001,
+        createStoryFixture({
+          id: 3001,
+          name: "Started Subtask",
+          labels: [{ name: "dex" }],
+        }),
+      );
+
+      const results = await service.syncAll({ tasks: [parent, subtask] });
+
+      // Parent should be skipped but subtask should be synced
+      expect(results).toHaveLength(1);
+      expect(results[0].taskId).toBe("parent03");
+      expect(results[0].skipped).toBe(true); // Parent was unchanged
+      // Subtask should still have been synced
+      expect(results[0].subtaskResults).toHaveLength(1);
+      expect(results[0].subtaskResults![0].taskId).toBe("subtask03");
+      const subtaskMetadata = results[0].subtaskResults![0].metadata as {
+        state: string;
+      };
+      expect(subtaskMetadata.state).toBe("started");
     });
   });
 
