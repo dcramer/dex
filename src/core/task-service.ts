@@ -653,6 +653,7 @@ export class TaskService {
     id: string,
     result: string,
     metadata?: Task["metadata"],
+    options?: { force?: boolean },
   ): Promise<Task> {
     const store = await this.storage.readAsync();
 
@@ -664,7 +665,7 @@ export class TaskService {
       (t) => descendants.has(t.id) && !t.completed,
     );
 
-    if (pendingDescendants.length > 0) {
+    if (pendingDescendants.length > 0 && !options?.force) {
       throw new ValidationError(
         `Cannot complete: ${pendingDescendants.length} subtask${pendingDescendants.length > 1 ? "s" : ""} still pending`,
         "Complete or delete all subtasks first",
