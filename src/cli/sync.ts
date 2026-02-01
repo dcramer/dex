@@ -352,11 +352,20 @@ async function syncAllWithProgress(
 function printSyncSummary(
   serviceName: string,
   target: string,
-  results: Array<{ created: boolean; skipped?: boolean }>,
+  results: Array<{
+    created: boolean;
+    skipped?: boolean;
+    pulledFromRemote?: boolean;
+  }>,
 ): void {
   const created = results.filter((r) => r.created).length;
-  const updated = results.filter((r) => !r.created && !r.skipped).length;
-  const skipped = results.filter((r) => r.skipped).length;
+  const updated = results.filter(
+    (r) => !r.created && !r.skipped && !r.pulledFromRemote,
+  ).length;
+  const pulled = results.filter((r) => r.pulledFromRemote).length;
+  const skipped = results.filter(
+    (r) => r.skipped && !r.pulledFromRemote,
+  ).length;
 
   console.log(
     `${colors.green}Synced${colors.reset} to ${serviceName} ${colors.cyan}${target}${colors.reset}`,
@@ -364,6 +373,7 @@ function printSyncSummary(
   const parts = [];
   if (created > 0) parts.push(`${created} created`);
   if (updated > 0) parts.push(`${updated} updated`);
+  if (pulled > 0) parts.push(`${pulled} pulled from remote`);
   if (skipped > 0) parts.push(`${skipped} unchanged`);
   if (parts.length > 0) {
     console.log(`  (${parts.join(", ")})`);
@@ -372,6 +382,7 @@ function printSyncSummary(
 
 /**
  * Save metadata to a task after syncing.
+ * Also applies local updates when remote was newer (bidirectional sync).
  */
 async function saveMetadata(
   service: ReturnType<typeof createService>,
@@ -381,15 +392,47 @@ async function saveMetadata(
   const task = await service.get(result.taskId);
   if (!task) return;
 
-  const metadata = {
+  let metadata = {
     ...task.metadata,
     [integrationId]: result.metadata,
   };
 
-  await service.update({
-    id: result.taskId,
-    metadata,
-  });
+  // If remote was newer, apply local updates from remote state
+  if (result.pulledFromRemote && result.localUpdates) {
+    // Merge metadata properly if localUpdates includes metadata
+    if (result.localUpdates.metadata) {
+      metadata = {
+        ...metadata,
+        ...(result.localUpdates.metadata as Record<string, unknown>),
+      };
+    }
+
+    // Apply all local updates
+    await service.update({
+      id: result.taskId,
+      metadata,
+      ...(result.localUpdates.completed !== undefined && {
+        completed: result.localUpdates.completed as boolean,
+      }),
+      ...(result.localUpdates.completed_at !== undefined && {
+        completed_at: result.localUpdates.completed_at as string | null,
+      }),
+      ...(result.localUpdates.result !== undefined && {
+        result: result.localUpdates.result as string,
+      }),
+      ...(result.localUpdates.started_at !== undefined && {
+        started_at: result.localUpdates.started_at as string | null,
+      }),
+      ...(result.localUpdates.updated_at !== undefined && {
+        updated_at: result.localUpdates.updated_at as string,
+      }),
+    });
+  } else {
+    await service.update({
+      id: result.taskId,
+      metadata,
+    });
+  }
 
   // Handle subtask results for integrations that support them (like Shortcut)
   if (result.subtaskResults) {

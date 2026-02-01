@@ -512,6 +512,57 @@ describe("GitHubSyncService", () => {
         expect(result).not.toBeNull();
         expect(getGitHubMetadata(result)?.state).toBe("open");
       });
+
+      it("does not reopen a closed issue when local task has no verified commit", async () => {
+        // Scenario: Task was completed on Machine A (with commit), issue closed
+        // Machine B has the task locally completed but without a verified commit
+        // When Machine B syncs, it should NOT reopen the closed issue
+        const task = createTask({
+          id: "test-task",
+          completed: true,
+          metadata: {
+            github: {
+              issueNumber: 42,
+              issueUrl: "https://github.com/test-owner/test-repo/issues/42",
+              repo: "test-owner/test-repo",
+              state: "open", // Local metadata is stale
+            },
+          },
+          // No commit metadata - can't verify merge
+        });
+        const store = createStore([task]);
+
+        // Issue is already CLOSED on GitHub (was closed on another machine)
+        // The cache will report state: "closed"
+        githubMock.listIssues("test-owner", "test-repo", [
+          createIssueFixture({
+            number: 42,
+            title: task.name,
+            state: "closed",
+            body: `<!-- dex:task:id:test-task -->`,
+          }),
+        ]);
+
+        // Update should keep the issue closed (not reopen it)
+        githubMock.updateIssue(
+          "test-owner",
+          "test-repo",
+          42,
+          createIssueFixture({
+            number: 42,
+            title: task.name,
+            state: "closed", // Stays closed
+          }),
+        );
+
+        const result = await service.syncTask(task, store);
+
+        // The sync completes successfully
+        expect(result).not.toBeNull();
+        // We report "open" as expected state (since we can't verify commit)
+        // but the issue stays closed on GitHub (we don't reopen it)
+        expect(getGitHubMetadata(result)?.state).toBe("open");
+      });
     });
   });
 

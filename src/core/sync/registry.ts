@@ -11,6 +11,10 @@ export interface SyncResult {
   skipped?: boolean;
   /** Results for subtasks (used by integrations like Shortcut that sync subtasks separately) */
   subtaskResults?: SyncResult[];
+  /** Updates to apply to the local task (when remote is newer) */
+  localUpdates?: Record<string, unknown>;
+  /** True if local task was updated from remote (remote was newer) */
+  pulledFromRemote?: boolean;
 }
 
 /**
