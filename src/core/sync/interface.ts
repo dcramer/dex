@@ -40,6 +40,10 @@ export interface SyncResult<
   created: boolean;
   /** True if sync was skipped because nothing changed */
   skipped?: boolean;
+  /** Updates to apply to the local task (when remote is newer) */
+  localUpdates?: Partial<Task>;
+  /** True if local task was updated from remote (remote was newer) */
+  pulledFromRemote?: boolean;
 }
 
 /**

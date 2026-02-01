@@ -7,6 +7,7 @@ import {
   renderHierarchicalIssueBody,
   renderTaskMetadataComments,
 } from "./issue-markdown.js";
+import { parseRootTaskMetadata } from "./issue-parsing.js";
 import { isCommitOnRemote } from "../git-utils.js";
 import type { SyncResult } from "../sync/registry.js";
 
@@ -307,6 +308,61 @@ export class GitHubSyncService {
       // Get cached data for change detection and current state
       const cached = issueCache?.get(parent.id);
       const currentState = cached?.state ?? "open";
+
+      // Check if remote is newer than local (staleness detection)
+      // If so, pull remote state to local instead of pushing
+      if (cached?.body) {
+        const remoteMetadata = parseRootTaskMetadata(cached.body);
+        if (remoteMetadata?.updated_at && parent.updated_at) {
+          const remoteUpdated = new Date(remoteMetadata.updated_at).getTime();
+          const localUpdated = new Date(parent.updated_at).getTime();
+
+          if (remoteUpdated > localUpdated) {
+            // Remote is newer - pull remote state to local
+            const localUpdates: Partial<Task> = {
+              updated_at: remoteMetadata.updated_at,
+            };
+
+            // Pull completion state if remote is completed
+            if (remoteMetadata.completed && !parent.completed) {
+              localUpdates.completed = true;
+              localUpdates.completed_at = remoteMetadata.completed_at;
+              localUpdates.result = remoteMetadata.result;
+              localUpdates.started_at = remoteMetadata.started_at;
+            }
+
+            // Pull commit metadata if present in remote
+            if (remoteMetadata.commit?.sha && !parent.metadata?.commit?.sha) {
+              localUpdates.metadata = {
+                ...parent.metadata,
+                commit: remoteMetadata.commit,
+              };
+            }
+
+            onProgress?.({
+              current: currentIndex,
+              total,
+              task: parent,
+              phase: "skipped", // We're not pushing, we're pulling
+            });
+
+            return {
+              taskId: parent.id,
+              metadata: {
+                issueNumber,
+                issueUrl: `https://github.com/${this.owner}/${this.repo}/issues/${issueNumber}`,
+                repo: this.getRepoString(),
+                state: currentState,
+              },
+              created: false,
+              skipped: true,
+              localUpdates,
+              pulledFromRemote: true,
+            };
+          }
+        }
+      }
+
 
       // Check if we can skip this update by comparing with GitHub
       if (skipUnchanged) {
