@@ -332,9 +332,10 @@ export class GitHubSyncService {
             }
 
             // Pull commit metadata if present in remote
+            // Only set the commit field - don't spread parent.metadata as it may contain
+            // stale integration metadata that would overwrite fresh state in saveMetadata
             if (remoteMetadata.commit?.sha && !parent.metadata?.commit?.sha) {
               localUpdates.metadata = {
-                ...parent.metadata,
                 commit: remoteMetadata.commit,
               };
             }
@@ -362,7 +363,6 @@ export class GitHubSyncService {
           }
         }
       }
-
 
       // Check if we can skip this update by comparing with GitHub
       if (skipUnchanged) {
