@@ -6,6 +6,7 @@ import {
   getStringFlag,
   parseArgs,
   parseIntFlag,
+  validateSinglePositional,
 } from "./args.js";
 import { formatTask } from "./formatting.js";
 
@@ -62,6 +63,10 @@ ${colors.bold}EXAMPLE:${colors.reset}
     console.error(`Usage: dex edit <task-id> [-n "new name"]`);
     process.exit(1);
   }
+
+  validateSinglePositional(positional, "edit", {
+    hint: "Use -n to set name, -d for description",
+  });
 
   // Parse blocker flags as comma-separated lists
   const addBlockerStr = getStringFlag(flags, "add-blocker");

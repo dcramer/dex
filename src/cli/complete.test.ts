@@ -292,4 +292,18 @@ describe("complete command", () => {
     const out = fixture.output.stdout.join("\n");
     expect(out).toContain("Completed");
   });
+
+  it("fails when multiple positional arguments are provided", async () => {
+    const taskId = await createTaskAndGetId(fixture, "Task");
+
+    await expect(
+      runCli(["complete", taskId, "extra-arg", "-r", "Done"], {
+        storage: fixture.storage,
+      }),
+    ).rejects.toThrow("process.exit");
+
+    const err = fixture.output.stderr.join("\n");
+    expect(err).toContain("unexpected positional argument");
+    expect(err).toContain("Use --result to provide completion notes");
+  });
 });

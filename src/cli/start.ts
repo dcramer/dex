@@ -1,6 +1,6 @@
 import { type CliOptions, createService, formatCliError } from "./utils.js";
 import { colors } from "./colors.js";
-import { getBooleanFlag, parseArgs } from "./args.js";
+import { getBooleanFlag, parseArgs, validateSinglePositional } from "./args.js";
 import { formatTaskShow } from "./show.js";
 
 export async function startCommand(
@@ -44,6 +44,8 @@ ${colors.bold}EXAMPLES:${colors.reset}
     console.error(`Usage: dex start <task-id>`);
     process.exit(1);
   }
+
+  validateSinglePositional(positional, "start");
 
   const service = createService(options);
   try {

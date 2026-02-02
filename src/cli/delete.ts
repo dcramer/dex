@@ -6,7 +6,7 @@ import {
   promptConfirm,
 } from "./utils.js";
 import { colors } from "./colors.js";
-import { getBooleanFlag, parseArgs } from "./args.js";
+import { getBooleanFlag, parseArgs, validateSinglePositional } from "./args.js";
 import { pluralize } from "./formatting.js";
 
 export async function deleteCommand(
@@ -53,6 +53,8 @@ ${colors.bold}EXAMPLES:${colors.reset}
     console.error(`Usage: dex delete <task-id>`);
     process.exit(1);
   }
+
+  validateSinglePositional(positional, "delete");
 
   const service = createService(options);
   const task = await service.get(id);

@@ -1,7 +1,12 @@
 import type { CliOptions } from "./utils.js";
 import { createService, formatCliError } from "./utils.js";
 import { colors } from "./colors.js";
-import { getBooleanFlag, getStringFlag, parseArgs } from "./args.js";
+import {
+  getBooleanFlag,
+  getStringFlag,
+  parseArgs,
+  validateSinglePositional,
+} from "./args.js";
 import { formatTaskShow } from "./show.js";
 import { getCommitInfo } from "./git.js";
 
@@ -62,6 +67,10 @@ ${colors.bold}EXAMPLE:${colors.reset}
     console.error(`Usage: dex complete <task-id> --result "completion notes"`);
     process.exit(1);
   }
+
+  validateSinglePositional(positional, "complete", {
+    hint: "Use --result to provide completion notes",
+  });
 
   if (!result) {
     console.error(

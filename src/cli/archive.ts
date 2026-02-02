@@ -1,7 +1,12 @@
 import type { CliOptions } from "./utils.js";
 import { createService, exitIfTaskNotFound, formatCliError } from "./utils.js";
 import { colors } from "./colors.js";
-import { getBooleanFlag, getStringFlag, parseArgs } from "./args.js";
+import {
+  getBooleanFlag,
+  getStringFlag,
+  parseArgs,
+  validateSinglePositional,
+} from "./args.js";
 import { pluralize } from "./formatting.js";
 import type { ArchiveResult } from "../core/task-service.js";
 
@@ -68,6 +73,8 @@ ${colors.bold}EXAMPLES:${colors.reset}
     .map((s) => s.trim())
     .filter(Boolean);
   const dryRun = getBooleanFlag(flags, "dry-run");
+
+  validateSinglePositional(positional, "archive");
 
   // Handle bulk operations
   if (olderThan || archiveAllCompleted) {

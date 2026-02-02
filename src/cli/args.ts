@@ -111,6 +111,31 @@ export function parseIntFlag(
   return parsed;
 }
 
+interface PositionalValidationOptions {
+  hint?: string;
+}
+
+/**
+ * Validate that a command received at most one positional argument.
+ * Exits with an error if extra positional arguments are found.
+ */
+export function validateSinglePositional(
+  positional: string[],
+  commandName: string,
+  options: PositionalValidationOptions = {},
+): void {
+  if (positional.length <= 1) return;
+
+  console.error(
+    `${colors.red}Error:${colors.reset} unexpected positional argument: "${positional[1]}"`,
+  );
+  console.error(`Usage: dex ${commandName} <task-id> [options]`);
+  if (options.hint) {
+    console.error(`Hint: ${options.hint}`);
+  }
+  process.exit(1);
+}
+
 /**
  * Suggest a similar flag name using Levenshtein distance.
  */

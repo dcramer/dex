@@ -219,4 +219,16 @@ describe("archive command", () => {
     );
     expect(archive.tasks[0].result).toBe("Done");
   });
+
+  it("fails when multiple positional arguments are provided", async () => {
+    const taskId = await createTaskAndGetId(fixture, "Task");
+
+    await expect(
+      runCli(["archive", taskId, "extra-arg"], { storage: fixture.storage }),
+    ).rejects.toThrow("process.exit");
+
+    expect(fixture.output.stderr.join("\n")).toContain(
+      "unexpected positional argument",
+    );
+  });
 });

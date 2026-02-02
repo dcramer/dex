@@ -281,4 +281,21 @@ describe("edit command", () => {
     await expect(runCli(["edit"], { storage })).rejects.toThrow("process.exit");
     expect(output.stderr.join("\n")).toContain("Task ID is required");
   });
+
+  it("fails when multiple positional arguments are provided", async () => {
+    await runCli(["create", "-n", "Test task", "--description", "ctx"], {
+      storage,
+    });
+    const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    output.stdout.length = 0;
+    output.stderr.length = 0;
+
+    await expect(
+      runCli(["edit", taskId!, "extra-arg"], { storage }),
+    ).rejects.toThrow("process.exit");
+
+    const err = output.stderr.join("\n");
+    expect(err).toContain("unexpected positional argument");
+    expect(err).toContain("Use -n to set name, -d for description");
+  });
 });

@@ -153,4 +153,18 @@ describe("delete command", () => {
     expect(out).toContain("Deleted");
     expect(out).toContain(taskId);
   });
+
+  it("fails when multiple positional arguments are provided", async () => {
+    const taskId = await createTaskAndGetId(fixture, "Task");
+
+    await expect(
+      runCli(["delete", taskId, "extra-arg", "-f"], {
+        storage: fixture.storage,
+      }),
+    ).rejects.toThrow("process.exit");
+
+    expect(fixture.output.stderr.join("\n")).toContain(
+      "unexpected positional argument",
+    );
+  });
 });

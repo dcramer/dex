@@ -126,4 +126,16 @@ describe("start command", () => {
     expect(out).toContain("--force");
     expect(out).toContain("in progress");
   });
+
+  it("fails when multiple positional arguments are provided", async () => {
+    const taskId = await createTaskAndGetId(fixture, "Task");
+
+    await expect(
+      runCli(["start", taskId, "extra-arg"], { storage: fixture.storage }),
+    ).rejects.toThrow("process.exit");
+
+    expect(fixture.output.stderr.join("\n")).toContain(
+      "unexpected positional argument",
+    );
+  });
 });
