@@ -231,4 +231,30 @@ describe("archive command", () => {
       "unexpected positional argument",
     );
   });
+
+  it("fails when positional argument is combined with --completed", async () => {
+    const taskId = await createTaskAndGetId(fixture, "Task");
+
+    await expect(
+      runCli(["archive", "--completed", taskId], { storage: fixture.storage }),
+    ).rejects.toThrow("process.exit");
+
+    expect(fixture.output.stderr.join("\n")).toContain(
+      "Cannot combine task ID with --older-than or --completed",
+    );
+  });
+
+  it("fails when positional argument is combined with --older-than", async () => {
+    const taskId = await createTaskAndGetId(fixture, "Task");
+
+    await expect(
+      runCli(["archive", "--older-than", "30d", taskId], {
+        storage: fixture.storage,
+      }),
+    ).rejects.toThrow("process.exit");
+
+    expect(fixture.output.stderr.join("\n")).toContain(
+      "Cannot combine task ID with --older-than or --completed",
+    );
+  });
 });

@@ -74,10 +74,17 @@ ${colors.bold}EXAMPLES:${colors.reset}
     .filter(Boolean);
   const dryRun = getBooleanFlag(flags, "dry-run");
 
-  validateSinglePositional(positional, "archive");
-
   // Handle bulk operations
   if (olderThan || archiveAllCompleted) {
+    if (positional.length > 0) {
+      console.error(
+        `${colors.red}Error:${colors.reset} Cannot combine task ID with --older-than or --completed`,
+      );
+      console.error(`Use either: dex archive <task-id>`);
+      console.error(`       or:  dex archive --completed`);
+      console.error(`       or:  dex archive --older-than <duration>`);
+      process.exit(1);
+    }
     return await bulkArchive(options, {
       olderThan,
       archiveAllCompleted,
@@ -85,6 +92,9 @@ ${colors.bold}EXAMPLES:${colors.reset}
       dryRun,
     });
   }
+
+  // Single task archive - validate no extra positional args
+  validateSinglePositional(positional, "archive");
 
   if (!id) {
     console.error(`${colors.red}Error:${colors.reset} Task ID is required`);
