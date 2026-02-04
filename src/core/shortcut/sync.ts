@@ -29,6 +29,8 @@ export interface CachedStory {
   description: string;
   completed: boolean;
   labels: string[];
+  /** Workflow state ID - used to prevent moving done stories backwards */
+  workflow_state_id: number;
 }
 
 export interface ShortcutSyncServiceOptions {
@@ -407,30 +409,46 @@ export class ShortcutSyncService {
         );
       }
 
+      // Get cached data for change detection and current workflow state
+      // IMPORTANT: When state is unknown (no cache), use undefined to preserve remote state
+      // This prevents moving done stories backwards when syncing a single task without cache
+      const cached = storyCache?.get(parent.id);
+      let currentWorkflowStateId: number | undefined =
+        cached?.workflow_state_id;
+
       // Check if we can skip this update by comparing with Shortcut
       let parentSkipped = false;
       if (skipUnchanged) {
         const expectedDescription = renderStoryDescription(parent);
 
         // Use cached data for change detection when available
-        const cached = storyCache?.get(parent.id);
-        const hasChanges = cached
-          ? this.hasStoryChangedFromCache(
-              cached,
-              parent.name,
-              expectedDescription,
-              shouldComplete,
-            )
-          : await this.hasStoryChanged(
-              storyId,
-              parent.name,
-              expectedDescription,
-              shouldComplete,
-            );
+        let hasChanges: boolean;
+        if (cached) {
+          hasChanges = this.hasStoryChangedFromCache(
+            cached,
+            parent.name,
+            expectedDescription,
+            shouldComplete,
+          );
+        } else {
+          // No cache - need to fetch from API to get current state
+          const changeResult = await this.getStoryChangeResult(
+            storyId,
+            parent.name,
+            expectedDescription,
+            shouldComplete,
+          );
+          hasChanges = changeResult.hasChanges;
+          currentWorkflowStateId = changeResult.currentWorkflowStateId;
+        }
 
         if (!hasChanges) {
           parentSkipped = true;
         }
+      } else if (!cached) {
+        // skipUnchanged is false and no cache - still need to fetch current state
+        // to avoid accidentally moving done stories backwards
+        currentWorkflowStateId = await this.fetchStoryWorkflowStateId(storyId);
       }
 
       if (parentSkipped) {
@@ -448,7 +466,13 @@ export class ShortcutSyncService {
           phase: "updating",
         });
 
-        await this.updateStory(parent, storyId, workflowId, store);
+        await this.updateStory(
+          parent,
+          storyId,
+          workflowId,
+          store,
+          currentWorkflowStateId,
+        );
       }
 
       // Sync subtasks as Shortcut Sub-tasks
@@ -527,11 +551,9 @@ export class ShortcutSyncService {
     for (const subtask of subtasks) {
       // Check for existing story: first metadata, then cache, then API fallback
       let subtaskStoryId = getShortcutStoryId(subtask);
-      if (!subtaskStoryId && storyCache) {
-        const cached = storyCache.get(subtask.id);
-        if (cached) {
-          subtaskStoryId = cached.id;
-        }
+      const cached = storyCache?.get(subtask.id);
+      if (!subtaskStoryId && cached) {
+        subtaskStoryId = cached.id;
       }
       if (!subtaskStoryId) {
         // Fallback search by task ID in description
@@ -543,8 +565,22 @@ export class ShortcutSyncService {
       const shouldComplete = this.shouldMarkCompleted(subtask, store);
 
       if (subtaskStoryId) {
+        // Get current workflow state ID to prevent moving done stories backwards
+        let currentWorkflowStateId: number | undefined =
+          cached?.workflow_state_id;
+        if (currentWorkflowStateId === undefined) {
+          // No cache - fetch current state to avoid moving done stories backwards
+          currentWorkflowStateId =
+            await this.fetchStoryWorkflowStateId(subtaskStoryId);
+        }
         // Update existing subtask
-        await this.updateStory(subtask, subtaskStoryId, workflowId, store);
+        await this.updateStory(
+          subtask,
+          subtaskStoryId,
+          workflowId,
+          store,
+          currentWorkflowStateId,
+        );
       } else {
         // Create new subtask with same team as parent
         const description = renderStoryDescription(subtask);
@@ -654,35 +690,6 @@ export class ShortcutSyncService {
   }
 
   /**
-   * Check if a story has changed compared to what we would push.
-   * Returns true if the story needs updating.
-   */
-  private async hasStoryChanged(
-    storyId: number,
-    expectedName: string,
-    expectedDescription: string,
-    shouldBeCompleted: boolean,
-  ): Promise<boolean> {
-    try {
-      const story = await this.api.getStory(storyId);
-      return this.storyNeedsUpdate(
-        {
-          name: story.name,
-          description: story.description,
-          completed: story.completed,
-          labels: story.labels.map((l) => l.name),
-        },
-        expectedName,
-        expectedDescription,
-        shouldBeCompleted,
-      );
-    } catch {
-      // If we can't fetch the story, assume it needs updating
-      return true;
-    }
-  }
-
-  /**
    * Check if a story has changed using cached data.
    */
   private hasStoryChangedFromCache(
@@ -702,6 +709,60 @@ export class ShortcutSyncService {
       expectedDescription,
       shouldBeCompleted,
     );
+  }
+
+  /**
+   * Check if a story has changed and get its current workflow state.
+   * Returns both change detection result and current state for safe updates.
+   * When we can't fetch the story, currentWorkflowStateId is undefined to preserve remote state.
+   */
+  private async getStoryChangeResult(
+    storyId: number,
+    expectedName: string,
+    expectedDescription: string,
+    shouldBeCompleted: boolean,
+  ): Promise<{
+    hasChanges: boolean;
+    currentWorkflowStateId: number | undefined;
+  }> {
+    try {
+      const story = await this.api.getStory(storyId);
+      const hasChanges = this.storyNeedsUpdate(
+        {
+          name: story.name,
+          description: story.description,
+          completed: story.completed,
+          labels: story.labels.map((l) => l.name),
+        },
+        expectedName,
+        expectedDescription,
+        shouldBeCompleted,
+      );
+
+      return {
+        hasChanges,
+        currentWorkflowStateId: story.workflow_state_id,
+      };
+    } catch {
+      // If we can't fetch the story, assume it needs updating
+      // but use undefined state to preserve whatever the remote state is
+      return { hasChanges: true, currentWorkflowStateId: undefined };
+    }
+  }
+
+  /**
+   * Fetch only the workflow state ID of a story (for when we need to avoid moving backwards).
+   * Returns undefined if the story can't be fetched.
+   */
+  private async fetchStoryWorkflowStateId(
+    storyId: number,
+  ): Promise<number | undefined> {
+    try {
+      const story = await this.api.getStory(storyId);
+      return story.workflow_state_id;
+    } catch {
+      return undefined;
+    }
   }
 
   /**
@@ -766,25 +827,53 @@ export class ShortcutSyncService {
 
   /**
    * Update an existing Shortcut story.
+   *
+   * @param currentWorkflowStateId - The current workflow state ID of the story.
+   *                                 undefined means we don't know the current state.
+   *                                 Used to prevent moving done stories backwards.
    */
   private async updateStory(
     task: Task,
     storyId: number,
     workflowId: number,
     store?: TaskStore,
+    currentWorkflowStateId?: number,
   ): Promise<void> {
     const description = renderStoryDescription(task);
     const shouldComplete = this.shouldMarkCompleted(task, store);
-    const stateId = await this.getWorkflowStateId(
+    const targetStateId = await this.getWorkflowStateId(
       task,
       workflowId,
       shouldComplete,
     );
 
+    // Determine if we should update the workflow state
+    // - If shouldComplete is true (moving to done), always set the state
+    // - If currentWorkflowStateId is unknown (undefined), only update if moving to done
+    //   (this prevents accidentally moving done stories backwards)
+    // - If currentWorkflowStateId is known, only update if not moving backwards
+    let workflowStateId: number | undefined = targetStateId;
+    if (!shouldComplete && currentWorkflowStateId !== undefined) {
+      const currentType = await this.getWorkflowStateType(
+        workflowId,
+        currentWorkflowStateId,
+      );
+      if (currentType === "done") {
+        // Don't move a done story backwards
+        workflowStateId = undefined;
+      }
+    } else if (!shouldComplete && currentWorkflowStateId === undefined) {
+      // Unknown current state and not moving to done - skip workflow state update
+      // to preserve remote state (prevents moving done stories backwards)
+      workflowStateId = undefined;
+    }
+
     await this.api.updateStory(storyId, {
       name: task.name,
       description,
-      workflow_state_id: stateId,
+      ...(workflowStateId !== undefined && {
+        workflow_state_id: workflowStateId,
+      }),
       labels: [{ name: this.label }],
     });
   }
@@ -867,6 +956,7 @@ export class ShortcutSyncService {
             description,
             completed: story.completed,
             labels: story.labels.map((l) => l.name),
+            workflow_state_id: story.workflow_state_id,
           });
         }
       }

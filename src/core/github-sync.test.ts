@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import nock from "nock";
 import {
   GitHubSyncService,
   getGitHubToken,
@@ -532,18 +533,22 @@ describe("GitHubSyncService", () => {
         });
         const store = createStore([task]);
 
+        // Single-task sync uses getIssue (not listIssues) since task already has issueNumber
         // Issue is already CLOSED on GitHub (was closed on another machine)
-        // The cache will report state: "closed"
-        githubMock.listIssues("test-owner", "test-repo", [
+        githubMock.getIssue(
+          "test-owner",
+          "test-repo",
+          42,
           createIssueFixture({
             number: 42,
             title: task.name,
             state: "closed",
             body: `<!-- dex:task:id:test-task -->`,
           }),
-        ]);
+        );
 
         // Update should keep the issue closed (not reopen it)
+        // The key assertion: update is called but doesn't include state: "open"
         githubMock.updateIssue(
           "test-owner",
           "test-repo",
@@ -562,6 +567,115 @@ describe("GitHubSyncService", () => {
         // We report "open" as expected state (since we can't verify commit)
         // but the issue stays closed on GitHub (we don't reopen it)
         expect(getGitHubMetadata(result)?.state).toBe("open");
+      });
+
+      it("does not reopen closed issue when syncing incomplete task without cache", async () => {
+        // Critical test for the fix: when syncTask is called directly (not through syncAll),
+        // there's no issue cache, so getIssueChangeResult must fetch the current state.
+        // If the remote issue is closed, we must not reopen it by sending state: "open".
+        const task = createTask({
+          id: "incomplete-task",
+          name: "Incomplete Task",
+          completed: false, // Task is NOT completed locally
+          metadata: {
+            github: {
+              issueNumber: 99,
+              issueUrl: "https://github.com/test-owner/test-repo/issues/99",
+              repo: "test-owner/test-repo",
+              state: "open", // Stale local metadata
+            },
+          },
+        });
+        const store = createStore([task]);
+
+        // The GitHub issue is already CLOSED (closed externally or by another machine)
+        githubMock.getIssue(
+          "test-owner",
+          "test-repo",
+          99,
+          createIssueFixture({
+            number: 99,
+            title: task.name,
+            state: "closed", // CLOSED on remote
+            body: `<!-- dex:task:id:incomplete-task -->`,
+          }),
+        );
+
+        // The update should NOT include state: "open" (would reopen the issue)
+        // Since the local content differs from remote, an update is needed
+        // but the state field should be omitted to preserve the closed state
+        githubMock.updateIssue(
+          "test-owner",
+          "test-repo",
+          99,
+          createIssueFixture({
+            number: 99,
+            title: task.name,
+            state: "closed", // Should stay closed
+          }),
+        );
+
+        const result = await service.syncTask(task, store);
+
+        expect(result).not.toBeNull();
+        // Expected state is "open" (task not completed), but issue should stay closed on GitHub
+        expect(getGitHubMetadata(result)?.state).toBe("open");
+      });
+
+      it("verifies request body does not contain state:open when issue is closed", async () => {
+        // This test uses nock body matching to PROVE we don't send state: "open"
+        const task = createTask({
+          id: "body-check-task",
+          name: "Body Check Task",
+          completed: false,
+          metadata: {
+            github: {
+              issueNumber: 88,
+              issueUrl: "https://github.com/test-owner/test-repo/issues/88",
+              repo: "test-owner/test-repo",
+              state: "open",
+            },
+          },
+        });
+        const store = createStore([task]);
+
+        // Setup getIssue to return closed issue
+        githubMock.getIssue(
+          "test-owner",
+          "test-repo",
+          88,
+          createIssueFixture({
+            number: 88,
+            title: task.name,
+            state: "closed",
+            body: `<!-- dex:task:id:body-check-task -->`,
+          }),
+        );
+
+        // Use nock directly with body matching to verify state is NOT "open"
+        let capturedBody: Record<string, unknown> | null = null;
+        nock("https://api.github.com")
+          .patch(`/repos/test-owner/test-repo/issues/88`, (body) => {
+            capturedBody = body as Record<string, unknown>;
+            // Accept any body - we'll verify after
+            return true;
+          })
+          .reply(200, {
+            number: 88,
+            title: task.name,
+            state: "closed",
+            html_url: "https://github.com/test-owner/test-repo/issues/88",
+          });
+
+        await service.syncTask(task, store);
+
+        // THE CRITICAL ASSERTION: state should NOT be "open"
+        expect(capturedBody).not.toBeNull();
+        expect(capturedBody!.state).not.toBe("open");
+        // state should either be undefined (not sent) or "closed"
+        expect(
+          capturedBody!.state === undefined || capturedBody!.state === "closed",
+        ).toBe(true);
       });
     });
   });
