@@ -306,8 +306,10 @@ export class GitHubSyncService {
       }
 
       // Get cached data for change detection and current state
+      // IMPORTANT: When state is unknown (no cache), use undefined to preserve remote state
+      // This prevents reopening closed issues when syncing a single task without cache
       const cached = issueCache?.get(parent.id);
-      const currentState = cached?.state ?? "open";
+      let currentState: "open" | "closed" | undefined = cached?.state;
 
       // Check if remote is newer than local (staleness detection)
       // If so, pull remote state to local instead of pushing
@@ -369,21 +371,27 @@ export class GitHubSyncService {
         const expectedBody = this.renderBody(parent, descendants);
         const expectedLabels = this.buildLabels(parent, shouldClose);
 
-        const hasChanges = cached
-          ? this.hasIssueChangedFromCache(
-              cached,
-              parent.name,
-              expectedBody,
-              expectedLabels,
-              shouldClose,
-            )
-          : await this.hasIssueChanged(
-              issueNumber,
-              parent.name,
-              expectedBody,
-              expectedLabels,
-              shouldClose,
-            );
+        let hasChanges: boolean;
+        if (cached) {
+          hasChanges = this.hasIssueChangedFromCache(
+            cached,
+            parent.name,
+            expectedBody,
+            expectedLabels,
+            shouldClose,
+          );
+        } else {
+          // No cache - need to fetch from API to get current state
+          const changeResult = await this.getIssueChangeResult(
+            issueNumber,
+            parent.name,
+            expectedBody,
+            expectedLabels,
+            shouldClose,
+          );
+          hasChanges = changeResult.hasChanges;
+          currentState = changeResult.currentState;
+        }
 
         if (!hasChanges) {
           onProgress?.({
@@ -400,6 +408,10 @@ export class GitHubSyncService {
             true,
           );
         }
+      } else if (!cached) {
+        // skipUnchanged is false and no cache - still need to fetch current state
+        // to avoid accidentally reopening closed issues
+        currentState = await this.fetchIssueState(issueNumber);
       }
 
       onProgress?.({
@@ -453,16 +465,20 @@ export class GitHubSyncService {
   }
 
   /**
-   * Check if an issue has changed compared to what we would push.
-   * Returns true if the issue needs updating.
+   * Check if an issue has changed and get its current state.
+   * Returns both change detection result and current state for safe updates.
+   * When we can't fetch the issue, currentState is undefined to preserve remote state.
    */
-  private async hasIssueChanged(
+  private async getIssueChangeResult(
     issueNumber: number,
     expectedTitle: string,
     expectedBody: string,
     expectedLabels: string[],
     shouldClose: boolean,
-  ): Promise<boolean> {
+  ): Promise<{
+    hasChanges: boolean;
+    currentState: "open" | "closed" | undefined;
+  }> {
     try {
       const { data: issue } = await this.octokit.issues.get({
         owner: this.owner,
@@ -474,7 +490,7 @@ export class GitHubSyncService {
         .map((l) => (typeof l === "string" ? l : l.name || ""))
         .filter((l) => l.startsWith(this.labelPrefix));
 
-      return this.issueNeedsUpdate(
+      const hasChanges = this.issueNeedsUpdate(
         {
           title: issue.title,
           body: issue.body || "",
@@ -486,9 +502,34 @@ export class GitHubSyncService {
         expectedLabels,
         shouldClose,
       );
+
+      return {
+        hasChanges,
+        currentState: issue.state as "open" | "closed",
+      };
     } catch {
       // If we can't fetch the issue, assume it needs updating
-      return true;
+      // but use undefined state to preserve whatever the remote state is
+      return { hasChanges: true, currentState: undefined };
+    }
+  }
+
+  /**
+   * Fetch only the state of an issue (for when we need to avoid reopening).
+   * Returns undefined if the issue can't be fetched.
+   */
+  private async fetchIssueState(
+    issueNumber: number,
+  ): Promise<"open" | "closed" | undefined> {
+    try {
+      const { data: issue } = await this.octokit.issues.get({
+        owner: this.owner,
+        repo: this.repo,
+        issue_number: issueNumber,
+      });
+      return issue.state as "open" | "closed";
+    } catch {
+      return undefined;
     }
   }
 
@@ -570,6 +611,7 @@ export class GitHubSyncService {
    * Update an existing GitHub issue.
    *
    * @param currentState - The current state of the issue on GitHub.
+   *                       undefined means we don't know the current state.
    *                       Used to prevent reopening closed issues.
    */
   private async updateIssue(
@@ -577,7 +619,7 @@ export class GitHubSyncService {
     descendants: HierarchicalTask[],
     issueNumber: number,
     shouldClose: boolean,
-    currentState: "open" | "closed",
+    currentState: "open" | "closed" | undefined,
   ): Promise<void> {
     const body = this.renderBody(parent, descendants);
 
@@ -585,15 +627,16 @@ export class GitHubSyncService {
     // - If shouldClose is true, always close (even if already closed)
     // - If shouldClose is false and currently open, keep open
     // - If shouldClose is false and currently closed, DON'T reopen
-    //   (this prevents reopening issues that were closed elsewhere)
+    // - If shouldClose is false and state is unknown (undefined), don't set state
+    //   (this preserves whatever the remote state is, preventing accidental reopening)
     let state: "open" | "closed" | undefined;
     if (shouldClose) {
       state = "closed";
     } else if (currentState === "open") {
       state = "open";
     }
-    // If currentState is "closed" and shouldClose is false, don't set state
-    // (keeps the issue closed, doesn't reopen it)
+    // If currentState is "closed" or undefined and shouldClose is false, don't set state
+    // (keeps the issue in its current state, doesn't reopen it)
 
     await this.octokit.issues.update({
       owner: this.owner,
