@@ -1962,3 +1962,197 @@ describe("getIssueNotClosingReason", () => {
     expect(reason).toContain("subtask subtask1 not completed");
   });
 });
+
+describe("bidirectional sync - subtask reconciliation", () => {
+  let service: GitHubSyncService;
+  let githubMock: GitHubMock;
+
+  beforeEach(() => {
+    process.env.GITHUB_TOKEN = "test-token";
+    githubMock = setupGitHubMock();
+
+    service = new GitHubSyncService({
+      repo: { owner: "test-owner", repo: "test-repo" },
+      token: "test-token",
+    });
+  });
+
+  afterEach(() => {
+    cleanupGitHubMock();
+    delete process.env.GITHUB_TOKEN;
+  });
+
+  it("pulls subtask completion state from remote when remote is newer", async () => {
+    const now = new Date();
+    const localTime = new Date(now.getTime() - 3600000).toISOString(); // 1 hour ago
+    const remoteTime = now.toISOString(); // now (newer)
+
+    const parent = createTask({
+      id: "parent1",
+      name: "Parent Task",
+      updated_at: localTime,
+      metadata: {
+        github: {
+          issueNumber: 1,
+          issueUrl: "https://github.com/test-owner/test-repo/issues/1",
+          repo: "test-owner/test-repo",
+        },
+      },
+    });
+
+    const subtask = createTask({
+      id: "subtask1",
+      parent_id: "parent1",
+      name: "Subtask 1",
+      completed: false,
+      updated_at: localTime,
+    });
+
+    const store = createStore([parent, subtask]);
+
+    // Remote issue has newer timestamps and completed subtask
+    const remoteBody = `<!-- dex:task:id:parent1 -->
+<!-- dex:task:priority:1 -->
+<!-- dex:task:completed:false -->
+<!-- dex:task:created_at:${parent.created_at} -->
+<!-- dex:task:updated_at:${remoteTime} -->
+<!-- dex:task:started_at:null -->
+<!-- dex:task:completed_at:null -->
+<!-- dex:task:blockedBy:[] -->
+<!-- dex:task:blocks:[] -->
+Test description
+
+## Tasks
+
+<details>
+<summary>✅ └─ <b>Subtask 1</b></summary>
+
+### Description
+Subtask description
+
+<!-- dex:subtask:id:subtask1 -->
+<!-- dex:subtask:priority:1 -->
+<!-- dex:subtask:completed:true -->
+<!-- dex:subtask:created_at:${subtask.created_at} -->
+<!-- dex:subtask:updated_at:${remoteTime} -->
+<!-- dex:subtask:started_at:${remoteTime} -->
+<!-- dex:subtask:completed_at:${remoteTime} -->
+<!-- dex:subtask:blockedBy:[] -->
+<!-- dex:subtask:blocks:[] -->
+<!-- dex:subtask:commit_sha:abc1234 -->
+
+### Result
+Completed the subtask
+
+</details>`;
+
+    // Cache fetch returns issue with remote body
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 1,
+        title: "Parent Task",
+        body: remoteBody,
+        state: "open",
+        labels: [
+          { name: "dex" },
+          { name: "dex:priority-1" },
+          { name: "dex:pending" },
+        ],
+      }),
+    ]);
+    githubMock.listIssues("test-owner", "test-repo", []); // End of pagination
+
+    const results = await service.syncAll(store);
+
+    expect(results).toHaveLength(1);
+    expect(results[0].pulledFromRemote).toBe(true);
+    expect(results[0].subtaskResults).toBeDefined();
+    expect(results[0].subtaskResults).toHaveLength(1);
+
+    const subtaskResult = results[0].subtaskResults![0];
+    expect(subtaskResult.taskId).toBe("subtask1");
+    expect(subtaskResult.pulledFromRemote).toBe(true);
+    expect(subtaskResult.localUpdates).toBeDefined();
+    expect(subtaskResult.localUpdates!.completed).toBe(true);
+    expect(subtaskResult.localUpdates!.completed_at).toBe(remoteTime);
+    expect(subtaskResult.localUpdates!.metadata).toEqual({
+      commit: { sha: "abc1234" },
+    });
+  });
+
+  it("does not pull subtask state when local is newer than remote", async () => {
+    const now = new Date();
+    const remoteTime = new Date(now.getTime() - 3600000).toISOString(); // 1 hour ago
+    const localTime = now.toISOString(); // now (newer)
+
+    const parent = createTask({
+      id: "parent2",
+      name: "Parent Task",
+      updated_at: localTime,
+      metadata: {
+        github: {
+          issueNumber: 2,
+          issueUrl: "https://github.com/test-owner/test-repo/issues/2",
+          repo: "test-owner/test-repo",
+        },
+      },
+    });
+
+    const subtask = createTask({
+      id: "subtask2",
+      parent_id: "parent2",
+      name: "Subtask 2",
+      completed: true,
+      updated_at: localTime,
+    });
+
+    const store = createStore([parent, subtask]);
+
+    // Remote issue has older timestamps
+    const remoteBody = `<!-- dex:task:id:parent2 -->
+<!-- dex:task:priority:1 -->
+<!-- dex:task:completed:false -->
+<!-- dex:task:created_at:${parent.created_at} -->
+<!-- dex:task:updated_at:${remoteTime} -->
+<!-- dex:task:started_at:null -->
+<!-- dex:task:completed_at:null -->
+<!-- dex:task:blockedBy:[] -->
+<!-- dex:task:blocks:[] -->
+Test description`;
+
+    // Cache fetch returns issue with remote body (older)
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 2,
+        title: "Parent Task",
+        body: remoteBody,
+        state: "open",
+        labels: [
+          { name: "dex" },
+          { name: "dex:priority-1" },
+          { name: "dex:pending" },
+        ],
+      }),
+    ]);
+    githubMock.listIssues("test-owner", "test-repo", []); // End of pagination
+
+    // Local is newer, so it should push to remote
+    githubMock.updateIssue(
+      "test-owner",
+      "test-repo",
+      2,
+      createIssueFixture({
+        number: 2,
+        title: "Parent Task",
+        state: "open",
+      }),
+    );
+
+    const results = await service.syncAll(store);
+
+    expect(results).toHaveLength(1);
+    // Local is newer, so we push instead of pull
+    expect(results[0].pulledFromRemote).toBeFalsy();
+    expect(results[0].subtaskResults).toBeUndefined();
+  });
+});

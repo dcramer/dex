@@ -7,7 +7,10 @@ import {
   renderHierarchicalIssueBody,
   renderTaskMetadataComments,
 } from "./issue-markdown.js";
-import { parseRootTaskMetadata } from "./issue-parsing.js";
+import {
+  parseRootTaskMetadata,
+  parseHierarchicalIssueBody,
+} from "./issue-parsing.js";
 import { isCommitOnRemote } from "../git-utils.js";
 import type { SyncResult } from "../sync/registry.js";
 
@@ -348,6 +351,12 @@ export class GitHubSyncService {
               };
             }
 
+            // Pull subtask state from remote
+            const subtaskResults = this.reconcileSubtasksFromRemote(
+              cached.body,
+              store,
+            );
+
             onProgress?.({
               current: currentIndex,
               total,
@@ -367,6 +376,8 @@ export class GitHubSyncService {
               skipped: true,
               localUpdates,
               pulledFromRemote: true,
+              subtaskResults:
+                subtaskResults.length > 0 ? subtaskResults : undefined,
             };
           }
         }
@@ -773,6 +784,73 @@ export class GitHubSyncService {
       return `subtask ${subtask.id} not completed`;
     }
     return `subtask ${subtask.id} completed without commit`;
+  }
+
+  /**
+   * Reconcile subtasks from the remote issue body.
+   * Compares remote subtask state with local and returns updates for stale local subtasks.
+   *
+   * This handles the scenario where:
+   * 1. Task is completed on Machine A (with subtasks), synced to GitHub
+   * 2. Machine B has stale local state (subtasks not completed)
+   * 3. On sync, Machine B detects remote is newer and pulls subtask state
+   */
+  private reconcileSubtasksFromRemote(
+    issueBody: string,
+    store: TaskStore,
+  ): SyncResult[] {
+    const results: SyncResult[] = [];
+    const { subtasks: remoteSubtasks } = parseHierarchicalIssueBody(issueBody);
+
+    for (const remoteSubtask of remoteSubtasks) {
+      const localSubtask = store.tasks.find((t) => t.id === remoteSubtask.id);
+      if (!localSubtask) {
+        // Subtask exists in remote but not locally - skip
+        // (import flow handles this case)
+        continue;
+      }
+
+      // Check if remote subtask is newer
+      if (remoteSubtask.updated_at && localSubtask.updated_at) {
+        const remoteUpdated = new Date(remoteSubtask.updated_at).getTime();
+        const localUpdated = new Date(localSubtask.updated_at).getTime();
+
+        if (remoteUpdated > localUpdated) {
+          const localUpdates: Record<string, unknown> = {
+            updated_at: remoteSubtask.updated_at,
+          };
+
+          // Pull completion state if remote is completed but local is not
+          if (remoteSubtask.completed && !localSubtask.completed) {
+            localUpdates.completed = true;
+            localUpdates.completed_at = remoteSubtask.completed_at;
+            localUpdates.result = remoteSubtask.result;
+            localUpdates.started_at = remoteSubtask.started_at;
+          }
+
+          // Pull commit metadata if present in remote but not local
+          if (
+            remoteSubtask.metadata?.commit?.sha &&
+            !localSubtask.metadata?.commit?.sha
+          ) {
+            localUpdates.metadata = {
+              commit: remoteSubtask.metadata.commit,
+            };
+          }
+
+          results.push({
+            taskId: remoteSubtask.id,
+            metadata: {}, // Subtasks don't have their own GitHub metadata
+            created: false,
+            skipped: true,
+            localUpdates,
+            pulledFromRemote: true,
+          });
+        }
+      }
+    }
+
+    return results;
   }
 
   /**
