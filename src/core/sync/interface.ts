@@ -44,6 +44,8 @@ export interface SyncResult<
   localUpdates?: Partial<Task>;
   /** True if local task was updated from remote (remote was newer) */
   pulledFromRemote?: boolean;
+  /** Reason why a completed task's issue/story won't close (e.g., commit not pushed) */
+  issueNotClosingReason?: string;
 }
 
 /**

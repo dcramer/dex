@@ -151,6 +151,11 @@ ${colors.bold}EXAMPLE:${colors.reset}
           if (url) {
             console.log(`  ${colors.dim}${url}${colors.reset}`);
           }
+          if (result.issueNotClosingReason) {
+            console.log(
+              `  ${colors.yellow}!${colors.reset} issue staying open (${result.issueNotClosingReason})`,
+            );
+          }
         }
       }
 
@@ -353,9 +358,11 @@ function printSyncSummary(
   serviceName: string,
   target: string,
   results: Array<{
+    taskId: string;
     created: boolean;
     skipped?: boolean;
     pulledFromRemote?: boolean;
+    issueNotClosingReason?: string;
   }>,
 ): void {
   const created = results.filter((r) => r.created).length;
@@ -377,6 +384,14 @@ function printSyncSummary(
   if (skipped > 0) parts.push(`${skipped} unchanged`);
   if (parts.length > 0) {
     console.log(`  (${parts.join(", ")})`);
+  }
+
+  // Show warnings for tasks whose issues won't close
+  const notClosing = results.filter((r) => r.issueNotClosingReason);
+  for (const result of notClosing) {
+    console.log(
+      `  ${colors.yellow}!${colors.reset} ${colors.bold}${result.taskId}${colors.reset}: issue staying open (${result.issueNotClosingReason})`,
+    );
   }
 }
 

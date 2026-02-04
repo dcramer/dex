@@ -1829,3 +1829,136 @@ describe("GitHubSyncService error message quality", () => {
     }
   });
 });
+
+describe("getIssueNotClosingReason", () => {
+  let service: GitHubSyncService;
+  let originalEnv: string | undefined;
+  let execSyncMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
+    originalEnv = process.env.GITHUB_TOKEN;
+    process.env.GITHUB_TOKEN = "test-token";
+
+    service = new GitHubSyncService({
+      repo: { owner: "test-owner", repo: "test-repo" },
+      token: "test-token",
+    });
+
+    // Get fresh mock reference
+    const childProcess = await import("node:child_process");
+    execSyncMock = childProcess.execSync as ReturnType<typeof vi.fn>;
+  });
+
+  afterEach(() => {
+    if (originalEnv !== undefined) {
+      process.env.GITHUB_TOKEN = originalEnv;
+    } else {
+      delete process.env.GITHUB_TOKEN;
+    }
+    vi.restoreAllMocks();
+  });
+
+  it("returns undefined for non-completed tasks", () => {
+    const task = createTask({ completed: false });
+    const reason = service.getIssueNotClosingReason(task);
+    expect(reason).toBeUndefined();
+  });
+
+  it("returns undefined when commit is on remote", () => {
+    const task = createTask({
+      completed: true,
+      metadata: { commit: { sha: "abc1234" } },
+    });
+    // Default mock returns success for git merge-base (commit on remote)
+    const reason = service.getIssueNotClosingReason(task);
+    expect(reason).toBeUndefined();
+  });
+
+  it("returns reason when commit not pushed to remote", () => {
+    // Override mock to simulate commit not on remote
+    execSyncMock.mockImplementation((cmd: string) => {
+      if (cmd.includes("git merge-base --is-ancestor")) {
+        throw new Error("Not an ancestor");
+      }
+      return "";
+    });
+
+    const task = createTask({
+      completed: true,
+      metadata: { commit: { sha: "abc1234567890" } },
+    });
+    const reason = service.getIssueNotClosingReason(task);
+    expect(reason).toBe("commit abc1234 not pushed to remote");
+  });
+
+  it("returns reason when task completed without commit", () => {
+    const task = createTask({ completed: true });
+    const reason = service.getIssueNotClosingReason(task);
+    expect(reason).toBe(
+      "completed without commit (use --no-commit to close manually)",
+    );
+  });
+
+  it("returns reason when subtask has unpushed commit", () => {
+    // Override mock to simulate commit not on remote
+    execSyncMock.mockImplementation((cmd: string) => {
+      if (cmd.includes("git merge-base --is-ancestor")) {
+        throw new Error("Not an ancestor");
+      }
+      return "";
+    });
+
+    const parent = createTask({
+      id: "parent1",
+      completed: true,
+      metadata: { commit: { sha: "aaa1111" } },
+    });
+    const subtask = createTask({
+      id: "subtask1",
+      parent_id: "parent1",
+      completed: true,
+      metadata: { commit: { sha: "bbb2222" } },
+    });
+    const store = createStore([parent, subtask]);
+
+    const reason = service.getIssueNotClosingReason(parent, store);
+    expect(reason).toContain("subtask subtask1 commit bbb2222 not pushed");
+  });
+
+  it("returns reason when subtask completed without commit", () => {
+    // Parent has no commit - relies on subtasks for verification
+    const parent = createTask({
+      id: "parent1",
+      completed: true,
+      // No commit - relies on subtasks
+    });
+    const subtask = createTask({
+      id: "subtask1",
+      parent_id: "parent1",
+      completed: true,
+      // No commit metadata
+    });
+    const store = createStore([parent, subtask]);
+
+    const reason = service.getIssueNotClosingReason(parent, store);
+    expect(reason).toContain("subtask subtask1 completed without commit");
+  });
+
+  it("returns reason when subtask not completed", () => {
+    // Parent has no commit - relies on subtasks for verification
+    const parent = createTask({
+      id: "parent1",
+      completed: true,
+      // No commit - relies on subtasks
+    });
+    const subtask = createTask({
+      id: "subtask1",
+      parent_id: "parent1",
+      completed: false,
+    });
+    const store = createStore([parent, subtask]);
+
+    const reason = service.getIssueNotClosingReason(parent, store);
+    expect(reason).toContain("subtask subtask1 not completed");
+  });
+});

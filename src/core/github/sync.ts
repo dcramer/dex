@@ -215,7 +215,7 @@ export class GitHubSyncService {
     issueNumber: number,
     created: boolean,
     state: "open" | "closed",
-    skipped?: boolean,
+    options?: { skipped?: boolean; issueNotClosingReason?: string },
   ): SyncResult {
     return {
       taskId,
@@ -226,7 +226,8 @@ export class GitHubSyncService {
         state,
       },
       created,
-      skipped,
+      skipped: options?.skipped,
+      issueNotClosingReason: options?.issueNotClosingReason,
     };
   }
 
@@ -281,6 +282,9 @@ export class GitHubSyncService {
     // Determine expected state for GitHub issue
     const expectedState = shouldClose ? "closed" : "open";
 
+    // Get reason why issue won't close (if applicable)
+    const issueNotClosingReason = this.getIssueNotClosingReason(parent, store);
+
     if (issueNumber) {
       // Fast path: skip completed tasks that are already synced as closed.
       // The stored state check ensures tasks completed locally (but synced while open) are re-synced.
@@ -301,7 +305,9 @@ export class GitHubSyncService {
           issueNumber,
           false,
           expectedState,
-          true,
+          {
+            skipped: true,
+          },
         );
       }
 
@@ -405,7 +411,10 @@ export class GitHubSyncService {
             issueNumber,
             false,
             expectedState,
-            true,
+            {
+              skipped: true,
+              issueNotClosingReason,
+            },
           );
         }
       } else if (!cached) {
@@ -428,7 +437,15 @@ export class GitHubSyncService {
         shouldClose,
         currentState,
       );
-      return this.buildSyncResult(parent.id, issueNumber, false, expectedState);
+      return this.buildSyncResult(
+        parent.id,
+        issueNumber,
+        false,
+        expectedState,
+        {
+          issueNotClosingReason,
+        },
+      );
     } else {
       onProgress?.({
         current: currentIndex,
@@ -438,7 +455,12 @@ export class GitHubSyncService {
       });
 
       const metadata = await this.createIssue(parent, descendants, shouldClose);
-      return { taskId: parent.id, metadata, created: true };
+      return {
+        taskId: parent.id,
+        metadata,
+        created: true,
+        issueNotClosingReason,
+      };
     }
   }
 
@@ -704,6 +726,53 @@ export class GitHubSyncService {
 
     // Leaf task with no commit SHA - can't verify, don't close the issue
     return false;
+  }
+
+  /**
+   * Get the reason why a completed task's issue won't be closed.
+   * Returns undefined if the issue will be closed or the task isn't completed.
+   */
+  getIssueNotClosingReason(task: Task, store?: TaskStore): string | undefined {
+    if (!task.completed) {
+      return undefined;
+    }
+
+    if (this.shouldMarkCompleted(task, store)) {
+      return undefined;
+    }
+
+    // For parent tasks: check if descendants are blocking
+    if (store) {
+      const descendants = collectDescendants(store.tasks, task.id);
+      const blocking = descendants.filter(
+        (d) => !this.shouldMarkCompleted(d.task, store),
+      );
+      if (blocking.length > 0) {
+        const reasons = blocking.map(({ task: subtask }) =>
+          this.getSubtaskBlockingReason(subtask),
+        );
+        return reasons.join("; ");
+      }
+    }
+
+    // Leaf task or parent where own commit is the issue
+    const commitSha = task.metadata?.commit?.sha;
+    if (commitSha && !isCommitOnRemote(commitSha)) {
+      return `commit ${commitSha.slice(0, 7)} not pushed to remote`;
+    }
+
+    return "completed without commit (use --no-commit to close manually)";
+  }
+
+  private getSubtaskBlockingReason(subtask: Task): string {
+    const commitSha = subtask.metadata?.commit?.sha;
+    if (commitSha && !isCommitOnRemote(commitSha)) {
+      return `subtask ${subtask.id} commit ${commitSha.slice(0, 7)} not pushed`;
+    }
+    if (!subtask.completed) {
+      return `subtask ${subtask.id} not completed`;
+    }
+    return `subtask ${subtask.id} completed without commit`;
   }
 
   /**
