@@ -8,6 +8,7 @@ import {
   parseIntFlag,
 } from "./args.js";
 import { formatTask } from "./formatting.js";
+import { getCommitInfo, verifyCommitExists } from "./git.js";
 
 export async function editCommand(
   args: string[],
@@ -22,6 +23,7 @@ export async function editCommand(
       parent: { hasValue: true },
       "add-blocker": { hasValue: true },
       "remove-blocker": { hasValue: true },
+      commit: { short: "c", hasValue: true },
       help: { short: "h", hasValue: false },
     },
     "edit",
@@ -43,6 +45,7 @@ ${colors.bold}OPTIONS:${colors.reset}
   --parent <id>              New parent task ID
   --add-blocker <ids>        Comma-separated task IDs to add as blockers
   --remove-blocker <ids>     Comma-separated task IDs to remove as blockers
+  -c, --commit <sha>         Link a git commit to the task
   -h, --help                 Show this help message
 
 ${colors.bold}EXAMPLE:${colors.reset}
@@ -51,6 +54,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
   dex edit abc123 --description "More details about the task"
   dex edit abc123 --add-blocker def456
   dex edit abc123 --remove-blocker def456
+  dex edit abc123 --commit a1b2c3d
 `);
     return;
   }
@@ -80,8 +84,40 @@ ${colors.bold}EXAMPLE:${colors.reset}
         .filter(Boolean)
     : undefined;
 
+  const commitSha = getStringFlag(flags, "commit");
+
+  // Verify commit exists if provided
+  if (commitSha && !verifyCommitExists(commitSha)) {
+    console.error(
+      `${colors.red}Error:${colors.reset} Commit ${colors.bold}${commitSha}${colors.reset} not found in local repository`,
+    );
+    console.error(
+      `  Verify the SHA exists with: ${colors.cyan}git rev-parse --verify ${commitSha}${colors.reset}`,
+    );
+    process.exit(1);
+  }
+
   const service = createService(options);
   try {
+    // Fetch existing task to merge metadata
+    const existingTask = await service.get(id);
+    if (!existingTask) {
+      console.error(`${colors.red}Error:${colors.reset} Task ${id} not found`);
+      process.exit(1);
+    }
+
+    // Build metadata update if commit provided
+    let metadata = undefined;
+    if (commitSha) {
+      metadata = {
+        ...existingTask.metadata,
+        commit: {
+          ...getCommitInfo(commitSha),
+          timestamp: new Date().toISOString(),
+        },
+      };
+    }
+
     const task = await service.update({
       id,
       name: getStringFlag(flags, "name"),
@@ -90,6 +126,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
       priority: parseIntFlag(flags, "priority"),
       add_blocked_by: addBlockedBy,
       remove_blocked_by: removeBlockedBy,
+      metadata,
     });
 
     console.log(

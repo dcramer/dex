@@ -7,6 +7,15 @@ import {
   createTempStorage,
   TASK_ID_REGEX,
 } from "./test-helpers.js";
+import * as gitModule from "./git.js";
+
+vi.mock("./git.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("./git.js")>();
+  return {
+    ...original,
+    verifyCommitExists: vi.fn().mockReturnValue(true),
+  };
+});
 
 describe("edit command", () => {
   let storage: FileStorage;
@@ -22,6 +31,7 @@ describe("edit command", () => {
     mockExit = vi.spyOn(process, "exit").mockImplementation((() => {
       throw new Error("process.exit called");
     }) as () => never);
+    vi.mocked(gitModule.verifyCommitExists).mockReturnValue(true);
   });
 
   afterEach(() => {
@@ -280,5 +290,84 @@ describe("edit command", () => {
   it("requires task ID", async () => {
     await expect(runCli(["edit"], { storage })).rejects.toThrow("process.exit");
     expect(output.stderr.join("\n")).toContain("Task ID is required");
+  });
+
+  it("links commit to task with --commit flag", async () => {
+    await runCli(["create", "-n", "Test task", "--description", "ctx"], {
+      storage,
+    });
+    const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    output.stdout.length = 0;
+
+    await runCli(["edit", taskId!, "--commit", "abc1234"], { storage });
+
+    const out = output.stdout.join("\n");
+    expect(out).toContain("Updated");
+
+    // Verify commit was linked by showing the task
+    output.stdout.length = 0;
+    await runCli(["show", taskId!, "--json"], { storage });
+    const showOut = output.stdout.join("\n");
+    const task = JSON.parse(showOut);
+    expect(task.metadata?.commit?.sha).toBe("abc1234");
+  });
+
+  it("links commit using short -c flag", async () => {
+    await runCli(["create", "-n", "Test task", "--description", "ctx"], {
+      storage,
+    });
+    const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    output.stdout.length = 0;
+
+    await runCli(["edit", taskId!, "-c", "def5678"], { storage });
+
+    output.stdout.length = 0;
+    await runCli(["show", taskId!, "--json"], { storage });
+    const showOut = output.stdout.join("\n");
+    const task = JSON.parse(showOut);
+    expect(task.metadata?.commit?.sha).toBe("def5678");
+  });
+
+  it("preserves existing metadata when linking commit", async () => {
+    await runCli(["create", "-n", "Test task", "--description", "ctx"], {
+      storage,
+    });
+    const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    output.stdout.length = 0;
+
+    // Link first commit
+    await runCli(["edit", taskId!, "--commit", "abc1234"], { storage });
+    output.stdout.length = 0;
+
+    // Link second commit - should replace the first
+    await runCli(["edit", taskId!, "--commit", "xyz9999"], { storage });
+    output.stdout.length = 0;
+
+    // Verify the new commit replaced the old one
+    await runCli(["show", taskId!, "--json"], { storage });
+    const task = JSON.parse(output.stdout.join("\n"));
+    expect(task.metadata?.commit?.sha).toBe("xyz9999");
+  });
+
+  it("fails when commit does not exist", async () => {
+    vi.mocked(gitModule.verifyCommitExists).mockReturnValue(false);
+
+    await runCli(["create", "-n", "Test task", "--description", "ctx"], {
+      storage,
+    });
+    const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    output.stdout.length = 0;
+
+    await expect(
+      runCli(["edit", taskId!, "--commit", "nonexistent"], { storage }),
+    ).rejects.toThrow("process.exit");
+    expect(output.stderr.join("\n")).toContain("not found in local repository");
+  });
+
+  it("shows --commit in help", async () => {
+    await runCli(["edit", "-h"], { storage });
+
+    const out = output.stdout.join("\n");
+    expect(out).toContain("--commit");
   });
 });

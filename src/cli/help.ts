@@ -29,6 +29,7 @@ ${colors.bold}COMMANDS:${colors.reset}
   show <id> --full                 View full description and result
   show <id> --json                 Output as JSON (for scripts)
   edit <id> [-n "..."]             Edit task
+  edit <id> --commit <sha>         Link commit to completed task
   update                           Alias for edit command
   start <id>                       Mark task as in progress
   start <id> --force               Re-claim task already in progress
