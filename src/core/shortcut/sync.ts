@@ -904,7 +904,9 @@ export class ShortcutSyncService {
       const descendants = collectDescendants(store.tasks, task.id);
       if (descendants.length > 0) {
         // Parent is "completed" only when ALL descendants have verified commits on remote
-        return descendants.every((d) => this.shouldMarkCompleted(d.task));
+        return descendants.every((d) =>
+          this.shouldMarkCompleted(d.task, store),
+        );
       }
     }
 
