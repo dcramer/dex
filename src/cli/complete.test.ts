@@ -1,13 +1,23 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { runCli } from "./index.js";
 import type { CliTestFixture } from "./test-helpers.js";
 import { createCliTestFixture, createTaskAndGetId } from "./test-helpers.js";
+import * as gitModule from "./git.js";
+
+vi.mock("./git.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("./git.js")>();
+  return {
+    ...original,
+    verifyCommitExists: vi.fn().mockReturnValue(true),
+  };
+});
 
 describe("complete command", () => {
   let fixture: CliTestFixture;
 
   beforeEach(() => {
     fixture = createCliTestFixture();
+    vi.mocked(gitModule.verifyCommitExists).mockReturnValue(true);
   });
 
   afterEach(() => {
@@ -147,6 +157,21 @@ describe("complete command", () => {
     const task = tasks.tasks.find((t) => t.id === taskId);
     expect(task?.metadata?.commit).toBeDefined();
     expect(task?.metadata?.commit?.sha).toBe("abc1234");
+  });
+
+  it("fails when commit SHA does not exist in local repository", async () => {
+    vi.mocked(gitModule.verifyCommitExists).mockReturnValue(false);
+    const taskId = await createTaskAndGetId(fixture, "Task with commit");
+
+    await expect(
+      runCli(["complete", taskId, "-r", "Done", "-c", "nonexistent123"], {
+        storage: fixture.storage,
+      }),
+    ).rejects.toThrow("process.exit");
+
+    const err = fixture.output.stderr.join("\n");
+    expect(err).toContain("not found in local repository");
+    expect(err).toContain("nonexistent123");
   });
 
   it("shows --no-commit in help", async () => {

@@ -3,7 +3,7 @@ import { createService, formatCliError } from "./utils.js";
 import { colors } from "./colors.js";
 import { getBooleanFlag, getStringFlag, parseArgs } from "./args.js";
 import { formatTaskShow } from "./show.js";
-import { getCommitInfo } from "./git.js";
+import { getCommitInfo, verifyCommitExists } from "./git.js";
 
 export async function completeCommand(
   args: string[],
@@ -74,6 +74,16 @@ ${colors.bold}EXAMPLE:${colors.reset}
   if (commitSha && hasNoCommit) {
     console.error(
       `${colors.red}Error:${colors.reset} Cannot use both --commit and --no-commit`,
+    );
+    process.exit(1);
+  }
+
+  if (commitSha && !verifyCommitExists(commitSha)) {
+    console.error(
+      `${colors.red}Error:${colors.reset} Commit ${colors.bold}${commitSha}${colors.reset} not found in local repository`,
+    );
+    console.error(
+      `  Verify the SHA exists with: ${colors.cyan}git rev-parse --verify ${commitSha}${colors.reset}`,
     );
     process.exit(1);
   }
