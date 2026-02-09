@@ -449,10 +449,17 @@ async function saveMetadata(
     });
   }
 
-  // Handle subtask results for integrations that support them (like Shortcut)
+  // Handle subtask results for integrations that support them
   if (result.subtaskResults) {
     for (const subtaskResult of result.subtaskResults) {
-      await saveMetadata(service, integrationId, subtaskResult);
+      if (subtaskResult.needsCreation && subtaskResult.createData) {
+        // Create subtask that exists in remote but not locally
+        await service.create(
+          subtaskResult.createData as Parameters<typeof service.create>[0],
+        );
+      } else {
+        await saveMetadata(service, integrationId, subtaskResult);
+      }
     }
   }
 }

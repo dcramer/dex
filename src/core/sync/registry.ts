@@ -9,7 +9,7 @@ export interface SyncResult {
   metadata: unknown;
   created: boolean;
   skipped?: boolean;
-  /** Results for subtasks (used by integrations like Shortcut that sync subtasks separately) */
+  /** Results for subtasks synced separately (e.g., Shortcut stories, GitHub pull reconciliation) */
   subtaskResults?: SyncResult[];
   /** Updates to apply to the local task (when remote is newer) */
   localUpdates?: Record<string, unknown>;
@@ -17,6 +17,10 @@ export interface SyncResult {
   pulledFromRemote?: boolean;
   /** Reason why a completed task's issue/story won't close (e.g., commit not pushed) */
   issueNotClosingReason?: string;
+  /** True if the task doesn't exist locally and needs to be created */
+  needsCreation?: boolean;
+  /** Full task data for creation (used when needsCreation is true) */
+  createData?: Record<string, unknown>;
 }
 
 /**

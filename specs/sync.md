@@ -47,6 +47,17 @@ When remote is newer, these fields are pulled:
 - `started_at` timestamp
 - `commit` metadata (if present)
 
+### Subtask Sync
+
+Subtasks are embedded in the parent issue body. During sync and import:
+
+- **Push**: Subtask state is rendered as `<details>` blocks in the parent issue
+- **Pull**: When remote is newer, subtask state is reconciled:
+  - Existing local subtasks are updated from remote
+  - New subtasks found in remote are created locally
+- **Import**: `dex import` and `dex import --all` both create subtasks from issue body
+- **Update**: `dex import --update` creates new subtasks and updates existing ones
+
 ## Issue State Behavior
 
 ### Closing Issues

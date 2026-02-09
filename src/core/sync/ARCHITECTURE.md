@@ -1,11 +1,10 @@
 # Sync Integration Architecture
 
-This document describes how to implement a sync integration for dex. Sync integrations enable one-way push of tasks to external issue trackers (GitHub Issues, Shortcut Stories, etc.). Local file storage remains the source of truth.
+This document describes how to implement a sync integration for dex. Sync integrations enable local-first sync of tasks with external issue trackers (GitHub Issues, Shortcut Stories, etc.), pushing local state and pulling remote state when newer.
 
 ## Core Concepts
 
-- **One-way sync**: Tasks push from dex → remote. Remote changes don't flow back.
-- **Source of truth**: The local `.dex/tasks.jsonl` file is always authoritative.
+- **Local-first sync**: The local `.dex/tasks.jsonl` file is the source of truth, but remote state is pulled when newer (timestamp-based reconciliation).
 - **Idempotent operations**: Running sync twice should not duplicate remote items.
 - **Progress reporting**: Bulk operations report progress via callbacks.
 
@@ -43,7 +42,11 @@ Sync a single task to the remote system.
 - `metadata` - Integration-specific data to save on the task
 - `created` - True if a new remote item was created
 - `skipped` - True if no changes were needed (optional)
-- `subtaskResults` - Results for subtasks synced separately (optional, used by Shortcut)
+- `subtaskResults` - Results for subtasks synced separately (optional)
+- `localUpdates` - Updates to apply locally when remote is newer (optional)
+- `pulledFromRemote` - True if local was updated from remote (optional)
+- `needsCreation` - True if a subtask exists remotely but not locally (optional)
+- `createData` - Full task data for creation when `needsCreation` is true (optional)
 
 ### `syncAll(store, options)`
 
@@ -122,10 +125,10 @@ export const TaskMetadataSchema = z.object({
 
 Integrations can handle subtasks differently:
 
-| Integration | Subtask Strategy                                     |
-| ----------- | ---------------------------------------------------- |
-| GitHub      | Embedded in parent issue body as markdown checkboxes |
-| Shortcut    | Created as separate linked stories (Sub-tasks)       |
+| Integration | Push Strategy                                  | Import/Pull Strategy                        |
+| ----------- | ---------------------------------------------- | ------------------------------------------- |
+| GitHub      | Embedded in parent issue body as markdown      | Parsed from body, created as local subtasks |
+| Shortcut    | Created as separate linked stories (Sub-tasks) | Imported as linked subtasks                 |
 
 Choose the strategy that best fits the remote system's capabilities.
 
@@ -233,4 +236,6 @@ Key test scenarios:
 - Skipping unchanged items
 - Handling API errors gracefully
 - Progress callback invocation
-- Subtask handling
+- Subtask handling (push: embedded in parent body)
+- Subtask creation during bulk import (`--all`)
+- Subtask creation during sync pull (remote newer than local)

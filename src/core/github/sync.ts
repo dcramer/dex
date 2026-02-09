@@ -355,6 +355,7 @@ export class GitHubSyncService {
             const subtaskResults = this.reconcileSubtasksFromRemote(
               cached.body,
               store,
+              parent.id,
             );
 
             onProgress?.({
@@ -798,6 +799,7 @@ export class GitHubSyncService {
   private reconcileSubtasksFromRemote(
     issueBody: string,
     store: TaskStore,
+    parentTaskId: string,
   ): SyncResult[] {
     const results: SyncResult[] = [];
     const { subtasks: remoteSubtasks } = parseHierarchicalIssueBody(issueBody);
@@ -805,8 +807,36 @@ export class GitHubSyncService {
     for (const remoteSubtask of remoteSubtasks) {
       const localSubtask = store.tasks.find((t) => t.id === remoteSubtask.id);
       if (!localSubtask) {
-        // Subtask exists in remote but not locally - skip
-        // (import flow handles this case)
+        // Subtask exists in remote but not locally - include for creation
+        // Use the subtask's declared parent if it exists locally, otherwise fall back to root
+        const parentExistsLocally =
+          remoteSubtask.parentId !== undefined &&
+          store.tasks.some((t) => t.id === remoteSubtask.parentId);
+        const resolvedParentId = parentExistsLocally
+          ? remoteSubtask.parentId!
+          : parentTaskId;
+
+        results.push({
+          taskId: remoteSubtask.id,
+          metadata: {},
+          created: false,
+          needsCreation: true,
+          pulledFromRemote: true,
+          createData: {
+            id: remoteSubtask.id,
+            name: remoteSubtask.name,
+            description:
+              remoteSubtask.description || "Imported from GitHub issue",
+            parent_id: resolvedParentId,
+            priority: remoteSubtask.priority,
+            completed: remoteSubtask.completed,
+            result: remoteSubtask.result,
+            created_at: remoteSubtask.created_at,
+            updated_at: remoteSubtask.updated_at,
+            completed_at: remoteSubtask.completed_at,
+            metadata: remoteSubtask.metadata,
+          },
+        });
         continue;
       }
 
