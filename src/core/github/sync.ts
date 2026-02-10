@@ -444,6 +444,11 @@ export class GitHubSyncService {
         const issueData = await this.fetchIssueStateAndLabels(issueNumber);
         currentState = issueData.state;
         nonDexLabels = issueData.nonDexLabels;
+      } else {
+        // skipUnchanged is false but cache exists - extract non-dex labels from cache
+        nonDexLabels = cached.allLabels.filter(
+          (l) => !l.startsWith(this.labelPrefix),
+        );
       }
 
       onProgress?.({
