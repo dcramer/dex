@@ -440,8 +440,10 @@ export class GitHubSyncService {
         }
       } else if (!cached) {
         // skipUnchanged is false and no cache - still need to fetch current state
-        // to avoid accidentally reopening closed issues
-        currentState = await this.fetchIssueState(issueNumber);
+        // to avoid accidentally reopening closed issues, and fetch labels to preserve non-dex ones
+        const issueData = await this.fetchIssueStateAndLabels(issueNumber);
+        currentState = issueData.state;
+        nonDexLabels = issueData.nonDexLabels;
       }
 
       onProgress?.({
@@ -570,18 +572,27 @@ export class GitHubSyncService {
    * Fetch only the state of an issue (for when we need to avoid reopening).
    * Returns undefined if the issue can't be fetched.
    */
-  private async fetchIssueState(
+  private async fetchIssueStateAndLabels(
     issueNumber: number,
-  ): Promise<"open" | "closed" | undefined> {
+  ): Promise<{
+    state: "open" | "closed" | undefined;
+    nonDexLabels: string[];
+  }> {
     try {
       const { data: issue } = await this.octokit.issues.get({
         owner: this.owner,
         repo: this.repo,
         issue_number: issueNumber,
       });
-      return issue.state as "open" | "closed";
+      const nonDexLabels = (issue.labels || [])
+        .map((l) => (typeof l === "string" ? l : l.name || ""))
+        .filter((l) => l.length > 0 && !l.startsWith(this.labelPrefix));
+      return {
+        state: issue.state as "open" | "closed",
+        nonDexLabels,
+      };
     } catch {
-      return undefined;
+      return { state: undefined, nonDexLabels: [] };
     }
   }
 
