@@ -1130,7 +1130,7 @@ describe("fetchAllDexIssues", () => {
     expect(result.get("closed2")?.state).toBe("closed");
   });
 
-  it("filters labels to only include dex-prefixed ones", async () => {
+  it("stores all labels in allLabels and only dex-prefixed in labels", async () => {
     githubMock.listIssues("test-owner", "test-repo", [
       createIssueFixture({
         number: 1,
@@ -1148,11 +1148,17 @@ describe("fetchAllDexIssues", () => {
 
     const result = await service.fetchAllDexIssues();
 
-    const labels = result.get("abc")?.labels || [];
-    expect(labels).toContain("dex");
-    expect(labels).toContain("dex:priority-high");
-    expect(labels).not.toContain("bug");
-    expect(labels).not.toContain("enhancement");
+    const cached = result.get("abc");
+    // labels: only dex-prefixed (for change detection)
+    expect(cached?.labels).toContain("dex");
+    expect(cached?.labels).toContain("dex:priority-high");
+    expect(cached?.labels).not.toContain("bug");
+    expect(cached?.labels).not.toContain("enhancement");
+    // allLabels: ALL labels (for preserving during updates)
+    expect(cached?.allLabels).toContain("dex");
+    expect(cached?.allLabels).toContain("dex:priority-high");
+    expect(cached?.allLabels).toContain("bug");
+    expect(cached?.allLabels).toContain("enhancement");
   });
 });
 
@@ -2154,5 +2160,275 @@ Test description`;
     // Local is newer, so we push instead of pull
     expect(results[0].pulledFromRemote).toBeFalsy();
     expect(results[0].subtaskResults).toBeUndefined();
+  });
+});
+
+describe("in-progress label", () => {
+  let service: GitHubSyncService;
+  let githubMock: GitHubMock;
+
+  beforeEach(() => {
+    process.env.GITHUB_TOKEN = "test-token";
+    githubMock = setupGitHubMock();
+
+    service = new GitHubSyncService({
+      repo: { owner: "test-owner", repo: "test-repo" },
+      token: "test-token",
+    });
+  });
+
+  afterEach(() => {
+    cleanupGitHubMock();
+    delete process.env.GITHUB_TOKEN;
+    vi.restoreAllMocks();
+  });
+
+  it("uses dex:in-progress label for started tasks", async () => {
+    const task = createTask({
+      id: "started-task",
+      name: "In Progress Task",
+      started_at: new Date().toISOString(),
+      completed: false,
+    });
+    const store = createStore([task]);
+
+    githubMock.listIssues("test-owner", "test-repo", []);
+
+    let capturedBody: Record<string, unknown> | null = null;
+    nock("https://api.github.com")
+      .post(`/repos/test-owner/test-repo/issues`, (body) => {
+        capturedBody = body as Record<string, unknown>;
+        return true;
+      })
+      .reply(201, {
+        number: 1,
+        html_url: "https://github.com/test-owner/test-repo/issues/1",
+      });
+
+    await service.syncTask(task, store);
+
+    expect(capturedBody).not.toBeNull();
+    const labels = capturedBody!.labels as string[];
+    expect(labels).toContain("dex:in-progress");
+    expect(labels).not.toContain("dex:pending");
+    expect(labels).not.toContain("dex:completed");
+  });
+
+  it("uses dex:pending label for tasks not started", async () => {
+    const task = createTask({
+      id: "pending-task",
+      name: "Pending Task",
+      started_at: null,
+      completed: false,
+    });
+    const store = createStore([task]);
+
+    githubMock.listIssues("test-owner", "test-repo", []);
+
+    let capturedBody: Record<string, unknown> | null = null;
+    nock("https://api.github.com")
+      .post(`/repos/test-owner/test-repo/issues`, (body) => {
+        capturedBody = body as Record<string, unknown>;
+        return true;
+      })
+      .reply(201, {
+        number: 1,
+        html_url: "https://github.com/test-owner/test-repo/issues/1",
+      });
+
+    await service.syncTask(task, store);
+
+    expect(capturedBody).not.toBeNull();
+    const labels = capturedBody!.labels as string[];
+    expect(labels).toContain("dex:pending");
+    expect(labels).not.toContain("dex:in-progress");
+  });
+
+  it("detects label change from pending to in-progress", async () => {
+    const task = createTask({
+      id: "taskid",
+      name: "Test Task",
+      description: "Test context",
+      started_at: new Date().toISOString(),
+      completed: false,
+    });
+    const store = createStore([task]);
+
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 1,
+        title: "Test Task",
+        body: `<!-- dex:task:id:taskid -->\n<!-- dex:task:priority:1 -->\n<!-- dex:task:completed:false -->\n<!-- dex:task:created_at:${task.created_at} -->\n<!-- dex:task:updated_at:${task.updated_at} -->\n<!-- dex:task:started_at:${task.started_at} -->\n<!-- dex:task:completed_at:null -->\n<!-- dex:task:blockedBy:[] -->\n<!-- dex:task:blocks:[] -->\nTest context`,
+        state: "open",
+        labels: [
+          { name: "dex" },
+          { name: "dex:priority-1" },
+          { name: "dex:pending" },
+        ],
+      }),
+    ]);
+    githubMock.listIssues("test-owner", "test-repo", []);
+    githubMock.updateIssue(
+      "test-owner",
+      "test-repo",
+      1,
+      createIssueFixture({ number: 1, title: "Test Task" }),
+    );
+
+    const results = await service.syncAll(store);
+
+    expect(results[0].skipped).toBeFalsy();
+  });
+});
+
+describe("non-dex label preservation", () => {
+  let service: GitHubSyncService;
+  let githubMock: GitHubMock;
+
+  beforeEach(() => {
+    process.env.GITHUB_TOKEN = "test-token";
+    githubMock = setupGitHubMock();
+
+    service = new GitHubSyncService({
+      repo: { owner: "test-owner", repo: "test-repo" },
+      token: "test-token",
+    });
+  });
+
+  afterEach(() => {
+    cleanupGitHubMock();
+    delete process.env.GITHUB_TOKEN;
+    vi.restoreAllMocks();
+  });
+
+  it("preserves non-dex labels when updating via syncAll", async () => {
+    const task = createTask({
+      id: "taskid",
+      name: "Updated Title",
+      description: "Test context",
+    });
+    const store = createStore([task]);
+
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 1,
+        title: "Old Title",
+        body: `<!-- dex:task:id:taskid -->\nOld context`,
+        state: "open",
+        labels: [
+          { name: "dex" },
+          { name: "dex:priority-1" },
+          { name: "dex:pending" },
+          { name: "bug" },
+          { name: "help wanted" },
+        ],
+      }),
+    ]);
+    githubMock.listIssues("test-owner", "test-repo", []);
+
+    let capturedBody: Record<string, unknown> | null = null;
+    nock("https://api.github.com")
+      .patch(`/repos/test-owner/test-repo/issues/1`, (body) => {
+        capturedBody = body as Record<string, unknown>;
+        return true;
+      })
+      .reply(200, {
+        number: 1,
+        title: "Updated Title",
+        state: "open",
+        html_url: "https://github.com/test-owner/test-repo/issues/1",
+      });
+
+    await service.syncAll(store);
+
+    expect(capturedBody).not.toBeNull();
+    const labels = capturedBody!.labels as string[];
+    expect(labels).toContain("bug");
+    expect(labels).toContain("help wanted");
+    expect(labels).toContain("dex");
+    expect(labels).toContain("dex:priority-1");
+    expect(labels).toContain("dex:pending");
+  });
+
+  it("preserves non-dex labels when updating via syncTask", async () => {
+    const task = createTask({
+      id: "single-sync",
+      name: "Updated Task",
+      metadata: {
+        github: {
+          issueNumber: 50,
+          issueUrl: "https://github.com/test-owner/test-repo/issues/50",
+          repo: "test-owner/test-repo",
+        },
+      },
+    });
+    const store = createStore([task]);
+
+    githubMock.getIssue(
+      "test-owner",
+      "test-repo",
+      50,
+      createIssueFixture({
+        number: 50,
+        title: "Old Title",
+        body: "<!-- dex:task:id:single-sync -->\nOld body",
+        labels: [
+          { name: "dex" },
+          { name: "dex:priority-1" },
+          { name: "dex:pending" },
+          { name: "priority:high" },
+          { name: "type:feature" },
+        ],
+      }),
+    );
+
+    let capturedBody: Record<string, unknown> | null = null;
+    nock("https://api.github.com")
+      .patch(`/repos/test-owner/test-repo/issues/50`, (body) => {
+        capturedBody = body as Record<string, unknown>;
+        return true;
+      })
+      .reply(200, {
+        number: 50,
+        title: "Updated Task",
+        state: "open",
+        html_url: "https://github.com/test-owner/test-repo/issues/50",
+      });
+
+    await service.syncTask(task, store);
+
+    expect(capturedBody).not.toBeNull();
+    const labels = capturedBody!.labels as string[];
+    expect(labels).toContain("priority:high");
+    expect(labels).toContain("type:feature");
+    expect(labels).toContain("dex");
+  });
+
+  it("does not include non-dex labels when creating a new issue", async () => {
+    const task = createTask({
+      id: "new-task",
+      name: "New Task",
+    });
+    const store = createStore([task]);
+
+    githubMock.listIssues("test-owner", "test-repo", []);
+
+    let capturedBody: Record<string, unknown> | null = null;
+    nock("https://api.github.com")
+      .post(`/repos/test-owner/test-repo/issues`, (body) => {
+        capturedBody = body as Record<string, unknown>;
+        return true;
+      })
+      .reply(201, {
+        number: 1,
+        html_url: "https://github.com/test-owner/test-repo/issues/1",
+      });
+
+    await service.syncTask(task, store);
+
+    expect(capturedBody).not.toBeNull();
+    const labels = capturedBody!.labels as string[];
+    expect(labels).toHaveLength(3);
+    expect(labels.every((l: string) => l.startsWith("dex"))).toBe(true);
   });
 });

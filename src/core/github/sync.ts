@@ -12,6 +12,7 @@ import {
   parseHierarchicalIssueBody,
 } from "./issue-parsing.js";
 import { isCommitOnRemote } from "../git-utils.js";
+import { isInProgress } from "../task-relationships.js";
 import type { SyncResult } from "../sync/registry.js";
 
 /**
@@ -37,7 +38,10 @@ export interface CachedIssue {
   title: string;
   body: string;
   state: "open" | "closed";
+  /** Only dex-prefixed labels (for change detection) */
   labels: string[];
+  /** ALL labels including non-dex (for preserving during updates) */
+  allLabels: string[];
 }
 
 export interface GitHubSyncServiceOptions {
@@ -384,6 +388,8 @@ export class GitHubSyncService {
       }
 
       // Check if we can skip this update by comparing with GitHub
+      let nonDexLabels: string[] = [];
+
       if (skipUnchanged) {
         const expectedBody = this.renderBody(parent, descendants);
         const expectedLabels = this.buildLabels(parent, shouldClose);
@@ -397,6 +403,9 @@ export class GitHubSyncService {
             expectedLabels,
             shouldClose,
           );
+          nonDexLabels = cached.allLabels.filter(
+            (l) => !l.startsWith(this.labelPrefix),
+          );
         } else {
           // No cache - need to fetch from API to get current state
           const changeResult = await this.getIssueChangeResult(
@@ -408,6 +417,7 @@ export class GitHubSyncService {
           );
           hasChanges = changeResult.hasChanges;
           currentState = changeResult.currentState;
+          nonDexLabels = changeResult.nonDexLabels;
         }
 
         if (!hasChanges) {
@@ -447,6 +457,7 @@ export class GitHubSyncService {
         issueNumber,
         shouldClose,
         currentState,
+        nonDexLabels,
       );
       return this.buildSyncResult(
         parent.id,
@@ -511,6 +522,7 @@ export class GitHubSyncService {
   ): Promise<{
     hasChanges: boolean;
     currentState: "open" | "closed" | undefined;
+    nonDexLabels: string[];
   }> {
     try {
       const { data: issue } = await this.octokit.issues.get({
@@ -519,16 +531,22 @@ export class GitHubSyncService {
         issue_number: issueNumber,
       });
 
-      const labels = (issue.labels || [])
+      const allLabels = (issue.labels || [])
         .map((l) => (typeof l === "string" ? l : l.name || ""))
-        .filter((l) => l.startsWith(this.labelPrefix));
+        .filter((l) => l.length > 0);
+      const dexLabels = allLabels.filter((l) =>
+        l.startsWith(this.labelPrefix),
+      );
+      const nonDexLabels = allLabels.filter(
+        (l) => !l.startsWith(this.labelPrefix),
+      );
 
       const hasChanges = this.issueNeedsUpdate(
         {
           title: issue.title,
           body: issue.body || "",
           state: issue.state,
-          labels,
+          labels: dexLabels,
         },
         expectedTitle,
         expectedBody,
@@ -539,11 +557,12 @@ export class GitHubSyncService {
       return {
         hasChanges,
         currentState: issue.state as "open" | "closed",
+        nonDexLabels,
       };
     } catch {
       // If we can't fetch the issue, assume it needs updating
       // but use undefined state to preserve whatever the remote state is
-      return { hasChanges: true, currentState: undefined };
+      return { hasChanges: true, currentState: undefined, nonDexLabels: [] };
     }
   }
 
@@ -653,6 +672,7 @@ export class GitHubSyncService {
     issueNumber: number,
     shouldClose: boolean,
     currentState: "open" | "closed" | undefined,
+    nonDexLabels: string[] = [],
   ): Promise<void> {
     const body = this.renderBody(parent, descendants);
 
@@ -677,7 +697,7 @@ export class GitHubSyncService {
       issue_number: issueNumber,
       title: parent.name,
       body,
-      labels: this.buildLabels(parent, shouldClose),
+      labels: [...nonDexLabels, ...this.buildLabels(parent, shouldClose)],
       ...(state !== undefined && { state }),
     });
   }
@@ -696,10 +716,19 @@ export class GitHubSyncService {
    * Build labels for a task.
    */
   private buildLabels(task: Task, shouldClose: boolean): string[] {
+    let statusLabel: string;
+    if (shouldClose) {
+      statusLabel = `${this.labelPrefix}:completed`;
+    } else if (isInProgress(task)) {
+      statusLabel = `${this.labelPrefix}:in-progress`;
+    } else {
+      statusLabel = `${this.labelPrefix}:pending`;
+    }
+
     return [
       this.labelPrefix,
       `${this.labelPrefix}:priority-${task.priority}`,
-      `${this.labelPrefix}:${shouldClose ? "completed" : "pending"}`,
+      statusLabel,
     ];
   }
 
@@ -906,14 +935,17 @@ export class GitHubSyncService {
 
       const taskId = this.extractTaskIdFromBody(issue.body || "");
       if (taskId) {
+        const allLabels = (issue.labels || [])
+          .map((l) => (typeof l === "string" ? l : l.name || ""))
+          .filter((l) => l.length > 0);
+
         result.set(taskId, {
           number: issue.number,
           title: issue.title,
           body: issue.body || "",
           state: issue.state as "open" | "closed",
-          labels: (issue.labels || [])
-            .map((l) => (typeof l === "string" ? l : l.name || ""))
-            .filter((l) => l.startsWith(this.labelPrefix)),
+          labels: allLabels.filter((l) => l.startsWith(this.labelPrefix)),
+          allLabels,
         });
       }
     }
