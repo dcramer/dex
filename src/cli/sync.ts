@@ -342,8 +342,10 @@ async function syncAllWithProgress(
   }
 
   // Save metadata for all synced tasks
+  // Include pulledFromRemote results which are marked as skipped (not pushed)
+  // but still need local updates applied and subtasks created
   for (const result of results) {
-    if (!result.skipped) {
+    if (!result.skipped || result.pulledFromRemote) {
       await saveMetadata(service, syncService.id, result);
     }
   }
