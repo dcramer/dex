@@ -387,16 +387,17 @@ function extractParentId(content: string): string | undefined {
 /**
  * Parse a single <details> block into a subtask.
  * Handles multiple summary formats:
- * - New format: <summary>✅ └─ <b>Task Name</b></summary>
+ * - New format: <summary>✅ └─ <b>Task Name</b></summary> (completed)
+ * - In-progress: <summary>🔄 └─ <b>Task Name</b></summary> (in-progress)
  * - Old checkbox format: <summary>[x] Task Name</summary>
  */
 function parseDetailsBlock(content: string): EmbeddedSubtask | null {
-  // Try new format first: optional ✅, optional tree chars, <b>name</b>
+  // Try new format first: optional status emoji (✅/🔄), optional tree chars, <b>name</b>
   const newFormatMatch = content.match(
-    /<summary>\s*(✅\s*)?(└─\s*)?<b>(.+?)<\/b>\s*<\/summary>/i,
+    /<summary>\s*((?:✅|🔄)\s*)?(└─\s*)?<b>(.+?)<\/b>\s*<\/summary>/i,
   );
   if (newFormatMatch) {
-    const isCompleted = !!newFormatMatch[1]; // Has ✅
+    const isCompleted = newFormatMatch[1]?.includes("✅") ?? false;
     const name = newFormatMatch[3].trim();
     return parseDetailsBlockWithContext(content, name, isCompleted);
   }
