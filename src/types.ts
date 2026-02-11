@@ -176,8 +176,9 @@ export const UpdateTaskInputSchema = z.object({
   result: z
     .string()
     .max(MAX_CONTENT_LENGTH, "Result exceeds maximum length")
+    .nullable()
     .optional(),
-  metadata: TaskMetadataSchema.optional(),
+  metadata: TaskMetadataSchema.nullable().optional(),
   started_at: z.string().datetime().nullable().optional(),
   delete: z.boolean().optional(),
   add_blocked_by: z.array(z.string().min(1)).optional(),

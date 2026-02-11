@@ -497,8 +497,8 @@ async function importSubtasksFromIssueBody(
         priority: subtask.priority,
         completed: subtask.completed,
         started_at: subtask.started_at,
-        result: subtask.result ?? undefined,
-        metadata: subtask.metadata ?? undefined,
+        result: subtask.result,
+        metadata: subtask.metadata,
       });
       idMapping.set(subtask.id, existing.id);
       updated++;
