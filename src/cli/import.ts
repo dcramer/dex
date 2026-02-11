@@ -227,6 +227,7 @@ async function importGitHubIssue(
         service,
         issue.body || "",
         updatedTask.id,
+        existingTasks,
       );
       console.log(
         `${colors.green}Updated${colors.reset} task ${colors.bold}${updatedTask.id}${colors.reset} ` +
@@ -272,6 +273,7 @@ async function importGitHubIssue(
     service,
     body,
     task.id,
+    existingTasks,
   );
   if (subtaskResult.created > 0) {
     console.log(`  Created ${subtaskResult.created} subtask(s)`);
@@ -375,6 +377,7 @@ async function importAllFromGitHub(
       service,
       issue.body || "",
       task.id,
+      existingTasks,
     );
     console.log(
       `${colors.green}Imported${colors.reset} GitHub #${issue.number} as ${colors.bold}${task.id}${colors.reset}`,
@@ -392,6 +395,7 @@ async function importAllFromGitHub(
       service,
       issue.body || "",
       existingTask.id,
+      existingTasks,
     );
     console.log(
       `${colors.green}Updated${colors.reset} GitHub #${issue.number} → ${colors.bold}${existingTask.id}${colors.reset}`,
@@ -465,13 +469,14 @@ async function importSubtasksFromIssueBody(
   service: ReturnType<typeof createService>,
   issueBody: string,
   parentTaskId: string,
+  preloadedTasks?: Task[],
 ): Promise<{ created: number; updated: number }> {
   const { subtasks } = parseHierarchicalIssueBody(issueBody);
   if (subtasks.length === 0) {
     return { created: 0, updated: 0 };
   }
 
-  const existingTasks = await service.list({ all: true });
+  const existingTasks = preloadedTasks ?? (await service.list({ all: true }));
   const existingById = new Map(existingTasks.map((t) => [t.id, t]));
   const idMapping = new Map<string, string>();
   let created = 0;
