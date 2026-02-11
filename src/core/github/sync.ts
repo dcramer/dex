@@ -803,16 +803,20 @@ export class GitHubSyncService {
   ): SyncResult[] {
     const results: SyncResult[] = [];
     const { subtasks: remoteSubtasks } = parseHierarchicalIssueBody(issueBody);
+    // Track subtask IDs processed in this batch so nested subtasks
+    // can resolve parents that are also being created in the same sync
+    const processedIds = new Set<string>();
 
     for (const remoteSubtask of remoteSubtasks) {
       const localSubtask = store.tasks.find((t) => t.id === remoteSubtask.id);
       if (!localSubtask) {
         // Subtask exists in remote but not locally - include for creation
-        // Use the subtask's declared parent if it exists locally, otherwise fall back to root
-        const parentExistsLocally =
+        // Use the subtask's declared parent if it exists locally or was already processed in this batch
+        const parentExists =
           remoteSubtask.parentId !== undefined &&
-          store.tasks.some((t) => t.id === remoteSubtask.parentId);
-        const resolvedParentId = parentExistsLocally
+          (store.tasks.some((t) => t.id === remoteSubtask.parentId) ||
+            processedIds.has(remoteSubtask.parentId));
+        const resolvedParentId = parentExists
           ? remoteSubtask.parentId!
           : parentTaskId;
 
@@ -837,6 +841,7 @@ export class GitHubSyncService {
             metadata: remoteSubtask.metadata,
           },
         });
+        processedIds.add(remoteSubtask.id);
         continue;
       }
 
