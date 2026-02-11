@@ -837,6 +837,7 @@ export class GitHubSyncService {
             result: remoteSubtask.result,
             created_at: remoteSubtask.created_at,
             updated_at: remoteSubtask.updated_at,
+            started_at: remoteSubtask.started_at,
             completed_at: remoteSubtask.completed_at,
             metadata: remoteSubtask.metadata,
           },

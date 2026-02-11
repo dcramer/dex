@@ -496,6 +496,7 @@ async function importSubtasksFromIssueBody(
         parent_id: localParentId,
         priority: subtask.priority,
         completed: subtask.completed,
+        started_at: subtask.started_at,
         result: subtask.result ?? undefined,
         metadata: subtask.metadata ?? undefined,
       });
@@ -512,6 +513,7 @@ async function importSubtasksFromIssueBody(
         result: subtask.result,
         created_at: subtask.created_at,
         updated_at: subtask.updated_at,
+        started_at: subtask.started_at,
         completed_at: subtask.completed_at,
         metadata: subtask.metadata,
       });
@@ -551,6 +553,7 @@ async function importGitHubIssueAsTask(
     metadata,
     created_at: rootMetadata?.created_at,
     updated_at: rootMetadata?.updated_at,
+    started_at: rootMetadata?.started_at,
     completed_at: rootMetadata?.completed_at,
   });
 }
