@@ -342,8 +342,10 @@ async function syncAllWithProgress(
   }
 
   // Save metadata for all synced tasks
+  // Include pulledFromRemote results which are marked as skipped (not pushed)
+  // but still need local updates applied and subtasks created
   for (const result of results) {
-    if (!result.skipped) {
+    if (!result.skipped || result.pulledFromRemote) {
       await saveMetadata(service, syncService.id, result);
     }
   }
@@ -449,10 +451,15 @@ async function saveMetadata(
     });
   }
 
-  // Handle subtask results for integrations that support them (like Shortcut)
+  // Handle subtask results for integrations that support them
   if (result.subtaskResults) {
     for (const subtaskResult of result.subtaskResults) {
-      await saveMetadata(service, integrationId, subtaskResult);
+      if (subtaskResult.needsCreation && subtaskResult.createData) {
+        // Create subtask that exists in remote but not locally
+        await service.create(subtaskResult.createData);
+      } else {
+        await saveMetadata(service, integrationId, subtaskResult);
+      }
     }
   }
 }

@@ -2080,6 +2080,198 @@ Completed the subtask
     });
   });
 
+  it("returns needsCreation for subtasks not found locally", async () => {
+    const now = new Date();
+    const localTime = new Date(now.getTime() - 3600000).toISOString();
+    const remoteTime = now.toISOString();
+
+    const parent = createTask({
+      id: "parent3",
+      name: "Parent Task",
+      updated_at: localTime,
+      metadata: {
+        github: {
+          issueNumber: 3,
+          issueUrl: "https://github.com/test-owner/test-repo/issues/3",
+          repo: "test-owner/test-repo",
+        },
+      },
+    });
+
+    // No subtask locally - only parent exists
+    const store = createStore([parent]);
+
+    const remoteBody = `<!-- dex:task:id:parent3 -->
+<!-- dex:task:priority:1 -->
+<!-- dex:task:completed:false -->
+<!-- dex:task:created_at:${parent.created_at} -->
+<!-- dex:task:updated_at:${remoteTime} -->
+<!-- dex:task:started_at:null -->
+<!-- dex:task:completed_at:null -->
+<!-- dex:task:blockedBy:[] -->
+<!-- dex:task:blocks:[] -->
+Test description
+
+## Tasks
+
+<details>
+<summary>└─ <b>New Remote Subtask</b></summary>
+
+<!-- dex:subtask:id:newsub3 -->
+<!-- dex:subtask:parent:parent3 -->
+<!-- dex:subtask:priority:2 -->
+<!-- dex:subtask:completed:false -->
+<!-- dex:subtask:created_at:${remoteTime} -->
+<!-- dex:subtask:updated_at:${remoteTime} -->
+<!-- dex:subtask:started_at:null -->
+<!-- dex:subtask:completed_at:null -->
+<!-- dex:subtask:blockedBy:[] -->
+<!-- dex:subtask:blocks:[] -->
+
+### Description
+Subtask from remote
+
+</details>`;
+
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 3,
+        title: "Parent Task",
+        body: remoteBody,
+        state: "open",
+        labels: [
+          { name: "dex" },
+          { name: "dex:priority-1" },
+          { name: "dex:pending" },
+        ],
+      }),
+    ]);
+    githubMock.listIssues("test-owner", "test-repo", []);
+
+    const results = await service.syncAll(store);
+
+    expect(results).toHaveLength(1);
+    expect(results[0].pulledFromRemote).toBe(true);
+    expect(results[0].subtaskResults).toBeDefined();
+    expect(results[0].subtaskResults).toHaveLength(1);
+
+    const subtaskResult = results[0].subtaskResults![0];
+    expect(subtaskResult.taskId).toBe("newsub3");
+    expect(subtaskResult.needsCreation).toBe(true);
+    expect(subtaskResult.createData).toBeDefined();
+    expect(subtaskResult.createData!.parent_id).toBe("parent3");
+    expect(subtaskResult.createData!.name).toBe("New Remote Subtask");
+    expect(subtaskResult.createData!.priority).toBe(2);
+  });
+
+  it("resolves nested subtask parents within the same batch", async () => {
+    const now = new Date();
+    const localTime = new Date(now.getTime() - 3600000).toISOString();
+    const remoteTime = now.toISOString();
+
+    const parent = createTask({
+      id: "parent4",
+      name: "Parent Task",
+      updated_at: localTime,
+      metadata: {
+        github: {
+          issueNumber: 10,
+          issueUrl: "https://github.com/test-owner/test-repo/issues/10",
+          repo: "test-owner/test-repo",
+        },
+      },
+    });
+
+    // Neither subtask nor grandchild exist locally
+    const store = createStore([parent]);
+
+    // Remote body has a subtask and a nested grandchild subtask
+    const remoteBody = `<!-- dex:task:id:parent4 -->
+<!-- dex:task:priority:1 -->
+<!-- dex:task:completed:false -->
+<!-- dex:task:created_at:${parent.created_at} -->
+<!-- dex:task:updated_at:${remoteTime} -->
+<!-- dex:task:started_at:null -->
+<!-- dex:task:completed_at:null -->
+<!-- dex:task:blockedBy:[] -->
+<!-- dex:task:blocks:[] -->
+Test description
+
+## Tasks
+
+<details>
+<summary>└─ <b>Child Subtask</b></summary>
+
+<!-- dex:subtask:id:childsub4 -->
+<!-- dex:subtask:parent:parent4 -->
+<!-- dex:subtask:priority:2 -->
+<!-- dex:subtask:completed:false -->
+<!-- dex:subtask:created_at:${remoteTime} -->
+<!-- dex:subtask:updated_at:${remoteTime} -->
+<!-- dex:subtask:started_at:null -->
+<!-- dex:subtask:completed_at:null -->
+<!-- dex:subtask:blockedBy:[] -->
+<!-- dex:subtask:blocks:[] -->
+
+### Description
+Child subtask
+
+</details>
+
+<details>
+<summary>  └─ <b>Grandchild Subtask</b></summary>
+
+<!-- dex:subtask:id:grandchild4 -->
+<!-- dex:subtask:parent:childsub4 -->
+<!-- dex:subtask:priority:3 -->
+<!-- dex:subtask:completed:false -->
+<!-- dex:subtask:created_at:${remoteTime} -->
+<!-- dex:subtask:updated_at:${remoteTime} -->
+<!-- dex:subtask:started_at:null -->
+<!-- dex:subtask:completed_at:null -->
+<!-- dex:subtask:blockedBy:[] -->
+<!-- dex:subtask:blocks:[] -->
+
+### Description
+Grandchild subtask
+
+</details>`;
+
+    githubMock.listIssues("test-owner", "test-repo", [
+      createIssueFixture({
+        number: 10,
+        title: "Parent Task",
+        body: remoteBody,
+        state: "open",
+        labels: [
+          { name: "dex" },
+          { name: "dex:priority-1" },
+          { name: "dex:pending" },
+        ],
+      }),
+    ]);
+    githubMock.listIssues("test-owner", "test-repo", []);
+
+    const results = await service.syncAll(store);
+
+    expect(results).toHaveLength(1);
+    expect(results[0].subtaskResults).toBeDefined();
+    expect(results[0].subtaskResults).toHaveLength(2);
+
+    const childResult = results[0].subtaskResults!.find(
+      (r) => r.taskId === "childsub4",
+    );
+    const grandchildResult = results[0].subtaskResults!.find(
+      (r) => r.taskId === "grandchild4",
+    );
+
+    // Child should be parented to root task
+    expect(childResult!.createData!.parent_id).toBe("parent4");
+
+    // Grandchild should be parented to child (not flattened to root)
+    expect(grandchildResult!.createData!.parent_id).toBe("childsub4");
+  });
+
   it("does not pull subtask state when local is newer than remote", async () => {
     const now = new Date();
     const remoteTime = new Date(now.getTime() - 3600000).toISOString(); // 1 hour ago

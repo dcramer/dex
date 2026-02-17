@@ -223,10 +223,21 @@ async function importGitHubIssue(
         issue,
         parsed,
       );
+      const subtaskResult = await importSubtasksFromIssueBody(
+        service,
+        issue.body || "",
+        updatedTask.id,
+        existingTasks,
+      );
       console.log(
         `${colors.green}Updated${colors.reset} task ${colors.bold}${updatedTask.id}${colors.reset} ` +
           `from GitHub issue #${parsed.number}`,
       );
+      if (subtaskResult.created > 0 || subtaskResult.updated > 0) {
+        console.log(
+          `  Subtasks: ${subtaskResult.created} created, ${subtaskResult.updated} updated`,
+        );
+      }
       return;
     }
 
@@ -258,31 +269,14 @@ async function importGitHubIssue(
       `${colors.bold}${task.id}${colors.reset}: "${task.name}"`,
   );
 
-  if (subtasks.length > 0) {
-    const idMapping = new Map<string, string>();
-
-    for (const subtask of subtasks) {
-      const localParentId = subtask.parentId
-        ? idMapping.get(subtask.parentId) || task.id
-        : task.id;
-
-      const createdSubtask = await service.create({
-        id: subtask.id,
-        name: subtask.name,
-        description: subtask.description || "Imported from GitHub issue",
-        parent_id: localParentId,
-        priority: subtask.priority,
-        completed: subtask.completed,
-        result: subtask.result,
-        created_at: subtask.created_at,
-        updated_at: subtask.updated_at,
-        completed_at: subtask.completed_at,
-        metadata: subtask.metadata,
-      });
-
-      idMapping.set(subtask.id, createdSubtask.id);
-    }
-    console.log(`  Created ${idMapping.size} subtask(s)`);
+  const subtaskResult = await importSubtasksFromIssueBody(
+    service,
+    body,
+    task.id,
+    existingTasks,
+  );
+  if (subtaskResult.created > 0) {
+    console.log(`  Created ${subtaskResult.created} subtask(s)`);
   }
 }
 
@@ -352,7 +346,11 @@ async function importAllFromGitHub(
         `Would import ${toImport.length} GitHub issue(s) from ${colors.cyan}${repo.owner}/${repo.repo}${colors.reset}:`,
       );
       for (const issue of toImport) {
+        const { subtasks } = parseHierarchicalIssueBody(issue.body || "");
         console.log(`  #${issue.number}: ${issue.title}`);
+        if (subtasks.length > 0) {
+          console.log(`    (${subtasks.length} subtasks)`);
+        }
       }
     }
     if (toUpdate.length > 0) {
@@ -375,18 +373,38 @@ async function importAllFromGitHub(
 
   for (const issue of toImport) {
     const task = await importGitHubIssueAsTask(service, issue, repo);
+    const subtaskResult = await importSubtasksFromIssueBody(
+      service,
+      issue.body || "",
+      task.id,
+      existingTasks,
+    );
     console.log(
       `${colors.green}Imported${colors.reset} GitHub #${issue.number} as ${colors.bold}${task.id}${colors.reset}`,
     );
+    if (subtaskResult.created > 0) {
+      console.log(`  Created ${subtaskResult.created} subtask(s)`);
+    }
     imported++;
   }
 
   for (const issue of toUpdate) {
     const existingTask = importedByNumber.get(issue.number)!;
     await updateTaskFromGitHubIssue(service, existingTask, issue, repo);
+    const subtaskResult = await importSubtasksFromIssueBody(
+      service,
+      issue.body || "",
+      existingTask.id,
+      existingTasks,
+    );
     console.log(
       `${colors.green}Updated${colors.reset} GitHub #${issue.number} → ${colors.bold}${existingTask.id}${colors.reset}`,
     );
+    if (subtaskResult.created > 0 || subtaskResult.updated > 0) {
+      console.log(
+        `  Subtasks: ${subtaskResult.created} created, ${subtaskResult.updated} updated`,
+      );
+    }
     updated++;
   }
 
@@ -443,6 +461,72 @@ function parseGitHubIssueData(
   };
 }
 
+/**
+ * Parse and create/update subtasks from a GitHub issue body.
+ * Reusable across single import, bulk import, and update flows.
+ */
+async function importSubtasksFromIssueBody(
+  service: ReturnType<typeof createService>,
+  issueBody: string,
+  parentTaskId: string,
+  preloadedTasks?: Task[],
+): Promise<{ created: number; updated: number }> {
+  const { subtasks } = parseHierarchicalIssueBody(issueBody);
+  if (subtasks.length === 0) {
+    return { created: 0, updated: 0 };
+  }
+
+  const existingTasks = preloadedTasks ?? (await service.list({ all: true }));
+  const existingById = new Map(existingTasks.map((t) => [t.id, t]));
+  const idMapping = new Map<string, string>();
+  let created = 0;
+  let updated = 0;
+
+  for (const subtask of subtasks) {
+    const localParentId = subtask.parentId
+      ? idMapping.get(subtask.parentId) || parentTaskId
+      : parentTaskId;
+
+    const existing = existingById.get(subtask.id);
+    if (existing) {
+      await service.update({
+        id: existing.id,
+        name: subtask.name,
+        description: subtask.description || existing.description,
+        parent_id: localParentId,
+        priority: subtask.priority,
+        completed: subtask.completed,
+        started_at: subtask.started_at,
+        result: subtask.result,
+        metadata: subtask.metadata
+          ? { ...existing.metadata, ...subtask.metadata }
+          : existing.metadata,
+      });
+      idMapping.set(subtask.id, existing.id);
+      updated++;
+    } else {
+      const createdSubtask = await service.create({
+        id: subtask.id,
+        name: subtask.name,
+        description: subtask.description || "Imported from GitHub issue",
+        parent_id: localParentId,
+        priority: subtask.priority,
+        completed: subtask.completed,
+        result: subtask.result,
+        created_at: subtask.created_at,
+        updated_at: subtask.updated_at,
+        started_at: subtask.started_at,
+        completed_at: subtask.completed_at,
+        metadata: subtask.metadata,
+      });
+      idMapping.set(subtask.id, createdSubtask.id);
+      created++;
+    }
+  }
+
+  return { created, updated };
+}
+
 async function importGitHubIssueAsTask(
   service: ReturnType<typeof createService>,
   issue: GitHubIssue,
@@ -471,6 +555,7 @@ async function importGitHubIssueAsTask(
     metadata,
     created_at: rootMetadata?.created_at,
     updated_at: rootMetadata?.updated_at,
+    started_at: rootMetadata?.started_at,
     completed_at: rootMetadata?.completed_at,
   });
 }

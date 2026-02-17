@@ -11,6 +11,7 @@ import {
   setupGitHubMock,
   cleanupGitHubMock,
   createIssueFixture,
+  createFullDexIssueBody,
   setupShortcutMock,
   cleanupShortcutMock,
   createStoryFixture,
@@ -297,6 +298,74 @@ describe("sync command", () => {
       expect(out).toContain("Synced");
       expect(out).toContain("1 task(s)");
       expect(out).toContain("1 updated");
+    });
+
+    it("creates subtasks locally when pulling from remote", async () => {
+      const taskId = await createTask("Parent task", {
+        description: "context",
+      });
+
+      // First sync to create the issue
+      githubMock.listIssues("test-owner", "test-repo", []);
+      githubMock.createIssue(
+        "test-owner",
+        "test-repo",
+        createIssueFixture({ number: 500, title: "Parent task" }),
+      );
+      await run(["sync", taskId]);
+      fixture.output.stdout.length = 0;
+
+      // Read the task to get its updated_at
+      const store = await fixture.storage.readAsync();
+      const parentTask = store.tasks.find((t) => t.id === taskId)!;
+
+      // Remote is newer and has a subtask that doesn't exist locally
+      const futureTime = new Date(
+        new Date(parentTask.updated_at).getTime() + 3600000,
+      ).toISOString();
+
+      const remoteBody = createFullDexIssueBody({
+        context: "context",
+        rootMetadata: {
+          id: taskId,
+          updated_at: futureTime,
+        },
+        subtasks: [
+          {
+            id: "remotesub1",
+            name: "Remote Subtask",
+            priority: 2,
+            created_at: futureTime,
+            updated_at: futureTime,
+          },
+        ],
+      });
+
+      // Page 1: issue with newer updated_at and subtask
+      githubMock.listIssues("test-owner", "test-repo", [
+        createIssueFixture({
+          number: 500,
+          title: "Parent task",
+          body: remoteBody,
+          labels: [{ name: "dex" }, { name: "dex:pending" }],
+        }),
+      ]);
+      // Page 2: empty (end of pagination)
+      githubMock.listIssues("test-owner", "test-repo", []);
+
+      await run(["sync"]);
+
+      // Verify the subtask was created locally
+      const updatedStore = await fixture.storage.readAsync();
+      const subtask = updatedStore.tasks.find((t) => t.id === "remotesub1");
+      expect(subtask).toBeDefined();
+      expect(subtask!.name).toBe("Remote Subtask");
+      expect(subtask!.parent_id).toBe(taskId);
+      expect(subtask!.priority).toBe(2);
+
+      // Verify summary includes pulled from remote
+      const out = fixture.output.stdout.join("\n");
+      expect(out).toContain("pulled from remote");
     });
   });
 

@@ -391,6 +391,194 @@ describe("import command", () => {
     });
   });
 
+  describe("subtask import across flows", () => {
+    let shortcutMock: ReturnType<typeof setupShortcutMock>;
+    let originalShortcutToken: string | undefined;
+
+    beforeEach(() => {
+      originalShortcutToken = process.env.SHORTCUT_API_TOKEN;
+      process.env.SHORTCUT_API_TOKEN = "test-shortcut-token";
+      shortcutMock = setupShortcutMock();
+      shortcutMock.getCurrentMember(createMemberFixture());
+      shortcutMock.searchStories([]);
+    });
+
+    afterEach(() => {
+      cleanupShortcutMock();
+      if (originalShortcutToken !== undefined) {
+        process.env.SHORTCUT_API_TOKEN = originalShortcutToken;
+      } else {
+        delete process.env.SHORTCUT_API_TOKEN;
+      }
+    });
+
+    it("imports subtasks during --all", async () => {
+      githubMock.listIssues("test-owner", "test-repo", [
+        createIssueFixture({
+          number: 10,
+          title: "Parent with subtasks",
+          body: createFullDexIssueBody({
+            context: "Parent context",
+            rootMetadata: { id: "parent10" },
+            subtasks: [
+              { id: "sub10a", name: "Subtask A" },
+              { id: "sub10b", name: "Subtask B", completed: true },
+            ],
+          }),
+          labels: [{ name: "dex" }],
+        }),
+      ]);
+
+      await runCli(["import", "--all"], { storage });
+
+      const tasks = await storage.readAsync();
+      expect(tasks.tasks).toHaveLength(3); // 1 parent + 2 subtasks
+
+      const parent = tasks.tasks.find((t) => !t.parent_id);
+      const subA = tasks.tasks.find((t) => t.id === "sub10a");
+      const subB = tasks.tasks.find((t) => t.id === "sub10b");
+      expect(parent).toBeDefined();
+      expect(subA).toBeDefined();
+      expect(subA!.parent_id).toBe(parent!.id);
+      expect(subB).toBeDefined();
+      expect(subB!.parent_id).toBe(parent!.id);
+      expect(subB!.completed).toBe(true);
+
+      const out = output.stdout.join("\n");
+      expect(out).toContain("2 subtask(s)");
+    });
+
+    it("creates new subtasks during --update", async () => {
+      // First import: no subtasks
+      githubMock.getIssue(
+        "test-owner",
+        "test-repo",
+        600,
+        createIssueFixture({
+          number: 600,
+          title: "Original Task",
+          body: createFullDexIssueBody({
+            context: "No subtasks yet",
+            rootMetadata: { id: "task600" },
+          }),
+        }),
+      );
+      await runCli(["import", "#600"], { storage });
+
+      let tasks = await storage.readAsync();
+      expect(tasks.tasks).toHaveLength(1);
+
+      // Second import with --update: now has subtasks
+      githubMock.getIssue(
+        "test-owner",
+        "test-repo",
+        600,
+        createIssueFixture({
+          number: 600,
+          title: "Original Task",
+          body: createFullDexIssueBody({
+            context: "Now with subtasks",
+            rootMetadata: { id: "task600" },
+            subtasks: [{ id: "newsub1", name: "New Subtask 1" }],
+          }),
+        }),
+      );
+      await runCli(["import", "#600", "--update"], { storage });
+
+      tasks = await storage.readAsync();
+      expect(tasks.tasks).toHaveLength(2); // parent + new subtask
+      const subtask = tasks.tasks.find((t) => t.id === "newsub1");
+      expect(subtask).toBeDefined();
+      expect(subtask!.parent_id).toBe("task600");
+    });
+
+    it("updates existing subtasks during --update", async () => {
+      // First import: task with a subtask
+      githubMock.getIssue(
+        "test-owner",
+        "test-repo",
+        700,
+        createIssueFixture({
+          number: 700,
+          title: "Task With Sub",
+          body: createFullDexIssueBody({
+            context: "Has subtask",
+            rootMetadata: { id: "task700" },
+            subtasks: [{ id: "existsub1", name: "Original Name", priority: 1 }],
+          }),
+        }),
+      );
+      await runCli(["import", "#700"], { storage });
+
+      let tasks = await storage.readAsync();
+      expect(tasks.tasks).toHaveLength(2);
+      const originalSub = tasks.tasks.find((t) => t.id === "existsub1");
+      expect(originalSub).toBeDefined();
+      expect(originalSub!.name).toBe("Original Name");
+
+      // Second import with --update: subtask has changed
+      githubMock.getIssue(
+        "test-owner",
+        "test-repo",
+        700,
+        createIssueFixture({
+          number: 700,
+          title: "Task With Sub",
+          body: createFullDexIssueBody({
+            context: "Has subtask",
+            rootMetadata: { id: "task700" },
+            subtasks: [
+              {
+                id: "existsub1",
+                name: "Updated Name",
+                priority: 3,
+                completed: true,
+              },
+            ],
+          }),
+        }),
+      );
+      await runCli(["import", "#700", "--update"], { storage });
+
+      tasks = await storage.readAsync();
+      // Should still have 2 tasks, not 3 (no duplicate)
+      expect(tasks.tasks).toHaveLength(2);
+      const updatedSub = tasks.tasks.find((t) => t.id === "existsub1");
+      expect(updatedSub).toBeDefined();
+      expect(updatedSub!.name).toBe("Updated Name");
+      expect(updatedSub!.priority).toBe(3);
+      expect(updatedSub!.completed).toBe(true);
+      expect(updatedSub!.parent_id).toBe("task700");
+    });
+
+    it("shows subtask counts in --all --dry-run", async () => {
+      githubMock.listIssues("test-owner", "test-repo", [
+        createIssueFixture({
+          number: 20,
+          title: "Task with subs",
+          body: createFullDexIssueBody({
+            context: "Context",
+            subtasks: [
+              { id: "s1", name: "Sub 1" },
+              { id: "s2", name: "Sub 2" },
+              { id: "s3", name: "Sub 3" },
+            ],
+          }),
+          labels: [{ name: "dex" }],
+        }),
+      ]);
+
+      await runCli(["import", "--all", "--dry-run"], { storage });
+
+      const out = output.stdout.join("\n");
+      expect(out).toContain("3 subtasks");
+
+      // Dry-run should not create any tasks
+      const tasks = await storage.readAsync();
+      expect(tasks.tasks).toHaveLength(0);
+    });
+  });
+
   describe("error handling", () => {
     it("errors without GitHub token", async () => {
       delete process.env.GITHUB_TOKEN;
