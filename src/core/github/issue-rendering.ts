@@ -131,7 +131,8 @@ function renderTaskDetailsBlock(
   task: TaskLike & { name: string },
   options?: { depth?: number; parentId?: string | null },
 ): string {
-  const statusIndicator = task.completed ? "✅ " : "";
+  const isInProgress = !task.completed && task.started_at !== null;
+  const statusIndicator = task.completed ? "✅ " : isInProgress ? "🔄 " : "";
   const depth = options?.depth ?? 0;
   const treePrefix = depth > 0 ? "└─ " : "";
 

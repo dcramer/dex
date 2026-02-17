@@ -141,6 +141,17 @@ Choose the strategy that best fits the remote system's capabilities.
 
 GitHub uses a git hook to defer closing issues until code is actually pushed to the remote.
 
+## Label Management
+
+### GitHub Labels
+
+Dex manages labels prefixed with the configured `labelPrefix` (default: `dex`). During sync:
+
+- **Three status states**: `{prefix}:pending`, `{prefix}:in-progress`, `{prefix}:completed`
+- **Priority labels**: `{prefix}:priority-{1,2,3,4}`
+- **Non-prefix labels preserved**: Labels not starting with the prefix are left untouched during updates
+- **Change detection**: Only prefix-scoped labels are compared for change detection
+
 ## Adding a New Integration
 
 ### 1. Create the integration directory
