@@ -541,9 +541,7 @@ export class GitHubSyncService {
       const allLabels = (issue.labels || [])
         .map((l) => (typeof l === "string" ? l : l.name || ""))
         .filter((l) => l.length > 0);
-      const dexLabels = allLabels.filter((l) =>
-        l.startsWith(this.labelPrefix),
-      );
+      const dexLabels = allLabels.filter((l) => l.startsWith(this.labelPrefix));
       const nonDexLabels = allLabels.filter(
         (l) => !l.startsWith(this.labelPrefix),
       );
@@ -567,38 +565,34 @@ export class GitHubSyncService {
         nonDexLabels,
       };
     } catch {
-      // If we can't fetch the issue, assume it needs updating
-      // but use undefined state to preserve whatever the remote state is
-      return { hasChanges: true, currentState: undefined, nonDexLabels: [] };
+      // If we can't fetch the issue, skip the update to avoid wiping non-dex labels.
+      // Returning hasChanges: false prevents updateIssue() from being called with
+      // empty nonDexLabels, which would destroy user-applied labels.
+      return { hasChanges: false, currentState: undefined, nonDexLabels: [] };
     }
   }
 
   /**
-   * Fetch only the state of an issue (for when we need to avoid reopening).
-   * Returns undefined if the issue can't be fetched.
+   * Fetch the state and non-dex labels of an issue.
+   * Throws if the issue can't be fetched, since callers need label data
+   * to avoid wiping non-dex labels during updates.
    */
-  private async fetchIssueStateAndLabels(
-    issueNumber: number,
-  ): Promise<{
-    state: "open" | "closed" | undefined;
+  private async fetchIssueStateAndLabels(issueNumber: number): Promise<{
+    state: "open" | "closed";
     nonDexLabels: string[];
   }> {
-    try {
-      const { data: issue } = await this.octokit.issues.get({
-        owner: this.owner,
-        repo: this.repo,
-        issue_number: issueNumber,
-      });
-      const nonDexLabels = (issue.labels || [])
-        .map((l) => (typeof l === "string" ? l : l.name || ""))
-        .filter((l) => l.length > 0 && !l.startsWith(this.labelPrefix));
-      return {
-        state: issue.state as "open" | "closed",
-        nonDexLabels,
-      };
-    } catch {
-      return { state: undefined, nonDexLabels: [] };
-    }
+    const { data: issue } = await this.octokit.issues.get({
+      owner: this.owner,
+      repo: this.repo,
+      issue_number: issueNumber,
+    });
+    const nonDexLabels = (issue.labels || [])
+      .map((l) => (typeof l === "string" ? l : l.name || ""))
+      .filter((l) => l.length > 0 && !l.startsWith(this.labelPrefix));
+    return {
+      state: issue.state as "open" | "closed",
+      nonDexLabels,
+    };
   }
 
   /**
@@ -688,7 +682,7 @@ export class GitHubSyncService {
     issueNumber: number,
     shouldClose: boolean,
     currentState: "open" | "closed" | undefined,
-    nonDexLabels: string[] = [],
+    nonDexLabels: string[],
   ): Promise<void> {
     const body = this.renderBody(parent, descendants);
 

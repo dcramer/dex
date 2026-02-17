@@ -91,7 +91,7 @@ describe("GitHubSyncService", () => {
         await expect(service.syncTask(task, store)).rejects.toThrow();
       });
 
-      it("throws error when updating issue with invalid token", async () => {
+      it("skips update when GET returns 401 to avoid wiping labels", async () => {
         const task = createTask({
           metadata: {
             github: {
@@ -103,10 +103,11 @@ describe("GitHubSyncService", () => {
         });
         const store = createStore([task]);
 
-        // Get issue returns 401
+        // Get issue returns 401 - should skip rather than proceed with empty labels
         githubMock.getIssue401("test-owner", "test-repo", 123);
 
-        await expect(service.syncTask(task, store)).rejects.toThrow();
+        const result = await service.syncTask(task, store);
+        expect(result?.skipped).toBe(true);
       });
     });
 
@@ -121,7 +122,7 @@ describe("GitHubSyncService", () => {
         await expect(service.syncTask(task, store)).rejects.toThrow();
       });
 
-      it("throws error when lacking permissions to update issue", async () => {
+      it("skips update when GET returns 403 to avoid wiping labels", async () => {
         const task = createTask({
           metadata: {
             github: {
@@ -133,10 +134,11 @@ describe("GitHubSyncService", () => {
         });
         const store = createStore([task]);
 
-        // Get issue returns 403 forbidden
+        // Get issue returns 403 forbidden - should skip rather than proceed with empty labels
         githubMock.getIssue403("test-owner", "test-repo", 456, false);
 
-        await expect(service.syncTask(task, store)).rejects.toThrow();
+        const result = await service.syncTask(task, store);
+        expect(result?.skipped).toBe(true);
       });
     });
 
@@ -165,7 +167,7 @@ describe("GitHubSyncService", () => {
         expect(getGitHubMetadata(result)?.issueNumber).toBe(1001);
       });
 
-      it("throws when tracked issue returns 404 during update check", async () => {
+      it("skips update when tracked issue returns 404 to avoid wiping labels", async () => {
         // Task with GitHub metadata pointing to a deleted issue
         const task = createTask({
           metadata: {
@@ -178,12 +180,11 @@ describe("GitHubSyncService", () => {
         });
         const store = createStore([task]);
 
-        // Get issue returns 404 (issue was deleted), hasIssueChanged catches and returns true
-        // Then updateIssue is called and also returns 404
+        // Get issue returns 404 (issue was deleted) - should skip rather than proceed
         githubMock.getIssue404("test-owner", "test-repo", 999);
-        githubMock.updateIssue404("test-owner", "test-repo", 999);
 
-        await expect(service.syncTask(task, store)).rejects.toThrow();
+        const result = await service.syncTask(task, store);
+        expect(result?.skipped).toBe(true);
       });
     });
 
@@ -1809,7 +1810,7 @@ describe("GitHubSyncService error message quality", () => {
     }
   });
 
-  it("rate limit errors include rate limit information", async () => {
+  it("skips update when GET fails to avoid wiping labels on rate limit", async () => {
     const task = createTask({
       metadata: {
         github: {
@@ -1821,18 +1822,11 @@ describe("GitHubSyncService error message quality", () => {
     });
     const store = createStore([task]);
 
-    // Get issue fails (hasIssueChanged catches and returns true)
-    // Then update issue gets rate limited
+    // Get issue fails - should skip update to avoid wiping non-dex labels
     githubMock.getIssue500("test-owner", "test-repo", 888);
-    githubMock.updateIssue403("test-owner", "test-repo", 888, true);
 
-    try {
-      await service.syncTask(task, store);
-      expect.fail("Should have thrown");
-    } catch (err) {
-      expect(err).toBeInstanceOf(Error);
-      expect((err as Error).message).toMatch(/rate limit|403/i);
-    }
+    const result = await service.syncTask(task, store);
+    expect(result?.skipped).toBe(true);
   });
 });
 
