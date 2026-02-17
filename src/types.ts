@@ -3,12 +3,18 @@ import { z } from "zod";
 // Maximum content length (50KB) to prevent excessive file sizes
 const MAX_CONTENT_LENGTH = 50 * 1024;
 
+// ISO 8601 datetime that accepts timezone offsets (+00:00) in addition to Z suffix,
+// for compatibility with Python and other tools that agents may use to generate timestamps
+function flexibleDatetime() {
+  return z.string().datetime({ offset: true });
+}
+
 export const CommitMetadataSchema = z.object({
   sha: z.string().min(1),
   message: z.string().optional(),
   branch: z.string().optional(),
   url: z.string().url().optional(),
-  timestamp: z.string().datetime().optional(),
+  timestamp: flexibleDatetime().optional(),
 });
 
 export type CommitMetadata = z.infer<typeof CommitMetadataSchema>;
@@ -66,10 +72,10 @@ const TaskSchemaBase = z.object({
     .nullable()
     .default(null),
   metadata: TaskMetadataSchema.default(null),
-  created_at: z.string().datetime(),
-  updated_at: z.string().datetime(),
-  started_at: z.string().datetime().nullable().default(null),
-  completed_at: z.string().datetime().nullable().default(null),
+  created_at: flexibleDatetime(),
+  updated_at: flexibleDatetime(),
+  started_at: flexibleDatetime().nullable().default(null),
+  completed_at: flexibleDatetime().nullable().default(null),
   // Bidirectional blocking relationships
   blockedBy: z.array(z.string().min(1)).default([]), // Tasks that block this one
   blocks: z.array(z.string().min(1)).default([]), // Tasks this one blocks
@@ -146,10 +152,10 @@ export const CreateTaskInputSchema = z.object({
     .nullable()
     .optional(),
   metadata: TaskMetadataSchema.optional(),
-  created_at: z.string().datetime().optional(),
-  updated_at: z.string().datetime().optional(),
-  started_at: z.string().datetime().nullable().optional(),
-  completed_at: z.string().datetime().nullable().optional(),
+  created_at: flexibleDatetime().optional(),
+  updated_at: flexibleDatetime().optional(),
+  started_at: flexibleDatetime().nullable().optional(),
+  completed_at: flexibleDatetime().nullable().optional(),
 });
 
 export type CreateTaskInput = z.infer<typeof CreateTaskInputSchema>;
@@ -179,7 +185,7 @@ export const UpdateTaskInputSchema = z.object({
     .nullable()
     .optional(),
   metadata: TaskMetadataSchema.nullable().optional(),
-  started_at: z.string().datetime().nullable().optional(),
+  started_at: flexibleDatetime().nullable().optional(),
   delete: z.boolean().optional(),
   add_blocked_by: z.array(z.string().min(1)).optional(),
   remove_blocked_by: z.array(z.string().min(1)).optional(),
@@ -218,8 +224,8 @@ export const ArchivedTaskSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().default(""),
   result: z.string().nullable().default(null),
-  completed_at: z.string().datetime().nullable().default(null),
-  archived_at: z.string().datetime(),
+  completed_at: flexibleDatetime().nullable().default(null),
+  archived_at: flexibleDatetime(),
   metadata: z
     .object({
       github: GithubMetadataSchema.optional(),

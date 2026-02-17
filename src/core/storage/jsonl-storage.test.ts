@@ -135,6 +135,24 @@ describe("JsonlStorage", () => {
       expect(() => storage.read()).toThrow(DataCorruptionError);
     });
 
+    it("accepts datetime with microsecond precision", () => {
+      // Python and other tools that agents may use emit microsecond precision
+      // which is valid ISO 8601 but more precise than JavaScript's native Date.toISOString()
+      const task = createTask({
+        id: "micro123",
+        completed: true,
+        completed_at: "2026-02-05T08:56:48.487608+00:00", // 6 decimal places
+        created_at: "2026-02-05T08:56:48.487608+00:00",
+        updated_at: "2026-02-05T08:56:48.487608+00:00",
+      });
+      const tasksFile = path.join(tempDir, "tasks.jsonl");
+      fs.writeFileSync(tasksFile, JSON.stringify(task) + "\n", "utf-8");
+
+      const store = storage.read();
+      expect(store.tasks).toHaveLength(1);
+      expect(store.tasks[0].completed_at).toBe("2026-02-05T08:56:48.487608+00:00");
+    });
+
     it("throws StorageError when file cannot be read", () => {
       const tasksFile = path.join(tempDir, "tasks.jsonl");
       fs.writeFileSync(tasksFile, "test", "utf-8");
