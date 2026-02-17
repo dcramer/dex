@@ -12,6 +12,7 @@ import {
   parseHierarchicalIssueBody,
 } from "./issue-parsing.js";
 import { isCommitOnRemote } from "../git-utils.js";
+import { isInProgress } from "../task-relationships.js";
 import type { SyncResult } from "../sync/registry.js";
 
 /**
@@ -37,7 +38,10 @@ export interface CachedIssue {
   title: string;
   body: string;
   state: "open" | "closed";
+  /** Only dex-prefixed labels (for change detection) */
   labels: string[];
+  /** ALL labels including non-dex (for preserving during updates) */
+  allLabels: string[];
 }
 
 export interface GitHubSyncServiceOptions {
@@ -384,6 +388,8 @@ export class GitHubSyncService {
       }
 
       // Check if we can skip this update by comparing with GitHub
+      let nonDexLabels: string[] = [];
+
       if (skipUnchanged) {
         const expectedBody = this.renderBody(parent, descendants);
         const expectedLabels = this.buildLabels(parent, shouldClose);
@@ -397,6 +403,9 @@ export class GitHubSyncService {
             expectedLabels,
             shouldClose,
           );
+          nonDexLabels = cached.allLabels.filter(
+            (l) => !l.startsWith(this.labelPrefix),
+          );
         } else {
           // No cache - need to fetch from API to get current state
           const changeResult = await this.getIssueChangeResult(
@@ -408,6 +417,7 @@ export class GitHubSyncService {
           );
           hasChanges = changeResult.hasChanges;
           currentState = changeResult.currentState;
+          nonDexLabels = changeResult.nonDexLabels;
         }
 
         if (!hasChanges) {
@@ -430,8 +440,15 @@ export class GitHubSyncService {
         }
       } else if (!cached) {
         // skipUnchanged is false and no cache - still need to fetch current state
-        // to avoid accidentally reopening closed issues
-        currentState = await this.fetchIssueState(issueNumber);
+        // to avoid accidentally reopening closed issues, and fetch labels to preserve non-dex ones
+        const issueData = await this.fetchIssueStateAndLabels(issueNumber);
+        currentState = issueData.state;
+        nonDexLabels = issueData.nonDexLabels;
+      } else {
+        // skipUnchanged is false but cache exists - extract non-dex labels from cache
+        nonDexLabels = cached.allLabels.filter(
+          (l) => !l.startsWith(this.labelPrefix),
+        );
       }
 
       onProgress?.({
@@ -447,6 +464,7 @@ export class GitHubSyncService {
         issueNumber,
         shouldClose,
         currentState,
+        nonDexLabels,
       );
       return this.buildSyncResult(
         parent.id,
@@ -511,6 +529,7 @@ export class GitHubSyncService {
   ): Promise<{
     hasChanges: boolean;
     currentState: "open" | "closed" | undefined;
+    nonDexLabels: string[];
   }> {
     try {
       const { data: issue } = await this.octokit.issues.get({
@@ -519,16 +538,20 @@ export class GitHubSyncService {
         issue_number: issueNumber,
       });
 
-      const labels = (issue.labels || [])
+      const allLabels = (issue.labels || [])
         .map((l) => (typeof l === "string" ? l : l.name || ""))
-        .filter((l) => l.startsWith(this.labelPrefix));
+        .filter((l) => l.length > 0);
+      const dexLabels = allLabels.filter((l) => l.startsWith(this.labelPrefix));
+      const nonDexLabels = allLabels.filter(
+        (l) => !l.startsWith(this.labelPrefix),
+      );
 
       const hasChanges = this.issueNeedsUpdate(
         {
           title: issue.title,
           body: issue.body || "",
           state: issue.state,
-          labels,
+          labels: dexLabels,
         },
         expectedTitle,
         expectedBody,
@@ -539,31 +562,37 @@ export class GitHubSyncService {
       return {
         hasChanges,
         currentState: issue.state as "open" | "closed",
+        nonDexLabels,
       };
     } catch {
-      // If we can't fetch the issue, assume it needs updating
-      // but use undefined state to preserve whatever the remote state is
-      return { hasChanges: true, currentState: undefined };
+      // If we can't fetch the issue, skip the update to avoid wiping non-dex labels.
+      // Returning hasChanges: false prevents updateIssue() from being called with
+      // empty nonDexLabels, which would destroy user-applied labels.
+      return { hasChanges: false, currentState: undefined, nonDexLabels: [] };
     }
   }
 
   /**
-   * Fetch only the state of an issue (for when we need to avoid reopening).
-   * Returns undefined if the issue can't be fetched.
+   * Fetch the state and non-dex labels of an issue.
+   * Throws if the issue can't be fetched, since callers need label data
+   * to avoid wiping non-dex labels during updates.
    */
-  private async fetchIssueState(
-    issueNumber: number,
-  ): Promise<"open" | "closed" | undefined> {
-    try {
-      const { data: issue } = await this.octokit.issues.get({
-        owner: this.owner,
-        repo: this.repo,
-        issue_number: issueNumber,
-      });
-      return issue.state as "open" | "closed";
-    } catch {
-      return undefined;
-    }
+  private async fetchIssueStateAndLabels(issueNumber: number): Promise<{
+    state: "open" | "closed";
+    nonDexLabels: string[];
+  }> {
+    const { data: issue } = await this.octokit.issues.get({
+      owner: this.owner,
+      repo: this.repo,
+      issue_number: issueNumber,
+    });
+    const nonDexLabels = (issue.labels || [])
+      .map((l) => (typeof l === "string" ? l : l.name || ""))
+      .filter((l) => l.length > 0 && !l.startsWith(this.labelPrefix));
+    return {
+      state: issue.state as "open" | "closed",
+      nonDexLabels,
+    };
   }
 
   /**
@@ -653,6 +682,7 @@ export class GitHubSyncService {
     issueNumber: number,
     shouldClose: boolean,
     currentState: "open" | "closed" | undefined,
+    nonDexLabels: string[],
   ): Promise<void> {
     const body = this.renderBody(parent, descendants);
 
@@ -677,7 +707,7 @@ export class GitHubSyncService {
       issue_number: issueNumber,
       title: parent.name,
       body,
-      labels: this.buildLabels(parent, shouldClose),
+      labels: [...nonDexLabels, ...this.buildLabels(parent, shouldClose)],
       ...(state !== undefined && { state }),
     });
   }
@@ -696,10 +726,19 @@ export class GitHubSyncService {
    * Build labels for a task.
    */
   private buildLabels(task: Task, shouldClose: boolean): string[] {
+    let statusLabel: string;
+    if (shouldClose) {
+      statusLabel = `${this.labelPrefix}:completed`;
+    } else if (isInProgress(task)) {
+      statusLabel = `${this.labelPrefix}:in-progress`;
+    } else {
+      statusLabel = `${this.labelPrefix}:pending`;
+    }
+
     return [
       this.labelPrefix,
       `${this.labelPrefix}:priority-${task.priority}`,
-      `${this.labelPrefix}:${shouldClose ? "completed" : "pending"}`,
+      statusLabel,
     ];
   }
 
@@ -906,14 +945,17 @@ export class GitHubSyncService {
 
       const taskId = this.extractTaskIdFromBody(issue.body || "");
       if (taskId) {
+        const allLabels = (issue.labels || [])
+          .map((l) => (typeof l === "string" ? l : l.name || ""))
+          .filter((l) => l.length > 0);
+
         result.set(taskId, {
           number: issue.number,
           title: issue.title,
           body: issue.body || "",
           state: issue.state as "open" | "closed",
-          labels: (issue.labels || [])
-            .map((l) => (typeof l === "string" ? l : l.name || ""))
-            .filter((l) => l.startsWith(this.labelPrefix)),
+          labels: allLabels.filter((l) => l.startsWith(this.labelPrefix)),
+          allLabels,
         });
       }
     }
