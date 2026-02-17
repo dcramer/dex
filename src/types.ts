@@ -3,10 +3,8 @@ import { z } from "zod";
 // Maximum content length (50KB) to prevent excessive file sizes
 const MAX_CONTENT_LENGTH = 50 * 1024;
 
-// ISO 8601 datetime that accepts:
-// - Timezone offsets (+00:00) in addition to Z suffix
-// - Variable fractional seconds (0-9 digits) for compatibility with
-//   Python and other tools that agents may use to generate timestamps
+// ISO 8601 datetime that accepts timezone offsets (+00:00) in addition to Z suffix,
+// for compatibility with Python and other tools that agents may use to generate timestamps
 function flexibleDatetime() {
   return z.string().datetime({ offset: true });
 }
