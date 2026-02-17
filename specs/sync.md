@@ -47,17 +47,28 @@ When remote is newer, these fields are pulled:
 - `started_at` timestamp
 - `commit` metadata (if present)
 
+### Subtask Sync
+
+Subtasks are embedded in the parent issue body. During sync and import:
+
+- **Push**: Subtask state is rendered as `<details>` blocks in the parent issue
+- **Pull**: When remote is newer, subtask state is reconciled:
+  - Existing local subtasks are updated from remote
+  - New subtasks found in remote are created locally
+- **Import**: `dex import` and `dex import --all` both create subtasks from issue body
+- **Update**: `dex import --update` creates new subtasks and updates existing ones
+
 ## Labels
 
 Dex manages labels on GitHub issues (using the configured prefix, default `dex`):
 
-| Label              | Meaning                           |
-| ------------------ | --------------------------------- |
-| `dex`              | Base label identifying dex-managed issues |
-| `dex:pending`      | Task not yet started              |
-| `dex:in-progress`  | Task started but not completed    |
-| `dex:completed`    | Task completed and verified       |
-| `dex:priority-N`   | Task priority level               |
+| Label             | Meaning                                   |
+| ----------------- | ----------------------------------------- |
+| `dex`             | Base label identifying dex-managed issues |
+| `dex:pending`     | Task not yet started                      |
+| `dex:in-progress` | Task started but not completed            |
+| `dex:completed`   | Task completed and verified               |
+| `dex:priority-N`  | Task priority level                       |
 
 Non-dex labels are preserved during sync updates. If you add labels like `bug`, `enhancement`, or custom team labels to a dex-managed issue, sync will not remove them.
 
