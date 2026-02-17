@@ -492,6 +492,65 @@ describe("import command", () => {
       expect(subtask!.parent_id).toBe("task600");
     });
 
+    it("updates existing subtasks during --update", async () => {
+      // First import: task with a subtask
+      githubMock.getIssue(
+        "test-owner",
+        "test-repo",
+        700,
+        createIssueFixture({
+          number: 700,
+          title: "Task With Sub",
+          body: createFullDexIssueBody({
+            context: "Has subtask",
+            rootMetadata: { id: "task700" },
+            subtasks: [{ id: "existsub1", name: "Original Name", priority: 1 }],
+          }),
+        }),
+      );
+      await runCli(["import", "#700"], { storage });
+
+      let tasks = await storage.readAsync();
+      expect(tasks.tasks).toHaveLength(2);
+      const originalSub = tasks.tasks.find((t) => t.id === "existsub1");
+      expect(originalSub).toBeDefined();
+      expect(originalSub!.name).toBe("Original Name");
+
+      // Second import with --update: subtask has changed
+      githubMock.getIssue(
+        "test-owner",
+        "test-repo",
+        700,
+        createIssueFixture({
+          number: 700,
+          title: "Task With Sub",
+          body: createFullDexIssueBody({
+            context: "Has subtask",
+            rootMetadata: { id: "task700" },
+            subtasks: [
+              {
+                id: "existsub1",
+                name: "Updated Name",
+                priority: 3,
+                completed: true,
+              },
+            ],
+          }),
+        }),
+      );
+      await runCli(["import", "#700", "--update"], { storage });
+
+      tasks = await storage.readAsync();
+      // Should still have 2 tasks, not 3 (no duplicate)
+      expect(tasks.tasks).toHaveLength(2);
+      const updatedSub = tasks.tasks.find((t) => t.id === "existsub1");
+      expect(updatedSub).toBeDefined();
+      expect(updatedSub!.name).toBe("Updated Name");
+      expect(updatedSub!.priority).toBe(3);
+      expect(updatedSub!.completed).toBe(true);
+      expect(updatedSub!.parent_id).toBe("task700");
+    });
+
     it("shows subtask counts in --all --dry-run", async () => {
       githubMock.listIssues("test-owner", "test-repo", [
         createIssueFixture({

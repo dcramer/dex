@@ -456,9 +456,7 @@ async function saveMetadata(
     for (const subtaskResult of result.subtaskResults) {
       if (subtaskResult.needsCreation && subtaskResult.createData) {
         // Create subtask that exists in remote but not locally
-        await service.create(
-          subtaskResult.createData as Parameters<typeof service.create>[0],
-        );
+        await service.create(subtaskResult.createData);
       } else {
         await saveMetadata(service, integrationId, subtaskResult);
       }

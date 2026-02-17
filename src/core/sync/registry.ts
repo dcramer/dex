@@ -1,4 +1,4 @@
-import type { Task, TaskStore } from "../../types.js";
+import type { Task, TaskStore, CreateTaskInput } from "../../types.js";
 import type { IntegrationId, SyncAllOptions } from "./interface.js";
 
 /**
@@ -20,7 +20,7 @@ export interface SyncResult {
   /** True if the task doesn't exist locally and needs to be created */
   needsCreation?: boolean;
   /** Full task data for creation (used when needsCreation is true) */
-  createData?: Record<string, unknown>;
+  createData?: CreateTaskInput;
 }
 
 /**

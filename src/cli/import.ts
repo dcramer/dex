@@ -498,7 +498,9 @@ async function importSubtasksFromIssueBody(
         completed: subtask.completed,
         started_at: subtask.started_at,
         result: subtask.result,
-        metadata: subtask.metadata,
+        metadata: subtask.metadata
+          ? { ...existing.metadata, ...subtask.metadata }
+          : existing.metadata,
       });
       idMapping.set(subtask.id, existing.id);
       updated++;
