@@ -311,6 +311,35 @@ describe("renderIssueBody", () => {
     expect(result).toContain("Completed successfully.");
   });
 
+  it("renders in-progress subtask with status indicator", () => {
+    const subtask = createTestSubtask({
+      name: "Active task",
+      description: "Working on it.",
+      started_at: "2024-01-22T10:30:00Z",
+    });
+
+    const result = renderIssueBody("Parent context.", [subtask]);
+
+    expect(result).toContain("<summary>🔄 <b>Active task</b></summary>");
+    expect(result).toContain("<!-- dex:subtask:completed:false -->");
+    expect(result).toContain(
+      "<!-- dex:subtask:started_at:2024-01-22T10:30:00Z -->",
+    );
+  });
+
+  it("renders pending subtask without status indicator", () => {
+    const subtask = createTestSubtask({
+      name: "Pending task",
+      description: "Not started.",
+    });
+
+    const result = renderIssueBody("Parent context.", [subtask]);
+
+    expect(result).toContain("<summary><b>Pending task</b></summary>");
+    expect(result).not.toContain("✅");
+    expect(result).not.toContain("🔄");
+  });
+
   it("renders multiple subtasks", () => {
     const subtasks = [
       createTestSubtask({ id: "9-1", name: "First", description: "Context 1" }),
@@ -770,6 +799,37 @@ describe("hierarchical issue body round-trip", () => {
     expect(subtask?.completed_at).toBe("2024-01-22T12:30:00Z");
     expect(subtask?.priority).toBe(3);
     expect(subtask?.completed).toBe(true);
+  });
+
+  it("round-trips in-progress subtask with started_at", () => {
+    const tasks = [
+      createTestTask({
+        id: "root",
+        name: "Root",
+        description: "Root",
+        children: ["inprog"],
+      }),
+      createTestTask({
+        id: "inprog",
+        parent_id: "root",
+        name: "In-progress task",
+        description: "Working on it",
+        started_at: "2024-01-22T10:30:00Z",
+      }),
+    ];
+
+    const descendants = collectDescendants(tasks, "root");
+    const rendered = renderHierarchicalIssueBody("Root", descendants);
+
+    // Verify rendering includes in-progress indicator
+    expect(rendered).toContain("🔄 <b>In-progress task</b>");
+
+    // Verify round-trip preserves state
+    const parsed = parseHierarchicalIssueBody(rendered);
+    const subtask = parsed.subtasks.find((s) => s.id === "inprog");
+    expect(subtask?.started_at).toBe("2024-01-22T10:30:00Z");
+    expect(subtask?.completed).toBe(false);
+    expect(subtask?.name).toBe("In-progress task");
   });
 
   it("preserves depth ordering in rendered output", () => {

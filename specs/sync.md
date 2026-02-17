@@ -47,6 +47,20 @@ When remote is newer, these fields are pulled:
 - `started_at` timestamp
 - `commit` metadata (if present)
 
+## Labels
+
+Dex manages labels on GitHub issues (using the configured prefix, default `dex`):
+
+| Label              | Meaning                           |
+| ------------------ | --------------------------------- |
+| `dex`              | Base label identifying dex-managed issues |
+| `dex:pending`      | Task not yet started              |
+| `dex:in-progress`  | Task started but not completed    |
+| `dex:completed`    | Task completed and verified       |
+| `dex:priority-N`   | Task priority level               |
+
+Non-dex labels are preserved during sync updates. If you add labels like `bug`, `enhancement`, or custom team labels to a dex-managed issue, sync will not remove them.
+
 ## Issue State Behavior
 
 ### Closing Issues
@@ -131,3 +145,4 @@ dex sync --shortcut    # Only Shortcut
 | Remote issue is closed   | Never reopen, update local if needed |
 | Task has verified commit | Close issue on sync                  |
 | Task has no commit       | Keep issue open                      |
+| Non-dex labels on issue  | Preserved during sync                |
