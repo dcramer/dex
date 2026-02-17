@@ -7,7 +7,9 @@ const MAX_CONTENT_LENGTH = 50 * 1024;
 // - Timezone offsets (+00:00) in addition to Z suffix
 // - Variable fractional seconds (0-9 digits) for compatibility with
 //   Python and other tools that agents may use to generate timestamps
-const flexibleDatetime = () => z.string().datetime({ offset: true });
+function flexibleDatetime() {
+  return z.string().datetime({ offset: true });
+}
 
 export const CommitMetadataSchema = z.object({
   sha: z.string().min(1),
