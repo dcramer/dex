@@ -1,3 +1,5 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { FileStorage } from "../core/storage/index.js";
 import { runCli } from "./index.js";
@@ -1265,6 +1267,373 @@ Old subtask context.
       const task = tasks.tasks[0];
       expect(task.name).toBe("Updated title");
       expect(task.priority).toBe(5);
+    });
+  });
+
+  describe("Beads import", () => {
+    function writeBeadsFixture(contents: string): string {
+      const fixturePath = path.join(
+        storage.getIdentifier(),
+        "beads-fixture.jsonl",
+      );
+      fs.writeFileSync(fixturePath, contents, "utf-8");
+      return fixturePath;
+    }
+
+    it("imports tasks from --beads", async () => {
+      const filePath = writeBeadsFixture(
+        [
+          JSON.stringify({
+            id: "beads-parent",
+            title: "Parent task",
+            description: "Parent description",
+            status: "open",
+            priority: 1,
+            created_at: "2026-01-01T00:00:00Z",
+            updated_at: "2026-01-01T00:10:00Z",
+          }),
+          JSON.stringify({
+            id: "beads-child",
+            title: "Child task",
+            description: "Child description",
+            status: "hooked",
+            priority: 2,
+            created_at: "2026-01-01T00:20:00Z",
+            updated_at: "2026-01-01T00:30:00Z",
+            dependencies: [
+              {
+                issue_id: "beads-child",
+                depends_on_id: "beads-parent",
+                type: "parent-child",
+              },
+              {
+                issue_id: "beads-child",
+                depends_on_id: "beads-parent",
+                type: "blocks",
+              },
+            ],
+          }),
+        ].join("\n") + "\n",
+      );
+
+      await runCli(["import", "--beads", filePath], { storage });
+
+      const out = output.stdout.join("\n");
+      expect(out).toContain("Beads: Imported 2, updated 0 task(s)");
+
+      const tasks = await storage.readAsync();
+      expect(tasks.tasks).toHaveLength(2);
+
+      const parent = tasks.tasks.find((task) => task.id === "beads-parent");
+      const child = tasks.tasks.find((task) => task.id === "beads-child");
+
+      expect(parent).toBeDefined();
+      expect(parent?.metadata?.beads?.issueId).toBe("beads-parent");
+      expect(child).toBeDefined();
+      expect(child?.parent_id).toBe("beads-parent");
+      expect(child?.blockedBy).toEqual(["beads-parent"]);
+      expect(child?.started_at).toBe("2026-01-01T00:30:00Z");
+    });
+
+    it("supports --dry-run for --beads", async () => {
+      const filePath = writeBeadsFixture(
+        `${JSON.stringify({ id: "dry-run-1", title: "Dry run", status: "open", priority: 1 })}\n`,
+      );
+
+      await runCli(["import", "--beads", filePath, "--dry-run"], {
+        storage,
+      });
+
+      const out = output.stdout.join("\n");
+      expect(out).toContain("Would import 1 and update 0 task(s)");
+
+      const tasks = await storage.readAsync();
+      expect(tasks.tasks).toHaveLength(0);
+    });
+
+    it("updates existing tasks from Beads with --update", async () => {
+      const filePath = writeBeadsFixture(
+        [
+          JSON.stringify({
+            id: "update-parent",
+            title: "Parent v1",
+            status: "open",
+            priority: 1,
+          }),
+          JSON.stringify({
+            id: "update-child",
+            title: "Child v1",
+            status: "open",
+            priority: 2,
+            dependencies: [
+              {
+                issue_id: "update-child",
+                depends_on_id: "update-parent",
+                type: "blocks",
+              },
+            ],
+          }),
+        ].join("\n") + "\n",
+      );
+
+      await runCli(["import", "--beads", filePath], { storage });
+
+      writeBeadsFixture(
+        [
+          JSON.stringify({
+            id: "update-parent",
+            title: "Parent v2",
+            status: "closed",
+            priority: 1,
+            closed_at: "2026-01-02T00:00:00Z",
+            close_reason: "Done",
+          }),
+          JSON.stringify({
+            id: "update-child",
+            title: "Child v2",
+            status: "open",
+            priority: 3,
+            dependencies: [],
+          }),
+        ].join("\n") + "\n",
+      );
+
+      await runCli(["import", "--beads", filePath, "--update"], {
+        storage,
+      });
+
+      const tasks = await storage.readAsync();
+      const parent = tasks.tasks.find((task) => task.id === "update-parent");
+      const child = tasks.tasks.find((task) => task.id === "update-child");
+
+      expect(parent?.name).toBe("Parent v2");
+      expect(parent?.completed).toBe(true);
+      expect(new Date(parent?.completed_at ?? "").toISOString()).toBe(
+        "2026-01-02T00:00:00.000Z",
+      );
+      expect(child?.name).toBe("Child v2");
+      expect(child?.priority).toBe(3);
+      expect(child?.blockedBy).toEqual([]);
+    });
+
+    it("preserves completed_at on update when Beads closed issue has no closed_at", async () => {
+      const filePath = writeBeadsFixture(
+        `${JSON.stringify({
+          id: "completed-preserve",
+          title: "Completed v1",
+          status: "closed",
+          priority: 1,
+          closed_at: "2026-01-05T00:00:00Z",
+        })}\n`,
+      );
+
+      await runCli(["import", "--beads", filePath], { storage });
+
+      writeBeadsFixture(
+        `${JSON.stringify({
+          id: "completed-preserve",
+          title: "Completed v2",
+          status: "closed",
+          priority: 1,
+        })}\n`,
+      );
+
+      await runCli(["import", "--beads", filePath, "--update"], {
+        storage,
+      });
+
+      const tasks = await storage.readAsync();
+      const task = tasks.tasks.find((item) => item.id === "completed-preserve");
+
+      expect(task?.completed).toBe(true);
+      expect(task?.name).toBe("Completed v2");
+      expect(new Date(task?.completed_at ?? "").toISOString()).toBe(
+        "2026-01-05T00:00:00.000Z",
+      );
+    });
+
+    it("reports warnings for missing relationship targets without failing import", async () => {
+      const filePath = writeBeadsFixture(
+        `${JSON.stringify({
+          id: "warn-1",
+          title: "Warn issue",
+          status: "open",
+          priority: 1,
+          dependencies: [
+            {
+              issue_id: "warn-1",
+              depends_on_id: "missing-issue",
+              type: "blocks",
+            },
+          ],
+        })}\n`,
+      );
+
+      await runCli(["import", "--beads", filePath], { storage });
+
+      const out = output.stdout.join("\n");
+      expect(out).toContain("Warnings:");
+      expect(out).toContain("missing-issue");
+
+      const tasks = await storage.readAsync();
+      expect(tasks.tasks).toHaveLength(1);
+      expect(tasks.tasks[0].id).toBe("warn-1");
+    });
+
+    it("imports selected Beads issue and all descendants", async () => {
+      const filePath = writeBeadsFixture(
+        [
+          JSON.stringify({
+            id: "tree-root",
+            title: "Root",
+            status: "open",
+            priority: 1,
+          }),
+          JSON.stringify({
+            id: "tree-child",
+            title: "Child",
+            status: "open",
+            priority: 1,
+            dependencies: [
+              {
+                issue_id: "tree-child",
+                depends_on_id: "tree-root",
+                type: "parent-child",
+              },
+            ],
+          }),
+          JSON.stringify({
+            id: "tree-grandchild",
+            title: "Grandchild",
+            status: "open",
+            priority: 1,
+            dependencies: [
+              {
+                issue_id: "tree-grandchild",
+                depends_on_id: "tree-child",
+                type: "parent-child",
+              },
+            ],
+          }),
+          JSON.stringify({
+            id: "other-root",
+            title: "Other root",
+            status: "open",
+            priority: 1,
+          }),
+        ].join("\n") + "\n",
+      );
+
+      await runCli(["import", "--beads", filePath, "tree-root"], { storage });
+
+      const tasks = await storage.readAsync();
+      const importedIds = tasks.tasks.map((task) => task.id).sort();
+      expect(importedIds).toEqual([
+        "tree-child",
+        "tree-grandchild",
+        "tree-root",
+      ]);
+
+      const child = tasks.tasks.find((task) => task.id === "tree-child");
+      const grandchild = tasks.tasks.find(
+        (task) => task.id === "tree-grandchild",
+      );
+      expect(child?.parent_id).toBe("tree-root");
+      expect(grandchild?.parent_id).toBe("tree-child");
+    });
+
+    it("imports multiple selected Beads issue trees", async () => {
+      const filePath = writeBeadsFixture(
+        [
+          JSON.stringify({
+            id: "alpha",
+            title: "Alpha",
+            status: "open",
+            priority: 1,
+          }),
+          JSON.stringify({
+            id: "alpha-child",
+            title: "Alpha child",
+            status: "open",
+            priority: 1,
+            dependencies: [
+              {
+                issue_id: "alpha-child",
+                depends_on_id: "alpha",
+                type: "parent-child",
+              },
+            ],
+          }),
+          JSON.stringify({
+            id: "beta",
+            title: "Beta",
+            status: "open",
+            priority: 1,
+          }),
+          JSON.stringify({
+            id: "beta-child",
+            title: "Beta child",
+            status: "open",
+            priority: 1,
+            dependencies: [
+              {
+                issue_id: "beta-child",
+                depends_on_id: "beta",
+                type: "parent-child",
+              },
+            ],
+          }),
+          JSON.stringify({
+            id: "gamma",
+            title: "Gamma",
+            status: "open",
+            priority: 1,
+          }),
+        ].join("\n") + "\n",
+      );
+
+      await runCli(["import", "--beads", filePath, "alpha", "beta"], {
+        storage,
+      });
+
+      const tasks = await storage.readAsync();
+      const importedIds = tasks.tasks.map((task) => task.id).sort();
+      expect(importedIds).toEqual([
+        "alpha",
+        "alpha-child",
+        "beta",
+        "beta-child",
+      ]);
+    });
+
+    it("fails when selected Beads issue ids are missing", async () => {
+      const filePath = writeBeadsFixture(
+        `${JSON.stringify({ id: "known-1", title: "Known", status: "open", priority: 1 })}\n`,
+      );
+
+      await expect(
+        runCli(["import", "--beads", filePath, "missing-1", "missing-2"], {
+          storage,
+        }),
+      ).rejects.toThrow("process.exit");
+
+      const err = output.stderr.join("\n");
+      expect(err).toContain(
+        "Beads issue id(s) not found in export: missing-1, missing-2",
+      );
+    });
+
+    it("rejects invalid flag combinations with --beads", async () => {
+      const filePath = writeBeadsFixture(
+        `${JSON.stringify({ id: "invalid-1", title: "Invalid", status: "open" })}\n`,
+      );
+
+      await expect(
+        runCli(["import", "--beads", filePath, "--all"], { storage }),
+      ).rejects.toThrow("process.exit");
+
+      const err = output.stderr.join("\n");
+      expect(err).toContain("cannot be combined");
     });
   });
 });

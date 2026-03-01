@@ -125,6 +125,46 @@ describe("TaskService", () => {
       expect(updated.priority).toBe(10);
     });
 
+    it("preserves explicit completed_at when marking task completed", async () => {
+      const task = await service.create({
+        name: "Test",
+        description: "Description",
+      });
+
+      const updated = await service.update({
+        id: task.id,
+        completed: true,
+        completed_at: "2026-01-02T03:04:05Z",
+      });
+
+      expect(updated.completed).toBe(true);
+      expect(new Date(updated.completed_at ?? "").toISOString()).toBe(
+        "2026-01-02T03:04:05.000Z",
+      );
+    });
+
+    it("clears completed_at when reopening, even if completed_at is provided", async () => {
+      const task = await service.create({
+        name: "Test",
+        description: "Description",
+      });
+
+      await service.update({
+        id: task.id,
+        completed: true,
+        completed_at: "2026-01-02T03:04:05Z",
+      });
+
+      const reopened = await service.update({
+        id: task.id,
+        completed: false,
+        completed_at: "2027-02-03T04:05:06Z",
+      });
+
+      expect(reopened.completed).toBe(false);
+      expect(reopened.completed_at).toBeNull();
+    });
+
     it("throws when task does not exist", async () => {
       await expect(
         service.update({
