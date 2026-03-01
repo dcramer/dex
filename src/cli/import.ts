@@ -1,7 +1,9 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
 import type { CliOptions } from "./utils.js";
 import { createService, formatCliError } from "./utils.js";
 import { colors } from "./colors.js";
-import { getBooleanFlag, parseArgs } from "./args.js";
+import { getBooleanFlag, getStringFlag, parseArgs } from "./args.js";
 import type { GitHubRepo } from "../core/github/index.js";
 import {
   getGitHubIssueNumber,
@@ -18,6 +20,10 @@ import {
   parseTaskMetadata as parseShortcutTaskMetadata,
   parseStoryDescription,
 } from "../core/shortcut/index.js";
+import {
+  parseBeadsExportJsonl,
+  type ParsedBeadsIssue,
+} from "../core/beads/index.js";
 import { loadConfig } from "../core/config.js";
 import type { Task, ShortcutMetadata } from "../types.js";
 import { Octokit } from "@octokit/rest";
@@ -32,6 +38,7 @@ export async function importCommand(
       all: { hasValue: false },
       "dry-run": { hasValue: false },
       update: { hasValue: false },
+      beads: { hasValue: true },
       github: { hasValue: false },
       shortcut: { hasValue: false },
       help: { short: "h", hasValue: false },
@@ -40,30 +47,35 @@ export async function importCommand(
   );
 
   if (getBooleanFlag(flags, "help")) {
-    console.log(`${colors.bold}dex import${colors.reset} - Import GitHub Issues or Shortcut Stories as tasks
+    console.log(`${colors.bold}dex import${colors.reset} - Import GitHub, Shortcut, or Beads items as tasks
 
 ${colors.bold}USAGE:${colors.reset}
-  dex import #123            # Import GitHub issue #123
-  dex import sc#123          # Import Shortcut story #123
-  dex import <url>           # Import by full URL
-  dex import --all           # Import all dex-labeled items
-  dex import --all --github  # Import only from GitHub
-  dex import --all --shortcut # Import only from Shortcut
-  dex import --dry-run       # Preview without importing
-  dex import #123 --update   # Update existing task
+  dex import #123                             # Import GitHub issue #123
+  dex import sc#123                           # Import Shortcut story #123
+  dex import --beads data.jsonl               # Import all issues from Beads export
+  dex import --beads data.jsonl id1 id2       # Import selected Beads issues + descendants
+  dex import <url>                            # Import by full URL
+  dex import --all                            # Import all dex-labeled items
+  dex import --all --github                   # Import only from GitHub
+  dex import --all --shortcut                 # Import only from Shortcut
+  dex import --dry-run                        # Preview without importing
+  dex import #123 --update                    # Update existing task
 
 ${colors.bold}ARGUMENTS:${colors.reset}
-  <ref>                   Reference format:
-                          GitHub: #N, URL, or owner/repo#N
-                          Shortcut: sc#N, SC#N, or full URL
+  <ref>                      Reference format (ref mode only):
+                             GitHub: #N, URL, or owner/repo#N
+                             Shortcut: sc#N, SC#N, or full URL
+  [issue-id...]              Optional Beads issue IDs (beads mode only)
+                             Imports each selected issue and all descendants
 
 ${colors.bold}OPTIONS:${colors.reset}
-  --all                   Import all items with dex label
-  --github                Filter --all to only GitHub
-  --shortcut              Filter --all to only Shortcut
-  --update                Update existing task if already imported
-  --dry-run               Show what would be imported without making changes
-  -h, --help              Show this help message
+  --all                      Import all items with dex label
+  --beads <path>             Import from Beads JSONL export file
+  --github                   Filter --all to only GitHub
+  --shortcut                 Filter --all to only Shortcut
+  --update                   Update existing task if already imported
+  --dry-run                  Show what would be imported without making changes
+  -h, --help                 Show this help message
 
 ${colors.bold}REQUIREMENTS:${colors.reset}
   GitHub:
@@ -73,9 +85,14 @@ ${colors.bold}REQUIREMENTS:${colors.reset}
   Shortcut:
     - SHORTCUT_API_TOKEN environment variable
 
+  Beads:
+    - Local JSONL export file (for example from 'bd export')
+
 ${colors.bold}EXAMPLE:${colors.reset}
   dex import #42                              # Import GitHub issue
   dex import sc#123                           # Import Shortcut story
+  dex import --beads ~/tmp/beads.jsonl        # Import all from Beads
+  dex import --beads ~/tmp/beads.jsonl i1 i2  # Import selected Beads issues + descendants
   dex import https://github.com/user/repo/issues/42
   dex import https://app.shortcut.com/myorg/story/123
   dex import --all                            # Import all dex items
@@ -87,17 +104,31 @@ ${colors.bold}EXAMPLE:${colors.reset}
 
   const ref = positional[0];
   const importAll = getBooleanFlag(flags, "all");
+  const beadsFile = getStringFlag(flags, "beads");
+  const beadsIssueIds = beadsFile ? positional : [];
   const dryRun = getBooleanFlag(flags, "dry-run");
   const update = getBooleanFlag(flags, "update");
   const githubOnly = getBooleanFlag(flags, "github");
   const shortcutOnly = getBooleanFlag(flags, "shortcut");
 
-  if (!ref && !importAll) {
+  if (beadsFile) {
+    if (importAll || githubOnly || shortcutOnly) {
+      console.error(
+        `${colors.red}Error:${colors.reset} --beads cannot be combined with --all, --github, or --shortcut`,
+      );
+      console.error(
+        `Usage: dex import --beads <path> [issue-id...] [--update] [--dry-run]`,
+      );
+      process.exit(1);
+    }
+  }
+
+  if (!ref && !importAll && !beadsFile) {
     console.error(
       `${colors.red}Error:${colors.reset} Reference or --all required`,
     );
     console.error(
-      `Usage: dex import #123, dex import sc#123, or dex import --all`,
+      `Usage: dex import #123, dex import sc#123, dex import --all, or dex import --beads <path> [issue-id...]`,
     );
     process.exit(1);
   }
@@ -106,7 +137,15 @@ ${colors.bold}EXAMPLE:${colors.reset}
   const service = createService(options);
 
   try {
-    if (importAll) {
+    if (beadsFile) {
+      await importFromBeadsFile(
+        service,
+        beadsFile,
+        dryRun,
+        update,
+        beadsIssueIds,
+      );
+    } else if (importAll) {
       // Import all from GitHub and/or Shortcut
       const importFromGitHub = !shortcutOnly;
       const importFromShortcut = !githubOnly;
@@ -157,6 +196,283 @@ function parseShortcutRef(
   }
 
   return null;
+}
+
+// ============================================================
+// Beads Import Functions
+// ============================================================
+
+async function importFromBeadsFile(
+  service: ReturnType<typeof createService>,
+  filePath: string,
+  dryRun: boolean,
+  update: boolean,
+  requestedIssueIds: string[] = [],
+): Promise<void> {
+  const resolvedPath = path.resolve(filePath);
+
+  let input: string;
+  try {
+    input = fs.readFileSync(resolvedPath, "utf-8");
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`Failed to read Beads file ${resolvedPath}: ${message}`);
+  }
+
+  const parsed = parseBeadsExportJsonl(input);
+  const parseWarnings = [...parsed.warnings];
+
+  if (parsed.issues.length === 0) {
+    console.log(`No Beads issues found in ${resolvedPath}.`);
+    if (parseWarnings.length > 0) {
+      printBeadsWarnings(parseWarnings);
+    }
+    return;
+  }
+
+  const issuesToImport = selectBeadsIssues(parsed.issues, requestedIssueIds);
+
+  const existingTasks = await service.list({ all: true });
+  const existingById = new Map(existingTasks.map((task) => [task.id, task]));
+
+  const toCreate = issuesToImport.filter(
+    (issue) => !existingById.has(issue.id),
+  );
+  const toExisting = issuesToImport.filter((issue) =>
+    existingById.has(issue.id),
+  );
+
+  if (dryRun) {
+    const wouldUpdate = update ? toExisting.length : 0;
+    const wouldSkip = update ? 0 : toExisting.length;
+
+    console.log(
+      `Would import ${toCreate.length} and update ${wouldUpdate} task(s) from Beads file ${colors.cyan}${resolvedPath}${colors.reset}`,
+    );
+    if (wouldSkip > 0) {
+      console.log(
+        `Would skip ${wouldSkip} existing task(s) (use --update to refresh)`,
+      );
+    }
+
+    if (parseWarnings.length > 0) {
+      printBeadsWarnings(parseWarnings);
+    }
+    return;
+  }
+
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+  const createdIds = new Set<string>();
+
+  for (const issue of issuesToImport) {
+    const existing = existingById.get(issue.id);
+
+    if (existing) {
+      if (!update) {
+        skipped++;
+        continue;
+      }
+
+      await service.update({
+        id: issue.id,
+        name: issue.name,
+        description: issue.description,
+        priority: issue.priority,
+        completed: issue.completed,
+        ...(!issue.completed
+          ? { completed_at: null }
+          : issue.completed_at
+            ? { completed_at: issue.completed_at }
+            : {}),
+        result: issue.completed ? issue.result : null,
+        started_at: issue.started_at ?? null,
+        metadata: {
+          ...(existing.metadata ?? {}),
+          beads: issue.beadsMetadata,
+        },
+      });
+      updated++;
+      continue;
+    }
+
+    await service.create({
+      id: issue.id,
+      name: issue.name,
+      description: issue.description,
+      priority: issue.priority,
+      completed: issue.completed,
+      result: issue.result,
+      created_at: issue.created_at,
+      updated_at: issue.updated_at,
+      started_at: issue.started_at,
+      completed_at: issue.completed_at,
+      metadata: {
+        beads: issue.beadsMetadata,
+      },
+    });
+    createdIds.add(issue.id);
+    created++;
+  }
+
+  const relationshipWarnings = [...parseWarnings];
+  const currentTasks = await service.list({ all: true });
+  const currentById = new Map(currentTasks.map((task) => [task.id, task]));
+
+  for (const issue of issuesToImport) {
+    const shouldApplyRelationships =
+      createdIds.has(issue.id) || (update && existingById.has(issue.id));
+    if (!shouldApplyRelationships) continue;
+
+    const current = currentById.get(issue.id);
+    if (!current) {
+      relationshipWarnings.push(
+        `Issue ${issue.id}: task was not found after import; skipping relationship sync`,
+      );
+      continue;
+    }
+
+    const desiredParent = issue.parentId ?? null;
+    if (desiredParent !== current.parent_id) {
+      if (desiredParent && !currentById.has(desiredParent)) {
+        relationshipWarnings.push(
+          `Issue ${issue.id}: parent ${desiredParent} is missing, skipping parent link`,
+        );
+      } else {
+        try {
+          await service.update({ id: issue.id, parent_id: desiredParent });
+          current.parent_id = desiredParent;
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          relationshipWarnings.push(
+            `Issue ${issue.id}: could not set parent to ${desiredParent ?? "(none)"}: ${message}`,
+          );
+        }
+      }
+    }
+
+    const desiredBlockers: string[] = [];
+    for (const blockerId of issue.blockerIds) {
+      if (blockerId === issue.id) {
+        relationshipWarnings.push(
+          `Issue ${issue.id}: self-blocking dependency ignored`,
+        );
+        continue;
+      }
+      if (!currentById.has(blockerId)) {
+        relationshipWarnings.push(
+          `Issue ${issue.id}: blocker ${blockerId} missing, skipping blocker link`,
+        );
+        continue;
+      }
+      desiredBlockers.push(blockerId);
+    }
+
+    const currentBlockers = new Set(current.blockedBy);
+    const desiredSet = new Set(desiredBlockers);
+
+    const addBlockedBy = [...desiredSet].filter(
+      (id) => !currentBlockers.has(id),
+    );
+    const removeBlockedBy = update
+      ? [...currentBlockers].filter((id) => !desiredSet.has(id))
+      : [];
+
+    if (addBlockedBy.length > 0 || removeBlockedBy.length > 0) {
+      try {
+        await service.update({
+          id: issue.id,
+          ...(addBlockedBy.length > 0 && { add_blocked_by: addBlockedBy }),
+          ...(removeBlockedBy.length > 0 && {
+            remove_blocked_by: removeBlockedBy,
+          }),
+        });
+
+        const nextBlockedBy = [
+          ...current.blockedBy.filter((id) => !removeBlockedBy.includes(id)),
+          ...addBlockedBy,
+        ];
+        current.blockedBy = Array.from(new Set(nextBlockedBy));
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        relationshipWarnings.push(
+          `Issue ${issue.id}: could not update blockers: ${message}`,
+        );
+      }
+    }
+  }
+
+  console.log(
+    `Beads: Imported ${created}, updated ${updated} task(s) from ${colors.cyan}${resolvedPath}${colors.reset}`,
+  );
+  if (skipped > 0) {
+    console.log(
+      `Skipped ${skipped} existing task(s) (use --update to refresh)`,
+    );
+  }
+
+  if (relationshipWarnings.length > 0) {
+    printBeadsWarnings(relationshipWarnings);
+  }
+}
+
+function selectBeadsIssues(
+  issues: ParsedBeadsIssue[],
+  requestedIssueIds: string[],
+): ParsedBeadsIssue[] {
+  const normalizedRequested = Array.from(
+    new Set(requestedIssueIds.map((id) => id.trim()).filter(Boolean)),
+  );
+
+  if (normalizedRequested.length === 0) {
+    return issues;
+  }
+
+  const issueById = new Map(issues.map((issue) => [issue.id, issue]));
+  const missingIssueIds = normalizedRequested.filter(
+    (id) => !issueById.has(id),
+  );
+  if (missingIssueIds.length > 0) {
+    throw new Error(
+      `Beads issue id(s) not found in export: ${missingIssueIds.join(", ")}`,
+    );
+  }
+
+  const childrenByParent = new Map<string, string[]>();
+  for (const issue of issues) {
+    if (!issue.parentId) continue;
+    const children = childrenByParent.get(issue.parentId) ?? [];
+    children.push(issue.id);
+    childrenByParent.set(issue.parentId, children);
+  }
+
+  const selectedIds = new Set<string>();
+  const queue = [...normalizedRequested];
+  while (queue.length > 0) {
+    const issueId = queue.shift();
+    if (!issueId || selectedIds.has(issueId)) continue;
+
+    selectedIds.add(issueId);
+    const childIds = childrenByParent.get(issueId) ?? [];
+    queue.push(...childIds);
+  }
+
+  return issues.filter((issue) => selectedIds.has(issue.id));
+}
+
+function printBeadsWarnings(warnings: string[]): void {
+  const maxWarnings = 20;
+  console.log(
+    `${colors.yellow}Warnings:${colors.reset} ${warnings.length} encountered during Beads import`,
+  );
+  const shown = warnings.slice(0, maxWarnings);
+  for (const warning of shown) {
+    console.log(`  - ${warning}`);
+  }
+  if (warnings.length > maxWarnings) {
+    console.log(`  - ...and ${warnings.length - maxWarnings} more`);
+  }
 }
 
 // ============================================================

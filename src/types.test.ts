@@ -314,6 +314,60 @@ describe("TaskSchema migrations", () => {
       expect(task.metadata?.commit?.sha).toBe("abc123");
     });
   });
+
+  describe("beads metadata compatibility", () => {
+    it("accepts beads metadata on tasks", () => {
+      const taskWithBeadsMetadata = {
+        id: "beads-task-1",
+        name: "Imported from Beads",
+        description: "Imported description",
+        priority: 2,
+        completed: false,
+        result: null,
+        metadata: {
+          beads: {
+            issueId: "beads-task-1",
+            status: "open",
+            issueType: "task",
+            blockerIds: ["beads-task-2"],
+          },
+        },
+        created_at: "2026-01-01T00:00:00.000Z",
+        updated_at: "2026-01-01T00:00:00.000Z",
+        completed_at: null,
+      };
+
+      const task = TaskSchema.parse(taskWithBeadsMetadata);
+      expect(task.metadata?.beads?.issueId).toBe("beads-task-1");
+      expect(task.metadata?.beads?.status).toBe("open");
+      expect(task.metadata?.beads?.blockerIds).toEqual(["beads-task-2"]);
+    });
+
+    it("preserves backward compatibility for tasks without beads metadata", () => {
+      const taskWithoutBeads = {
+        id: "legacy-no-beads",
+        name: "Legacy task",
+        description: "Still valid",
+        priority: 1,
+        completed: false,
+        result: null,
+        metadata: {
+          github: {
+            issueNumber: 42,
+            issueUrl: "https://github.com/example/repo/issues/42",
+            repo: "example/repo",
+          },
+        },
+        created_at: "2026-01-01T00:00:00.000Z",
+        updated_at: "2026-01-01T00:00:00.000Z",
+        completed_at: null,
+      };
+
+      const task = TaskSchema.parse(taskWithoutBeads);
+      expect(task.metadata?.github?.issueNumber).toBe(42);
+      expect(task.metadata?.beads).toBeUndefined();
+    });
+  });
 });
 
 describe("ArchivedTaskSchema migrations", () => {
