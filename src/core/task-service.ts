@@ -407,9 +407,15 @@ export class TaskService {
     if (input.completed !== undefined) {
       // Handle completed_at timestamp based on completion transition
       if (input.completed && !task.completed) {
-        task.completed_at = now;
+        task.completed_at = input.completed_at ?? now;
       } else if (!input.completed && task.completed) {
         task.completed_at = null;
+      } else if (
+        input.completed &&
+        task.completed &&
+        input.completed_at !== undefined
+      ) {
+        task.completed_at = input.completed_at;
       }
       task.completed = input.completed;
     }

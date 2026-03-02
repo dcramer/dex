@@ -50,6 +50,7 @@ ${colors.bold}COMMANDS:${colors.reset}
   import #N                        Import GitHub issue
   import sc#N                      Import Shortcut story
   import --all                     Import all dex-labeled items
+  import --beads <path>            Import tasks from Beads JSONL export
   export <id>...                   Export tasks to GitHub (no sync back)
   completion <shell>               Generate shell completion script
 
@@ -102,9 +103,11 @@ ${colors.bold}EXAMPLES:${colors.reset}
   dex sync --dry-run                # Preview what would be synced
 
   ${colors.dim}# Import from external services:${colors.reset}
-  dex import #42                    # Import GitHub issue #42
-  dex import sc#123                 # Import Shortcut story #123
-  dex import --all                  # Import all dex-labeled items
-  dex import --all --shortcut       # Import only from Shortcut
+  dex import #42                              # Import GitHub issue #42
+  dex import sc#123                           # Import Shortcut story #123
+  dex import --all                            # Import all dex-labeled items
+  dex import --all --shortcut                 # Import only from Shortcut
+  dex import --beads ./beads.jsonl            # Import all from Beads export
+  dex import --beads ./beads.jsonl id1 id2    # Import selected Beads trees
 `);
 }

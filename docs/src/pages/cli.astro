@@ -243,15 +243,17 @@ dex sync --dry-run          # Preview sync`}
 
   <div class="command-card">
     <h3>dex import</h3>
-    <div class="synopsis">dex import &lt;ref&gt; [options]</div>
-    <p>Import a GitHub Issue or Shortcut Story as a dex task.</p>
+    <div class="synopsis">dex import &lt;ref&gt; [options] | dex import --beads &lt;path&gt; [issue-id...] [options]</div>
+    <p>Import a GitHub Issue, Shortcut Story, or Beads JSONL export as dex tasks.</p>
     <ul>
       <li><code>--all</code> — Import all items with the dex label</li>
+      <li><code>--beads &lt;path&gt;</code> — Import from Beads JSONL export file</li>
       <li><code>--github</code> — Filter <code>--all</code> to only GitHub</li>
       <li><code>--shortcut</code> — Filter <code>--all</code> to only Shortcut</li>
       <li><code>--update</code> — Update existing task if already imported</li>
       <li><code>--dry-run</code> — Preview what would be imported</li>
     </ul>
+    <p><strong>Beads selection:</strong> pass one or more issue IDs after <code>--beads &lt;path&gt;</code> to import only those issues and their descendants.</p>
     <p><strong>Reference formats:</strong></p>
     <ul>
       <li>GitHub: <code>#123</code>, <code>owner/repo#123</code>, or full URL</li>
@@ -261,6 +263,8 @@ dex sync --dry-run          # Preview sync`}
       <Code
         code={`dex import #42                    # Import GitHub issue #42
 dex import sc#123                 # Import Shortcut story #123
+dex import --beads ./beads.jsonl       # Import all from Beads export
+dex import --beads ./beads.jsonl issue-1 issue-2  # Import selected Beads issues + descendants
 dex import https://github.com/owner/repo/issues/42
 dex import https://app.shortcut.com/myorg/story/123
 dex import --all                  # Import all dex-labeled items

@@ -37,11 +37,26 @@ export const ShortcutMetadataSchema = z.object({
 
 export type ShortcutMetadata = z.infer<typeof ShortcutMetadataSchema>;
 
+export const BeadsMetadataSchema = z.object({
+  issueId: z.string().min(1),
+  status: z.string().min(1).optional(),
+  issueType: z.string().min(1).optional(),
+  sourceSystem: z.string().min(1).optional(),
+  externalRef: z.string().min(1).optional(),
+  labels: z.array(z.string().min(1)).optional(),
+  parentId: z.string().min(1).optional(),
+  blockerIds: z.array(z.string().min(1)).optional(),
+  dependencyTypes: z.array(z.string().min(1)).optional(),
+});
+
+export type BeadsMetadata = z.infer<typeof BeadsMetadataSchema>;
+
 export const TaskMetadataSchema = z
   .object({
     commit: CommitMetadataSchema.optional(),
     github: GithubMetadataSchema.optional(),
     shortcut: ShortcutMetadataSchema.optional(),
+    beads: BeadsMetadataSchema.optional(),
   })
   .nullable();
 
@@ -186,6 +201,7 @@ export const UpdateTaskInputSchema = z.object({
     .optional(),
   metadata: TaskMetadataSchema.nullable().optional(),
   started_at: flexibleDatetime().nullable().optional(),
+  completed_at: flexibleDatetime().nullable().optional(),
   delete: z.boolean().optional(),
   add_blocked_by: z.array(z.string().min(1)).optional(),
   remove_blocked_by: z.array(z.string().min(1)).optional(),
