@@ -24,6 +24,7 @@ export async function editCommand(
       "add-blocker": { hasValue: true },
       "remove-blocker": { hasValue: true },
       commit: { short: "c", hasValue: true },
+      unstart: { hasValue: false },
       help: { short: "h", hasValue: false },
     },
     "edit",
@@ -46,6 +47,7 @@ ${colors.bold}OPTIONS:${colors.reset}
   --add-blocker <ids>        Comma-separated task IDs to add as blockers
   --remove-blocker <ids>     Comma-separated task IDs to remove as blockers
   -c, --commit <sha>         Link a git commit to the task
+  --unstart                  Clear started status (move back to ready)
   -h, --help                 Show this help message
 
 ${colors.bold}EXAMPLE:${colors.reset}
@@ -55,6 +57,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
   dex edit abc123 --add-blocker def456
   dex edit abc123 --remove-blocker def456
   dex edit abc123 --commit a1b2c3d
+  dex edit abc123 --unstart
 `);
     return;
   }
@@ -118,6 +121,8 @@ ${colors.bold}EXAMPLE:${colors.reset}
       };
     }
 
+    const unstart = getBooleanFlag(flags, "unstart");
+
     const task = await service.update({
       id,
       name: getStringFlag(flags, "name"),
@@ -127,6 +132,7 @@ ${colors.bold}EXAMPLE:${colors.reset}
       add_blocked_by: addBlockedBy,
       remove_blocked_by: removeBlockedBy,
       metadata,
+      ...(unstart ? { started_at: null } : {}),
     });
 
     console.log(
