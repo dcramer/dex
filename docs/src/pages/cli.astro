@@ -163,12 +163,14 @@ dex complete abc123 --result "Planning complete, no code changes" --no-commit`}
       <li><code>-d, --description</code> — Updated description</li>
       <li><code>--add-blocker &lt;id&gt;</code> — Add blocking dependency</li>
       <li><code>--remove-blocker &lt;id&gt;</code> — Remove blocking dependency</li>
+      <li><code>--unstart</code> — Clear started status (move back to ready)</li>
     </ul>
     <Terminal title="Terminal">
       <Code
         code={`dex edit abc123 -n "Updated name"
 dex edit abc123 --add-blocker xyz789
-dex edit abc123 --remove-blocker xyz789`}
+dex edit abc123 --remove-blocker xyz789
+dex edit abc123 --unstart`}
         lang="bash"
         theme="vitesse-black"
       />

@@ -370,4 +370,39 @@ describe("edit command", () => {
     const out = output.stdout.join("\n");
     expect(out).toContain("--commit");
   });
+
+  it("moves an in-progress task back to ready with --unstart", async () => {
+    await runCli(["create", "-n", "In progress task", "--description", "ctx"], {
+      storage,
+    });
+    const taskId = output.stdout.join("\n").match(TASK_ID_REGEX)?.[1];
+    output.stdout.length = 0;
+
+    // Start the task
+    await runCli(["start", taskId!], { storage });
+    output.stdout.length = 0;
+
+    // Verify it's in progress
+    const storeBeforeUnstart = await storage.readAsync();
+    const taskBefore = storeBeforeUnstart.tasks.find((t) => t.id === taskId);
+    expect(taskBefore?.started_at).toBeTruthy();
+
+    // Unstart the task
+    await runCli(["edit", taskId!, "--unstart"], { storage });
+
+    const out = output.stdout.join("\n");
+    expect(out).toContain("Updated");
+
+    // Verify started_at is cleared
+    const storeAfter = await storage.readAsync();
+    const taskAfter = storeAfter.tasks.find((t) => t.id === taskId);
+    expect(taskAfter?.started_at).toBeNull();
+  });
+
+  it("shows --unstart in help", async () => {
+    await runCli(["edit", "-h"], { storage });
+
+    const out = output.stdout.join("\n");
+    expect(out).toContain("--unstart");
+  });
 });
